@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 vector<anchor_t> random_anchors(long long width, long long height, int n, int length, int random_seed)
 {
 	vector<anchor_t> res;
-	std::uniform_int_distribution<int> qprng(0, width  - length);
+	std::uniform_int_distribution<int> qprng(0, (width  - length) * 50 / 100);
 	std::uniform_int_distribution<int> tprng(0, height - length);
 	std::random_device r;
 	std::mt19937 gen;
