@@ -42,9 +42,9 @@ struct gengetopt_args_info
   long anchors_arg;	/**< @brief Number of anchors (default='3').  */
   char * anchors_orig;	/**< @brief Number of anchors original value given at command line.  */
   const char *anchors_help; /**< @brief Number of anchors help description.  */
-  char * gap_gap_output_file_arg;	/**< @brief Visualize the gap-gap case in this file (BMP format) (default='gap-gap.bmp').  */
-  char * gap_gap_output_file_orig;	/**< @brief Visualize the gap-gap case in this file (BMP format) original value given at command line.  */
-  const char *gap_gap_output_file_help; /**< @brief Visualize the gap-gap case in this file (BMP format) help description.  */
+  char * gap_gap_lower_diagonal_output_file_arg;	/**< @brief Visualize the gap-gap, lower diagonal case in this file (BMP format) (default='gap-gap-ld.bmp').  */
+  char * gap_gap_lower_diagonal_output_file_orig;	/**< @brief Visualize the gap-gap, lower diagonal case in this file (BMP format) original value given at command line.  */
+  const char *gap_gap_lower_diagonal_output_file_help; /**< @brief Visualize the gap-gap, lower diagonal case in this file (BMP format) help description.  */
   int random_seed_arg;	/**< @brief Seed for the PRNG (-1 is different at every invocation) (default='-1').  */
   char * random_seed_orig;	/**< @brief Seed for the PRNG (-1 is different at every invocation) original value given at command line.  */
   const char *random_seed_help; /**< @brief Seed for the PRNG (-1 is different at every invocation) help description.  */
@@ -52,7 +52,7 @@ struct gengetopt_args_info
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int anchors_given ;	/**< @brief Whether anchors was given.  */
-  unsigned int gap_gap_output_file_given ;	/**< @brief Whether gap-gap-output-file was given.  */
+  unsigned int gap_gap_lower_diagonal_output_file_given ;	/**< @brief Whether gap-gap-lower-diagonal-output-file was given.  */
   unsigned int random_seed_given ;	/**< @brief Whether random-seed was given.  */
 
   char **inputs ; /**< @brief unnamed options (options without names) */

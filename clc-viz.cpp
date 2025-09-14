@@ -37,42 +37,42 @@ const vector<Color> palette = {
 typedef tuple<long long, long long, long long> anchor_t;
 vector<anchor_t> random_anchors(long long width, long long height, int n, int length, int random_seed);
 void place_dummy_anchors(int width, int height, vector<anchor_t> &anchors);
+void sort_anchors(vector<anchor_t> &anchors);
 void plot_anchors(grid_to_bmp::BmpImage &image, vector<anchor_t> &anchors, Color color = anchor_color);
-vector<tuple<long long,long long,long long>> solve_and_plot_gap_gap_forward_global(grid_to_bmp::BmpImage &image, vector<anchor_t> &anchors);
+void solve_global(vector<anchor_t> &anchors, vector<long long> &costs_out, vector<anchor_t> &chain_out);
+void plot_gap_gap_lower_diag(grid_to_bmp::BmpImage &image, vector<anchor_t> &anchors, vector<long long> &costs);
 
 int main(int argc, char **argv) 
 {
 	gengetopt_args_info argsinfo;
 	if (cmdline_parser(argc, argv, &argsinfo) != 0) exit(1);
 	if (argsinfo.anchors_arg == 3) cerr << "Running with default option \"-n 3\"" << endl;
-	if (string(argsinfo.gap_gap_output_file_arg) == "gap-gap.bmp") cerr << "Running with default option \"-g gap-gap.bmp\"" << endl;
+	if (string(argsinfo.gap_gap_lower_diagonal_output_file_arg) == "gap-gap-ld.bmp") cerr << "Running with default option \"-g gap-gap-ld.bmp\"" << endl;
 	if (argsinfo.random_seed_arg == -1) cerr << "Running with default option \"-r -1\"" << endl;
 
-	const int width = 200;
-	const int height = 100;
-	const int anchor_length = 10;
+	const int width = 400;
+	const int height = 200;
+	const int anchor_length = 15;
 
 	vector<anchor_t> anchors = random_anchors(width, height, argsinfo.anchors_arg, anchor_length, argsinfo.random_seed_arg);
 	place_dummy_anchors(width, height, anchors);
-	std::sort (anchors.begin(), anchors.end(),
-			[](const anchor_t& a,
-				const anchor_t& b) -> bool
-			{
-			return get<0>(a) < get<0>(b);
-			});
+	sort_anchors(anchors);
 
 	grid_to_bmp::BmpImage image(width, height);
-	vector<anchor_t> optimal_chain = solve_and_plot_gap_gap_forward_global(image, anchors);
+	vector<long long> costs;
+	vector<anchor_t> optimal_chain;
+	solve_global(anchors, costs, optimal_chain);
+	plot_gap_gap_lower_diag(image, anchors, costs);
 	plot_anchors(image, anchors);
 	plot_anchors(image, optimal_chain, selected_anchor_color);
-	image.writeToFile(argsinfo.gap_gap_output_file_arg);
+	image.writeToFile(argsinfo.gap_gap_lower_diagonal_output_file_arg);
 }
 
 vector<anchor_t> random_anchors(long long width, long long height, int n, int length, int random_seed)
 {
 	vector<anchor_t> res;
 	std::uniform_int_distribution<int> qprng(0, (width  - length) * 50 / 100);
-	std::uniform_int_distribution<int> tprng(0, height - length);
+	std::uniform_int_distribution<int> tprng(0, (height - length) * 50 / 100);
 	std::random_device r;
 	std::mt19937 gen;
 	if (random_seed == -1) {
@@ -90,6 +90,17 @@ vector<anchor_t> random_anchors(long long width, long long height, int n, int le
 
 	return res;
 }
+
+void sort_anchors(vector<anchor_t> &anchors)
+{
+	std::sort(anchors.begin(), anchors.end(),
+			[](const anchor_t& a,
+				const anchor_t& b) -> bool
+			{
+			return get<0>(a) < get<0>(b);
+			});
+}
+
 
 void plot_anchors(grid_to_bmp::BmpImage &image, vector<anchor_t> &anchors, Color color)
 {
@@ -112,14 +123,14 @@ void place_dummy_anchors(int width, int height, vector<anchor_t> &anchors)
 	anchors.emplace_back(width, height, 1);
 }
 
-vector<anchor_t> solve_and_plot_gap_gap_forward_global(grid_to_bmp::BmpImage &image, vector<anchor_t> &anchors)
+void solve_global(vector<anchor_t> &anchors, vector<long long> &costs_out, vector<anchor_t> &chain_out)
 {
 	long long n = anchors.size();
-	vector<long long> costs(n, 0);
+	costs_out = vector<long long>(n, 0);
 	vector<long long> backtracks(n, -1);
-	vector<anchor_t> optimal_chain;
+	chain_out.clear();
 
-	// 1. compute optimal costs (ChainX precedence)
+	// compute optimal costs (ChainX precedence)
 	for(long long j = 1; j < n; j++) // ignore first dummy anchors
 	{
 		//compute cost[i] here
@@ -139,7 +150,7 @@ vector<anchor_t> solve_and_plot_gap_gap_forward_global(grid_to_bmp::BmpImage &im
 			long long i_c = get<1>(anchors[i]);
 			long long i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
 
-			if (costs[i] < std::numeric_limits<long long>::max() && i_a < j_a && i_b < j_b && i_c < j_c && i_d < j_d)
+			if (costs_out[i] < std::numeric_limits<long long>::max() && i_a < j_a && i_b < j_b && i_c < j_c && i_d < j_d)
 			{
 				long long gap1 = max((long long)0, j_a - i_b - 1);
 				long long gap2 = max((long long)0, j_c - i_d - 1);
@@ -149,16 +160,28 @@ vector<anchor_t> solve_and_plot_gap_gap_forward_global(grid_to_bmp::BmpImage &im
 				long long overlap2 = max((long long)0, i_d - j_c + 1);
 				long long o = abs(overlap1 - overlap2);
 
-				if (costs[i] + g + o < find_min_cost) backtrack = i;
-				find_min_cost = min(find_min_cost, costs[i] + g + o);
+				if (costs_out[i] + g + o < find_min_cost) backtrack = i;
+				find_min_cost = min(find_min_cost, costs_out[i] + g + o);
 			}
 		}
 		//save optimal cost at offset j
-		costs[j] = find_min_cost;
+		costs_out[j] = find_min_cost;
 		backtracks[j] = backtrack;
 	}
 
-	// 2. project and plot optimal costs
+	// return optimal chain
+	for (long long i = n - 1; backtracks[i] >= 0; i = backtracks[i]) {
+		chain_out.push_back(anchors[i]);
+	}
+	chain_out.push_back(anchors[0]);
+	std::reverse(chain_out.begin(), chain_out.end());
+}
+
+void plot_gap_gap_lower_diag(grid_to_bmp::BmpImage &image, vector<anchor_t> &anchors, vector<long long> &costs)
+{
+	long long n = anchors.size();
+
+	// project and plot optimal costs
 	vector<vector<long long>> gap_gap_forward_costs(
 			image.width,
 			vector<long long>(image.height, std::numeric_limits<long long>::max())
@@ -176,7 +199,8 @@ vector<anchor_t> solve_and_plot_gap_gap_forward_global(grid_to_bmp::BmpImage &im
 				long long g = max(gap1,gap2);
 				long long gap_gap_cost = costs[i] + g;
 
-				if (gap_gap_cost <= gap_gap_forward_costs[j_a][j_c]) { // TODO investigate ties
+				if (i_a - i_c <= j_a - j_c and
+						gap_gap_cost <= gap_gap_forward_costs[j_a][j_c]) { // TODO investigate ties
 					gap_gap_forward_costs[j_a][j_c] = gap_gap_cost;
 					image.putpixel(j_a, j_c, palette[(i + palette.size()-1) % palette.size()]);
 				}
@@ -184,11 +208,4 @@ vector<anchor_t> solve_and_plot_gap_gap_forward_global(grid_to_bmp::BmpImage &im
 		}
 	}
 
-	// 3. return optimal chain
-	for (long long i = n - 1; backtracks[i] >= 0; i = backtracks[i]) {
-		optimal_chain.push_back(anchors[i]);
-	}
-	optimal_chain.push_back(anchors[0]);
-	std::reverse(optimal_chain.begin(), optimal_chain.end());
-	return optimal_chain;
 }

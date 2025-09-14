@@ -27,7 +27,7 @@
 
 const char *gengetopt_args_info_purpose = "Simple visualization of optimal colinear chaining recursive scores";
 
-const char *gengetopt_args_info_usage = "Usage: clc-viz [-n ANCHORNUM] [-g gap-gap.bmp]";
+const char *gengetopt_args_info_usage = "Usage: clc-viz [-n ANCHORNUM] [-g gap-gap-ld.bmp]";
 
 const char *gengetopt_args_info_versiontext = "";
 
@@ -37,7 +37,7 @@ const char *gengetopt_args_info_help[] = {
   "  -h, --help                    Print help and exit",
   "  -V, --version                 Print version and exit",
   "  -n, --anchors=ANCHORNUM       Number of anchors  (default=`3')",
-  "  -g, --gap-gap-output-file=BMPFILE\n                                Visualize the gap-gap case in this file (BMP\n                                  format)  (default=`gap-gap.bmp')",
+  "  -g, --gap-gap-lower-diagonal-output-file=BMPFILE\n                                Visualize the gap-gap, lower diagonal case in\n                                  this file (BMP format)\n                                  (default=`gap-gap-ld.bmp')",
   "  -r, --random-seed=INT         Seed for the PRNG (-1 is different at every\n                                  invocation)  (default=`-1')",
     0
 };
@@ -67,7 +67,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->help_given = 0 ;
   args_info->version_given = 0 ;
   args_info->anchors_given = 0 ;
-  args_info->gap_gap_output_file_given = 0 ;
+  args_info->gap_gap_lower_diagonal_output_file_given = 0 ;
   args_info->random_seed_given = 0 ;
 }
 
@@ -77,8 +77,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   FIX_UNUSED (args_info);
   args_info->anchors_arg = 3;
   args_info->anchors_orig = NULL;
-  args_info->gap_gap_output_file_arg = gengetopt_strdup ("gap-gap.bmp");
-  args_info->gap_gap_output_file_orig = NULL;
+  args_info->gap_gap_lower_diagonal_output_file_arg = gengetopt_strdup ("gap-gap-ld.bmp");
+  args_info->gap_gap_lower_diagonal_output_file_orig = NULL;
   args_info->random_seed_arg = -1;
   args_info->random_seed_orig = NULL;
   
@@ -92,7 +92,7 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->help_help = gengetopt_args_info_help[0] ;
   args_info->version_help = gengetopt_args_info_help[1] ;
   args_info->anchors_help = gengetopt_args_info_help[2] ;
-  args_info->gap_gap_output_file_help = gengetopt_args_info_help[3] ;
+  args_info->gap_gap_lower_diagonal_output_file_help = gengetopt_args_info_help[3] ;
   args_info->random_seed_help = gengetopt_args_info_help[4] ;
   
 }
@@ -187,8 +187,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
 {
   unsigned int i;
   free_string_field (&(args_info->anchors_orig));
-  free_string_field (&(args_info->gap_gap_output_file_arg));
-  free_string_field (&(args_info->gap_gap_output_file_orig));
+  free_string_field (&(args_info->gap_gap_lower_diagonal_output_file_arg));
+  free_string_field (&(args_info->gap_gap_lower_diagonal_output_file_orig));
   free_string_field (&(args_info->random_seed_orig));
   
   
@@ -231,8 +231,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "version", 0, 0 );
   if (args_info->anchors_given)
     write_into_file(outfile, "anchors", args_info->anchors_orig, 0);
-  if (args_info->gap_gap_output_file_given)
-    write_into_file(outfile, "gap-gap-output-file", args_info->gap_gap_output_file_orig, 0);
+  if (args_info->gap_gap_lower_diagonal_output_file_given)
+    write_into_file(outfile, "gap-gap-lower-diagonal-output-file", args_info->gap_gap_lower_diagonal_output_file_orig, 0);
   if (args_info->random_seed_given)
     write_into_file(outfile, "random-seed", args_info->random_seed_orig, 0);
   
@@ -498,7 +498,7 @@ cmdline_parser_internal (
         { "help",	0, NULL, 'h' },
         { "version",	0, NULL, 'V' },
         { "anchors",	1, NULL, 'n' },
-        { "gap-gap-output-file",	1, NULL, 'g' },
+        { "gap-gap-lower-diagonal-output-file",	1, NULL, 'g' },
         { "random-seed",	1, NULL, 'r' },
         { 0,  0, 0, 0 }
       };
@@ -531,14 +531,14 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'g':	/* Visualize the gap-gap case in this file (BMP format).  */
+        case 'g':	/* Visualize the gap-gap, lower diagonal case in this file (BMP format).  */
         
         
-          if (update_arg( (void *)&(args_info->gap_gap_output_file_arg), 
-               &(args_info->gap_gap_output_file_orig), &(args_info->gap_gap_output_file_given),
-              &(local_args_info.gap_gap_output_file_given), optarg, 0, "gap-gap.bmp", ARG_STRING,
+          if (update_arg( (void *)&(args_info->gap_gap_lower_diagonal_output_file_arg), 
+               &(args_info->gap_gap_lower_diagonal_output_file_orig), &(args_info->gap_gap_lower_diagonal_output_file_given),
+              &(local_args_info.gap_gap_lower_diagonal_output_file_given), optarg, 0, "gap-gap-ld.bmp", ARG_STRING,
               check_ambiguity, override, 0, 0,
-              "gap-gap-output-file", 'g',
+              "gap-gap-lower-diagonal-output-file", 'g',
               additional_error))
             goto failure;
         
