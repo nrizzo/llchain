@@ -39,7 +39,7 @@ struct gengetopt_args_info
 {
   const char *help_help; /**< @brief Print help and exit help description.  */
   const char *version_help; /**< @brief Print version and exit help description.  */
-  long anchors_arg;	/**< @brief Number of anchors (default='3').  */
+  long anchors_arg;	/**< @brief Number of anchors (default='5').  */
   char * anchors_orig;	/**< @brief Number of anchors original value given at command line.  */
   const char *anchors_help; /**< @brief Number of anchors help description.  */
   char * gap_gap_lower_diagonal_output_file_arg;	/**< @brief Visualize the gap-gap, lower diagonal case in this file (BMP format) (default='gap-gap-ld.bmp').  */

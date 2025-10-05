@@ -3,7 +3,7 @@ package	"clc-viz"
 purpose	"Simple visualization of optimal colinear chaining recursive scores"
 usage	"clc-viz [-n ANCHORNUM] [-g gap-gap-ld.bmp]"
 
-option	"anchors"		n	"Number of anchors"	long	typestr = "ANCHORNUM"	default = "3"	optional
+option	"anchors"		n	"Number of anchors"	long	typestr = "ANCHORNUM"	default = "5"	optional
 option	"gap-gap-lower-diagonal-output-file"	g	"Visualize the gap-gap, lower diagonal case in this file (BMP format)"	string	typestr = "BMPFILE"	default="gap-gap-ld.bmp"	optional
 option	"random-seed"	r	"Seed for the PRNG (-1 is different at every invocation)"	int	typestr = "INT"	default="-1"	optional
 

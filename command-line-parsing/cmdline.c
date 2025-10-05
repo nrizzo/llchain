@@ -36,7 +36,7 @@ const char *gengetopt_args_info_description = "";
 const char *gengetopt_args_info_help[] = {
   "  -h, --help                    Print help and exit",
   "  -V, --version                 Print version and exit",
-  "  -n, --anchors=ANCHORNUM       Number of anchors  (default=`3')",
+  "  -n, --anchors=ANCHORNUM       Number of anchors  (default=`5')",
   "  -g, --gap-gap-lower-diagonal-output-file=BMPFILE\n                                Visualize the gap-gap, lower diagonal case in\n                                  this file (BMP format)\n                                  (default=`gap-gap-ld.bmp')",
   "  -r, --random-seed=INT         Seed for the PRNG (-1 is different at every\n                                  invocation)  (default=`-1')",
     0
@@ -75,7 +75,7 @@ static
 void clear_args (struct gengetopt_args_info *args_info)
 {
   FIX_UNUSED (args_info);
-  args_info->anchors_arg = 3;
+  args_info->anchors_arg = 5;
   args_info->anchors_orig = NULL;
   args_info->gap_gap_lower_diagonal_output_file_arg = gengetopt_strdup ("gap-gap-ld.bmp");
   args_info->gap_gap_lower_diagonal_output_file_orig = NULL;
@@ -524,7 +524,7 @@ cmdline_parser_internal (
         
           if (update_arg( (void *)&(args_info->anchors_arg), 
                &(args_info->anchors_orig), &(args_info->anchors_given),
-              &(local_args_info.anchors_given), optarg, 0, "3", ARG_LONG,
+              &(local_args_info.anchors_given), optarg, 0, "5", ARG_LONG,
               check_ambiguity, override, 0, 0,
               "anchors", 'n',
               additional_error))
