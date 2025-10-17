@@ -1,12 +1,14 @@
-DEPS=ext/grid_to_bmp.hpp command-line-parsing/cmdline.h command-line-parsing/cmdline.c
+DEPS=src/command-line-parsing/cmdline.h src/command-line-parsing/cmdline.c
+LIB_DIRS=ext
 
-clc-viz : clc-viz.cpp $(DEPS)
+clc-viz : src/clc-viz.cpp $(DEPS)
 	g++ -std=c++20 -O0 -g \
-	clc-viz.cpp command-line-parsing/cmdline.c \
+	-I $(LIB_DIRS) \
+	src/clc-viz.cpp src/command-line-parsing/cmdline.c \
 	-o clc-viz
 
-command-line-parsing/cmdline%c command-line-parsing/cmdline%h : command-line-parsing/config.ggo
+src/command-line-parsing/cmdline%c src/command-line-parsing/cmdline%h : src/command-line-parsing/config.ggo
 	gengetopt \
-		--input=./command-line-parsing/config.ggo \
-		--output-dir=./command-line-parsing/ \
+		--input=./src/command-line-parsing/config.ggo \
+		--output-dir=./src/command-line-parsing/ \
 		--unnamed-opts

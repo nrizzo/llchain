@@ -9,7 +9,7 @@
 #include <cassert>
 #include <set>
 
-#include "ext/grid_to_bmp.hpp"
+#include "grid_to_bmp.hpp"
 #include "command-line-parsing/cmdline.h" // gengetopt-generated parser
 
 using std::cerr, std::endl, std::vector, std::string, std::tuple, std::get, grid_to_bmp::Color, std::sort, std::min, std::min_element, std::max, std::abs, std::pair, std::multiset;
@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	// solve via the would-be linearithmic solution and compare
 	vector<long long> new_costs;
 	solve_global_linearithmic(anchors, new_costs, optimal_chain, costs);
-	assert(anchors.size() == costs.size() and anchors.back() == costs.back());
+	assert(new_costs.size() == costs.size() and new_costs.back() == costs.back());
 }
 
 vector<anchor_t> random_anchors(long long width, long long height, int n, int anchor_min_length, int anchor_max_length, int random_seed)
