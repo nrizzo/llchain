@@ -1,2 +1,5 @@
 clc-viz
 gap-gap-ld.bmp
+
+gcm.cache
+*.o

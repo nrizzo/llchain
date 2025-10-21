@@ -1,6 +1,6 @@
-version	"0.0.1"
+version	"0.0.2"
 package	"clc-viz"
-purpose	"Simple visualization of optimal colinear chaining recursive scores"
+purpose	"Verification, WIP implementation, and visualization of linearithmic-time colinear chaining"
 usage	"clc-viz [-n ANCHORNUM] [-g gap-gap-ld.bmp]"
 
 option	"anchors"		n	"Number of anchors"	long	typestr = "ANCHORNUM"	default = "5"	optional

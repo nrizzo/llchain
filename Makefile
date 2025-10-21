@@ -1,14 +1,23 @@
-DEPS=src/command-line-parsing/cmdline.h src/command-line-parsing/cmdline.c
-LIB_DIRS=ext
+FLAGS=-std=c++20 -fmodules -O0 -g
+CFLAGS=-std=c++20 -O0 -g
+.PHONY : clean
 
-clc-viz : src/clc-viz.cpp $(DEPS)
-	g++ -std=c++20 -O0 -g \
-	-I $(LIB_DIRS) \
-	src/clc-viz.cpp src/command-line-parsing/cmdline.c \
-	-o clc-viz
+clc-viz : src/clc-viz.cpp src/Utils.o src/Algo.o src/command-line-parsing/cmdline.o
+	g++ -I src $(FLAGS) $^ -o clc-viz
 
-src/command-line-parsing/cmdline%c src/command-line-parsing/cmdline%h : src/command-line-parsing/config.ggo
+src/command-line-parsing/cmdline.o : src/command-line-parsing/cmdline.h src/command-line-parsing/cmdline.c
+	g++ $(CFLAGS) -c $^ -o $@
+src/command-line-parsing/cmdline.c src/command-line-parsing/cmdline.h : src/command-line-parsing/config.ggo
 	gengetopt \
 		--input=./src/command-line-parsing/config.ggo \
 		--output-dir=./src/command-line-parsing/ \
 		--unnamed-opts
+
+src/Utils.o : src/Utils.cppm ext/grid_to_bmp.hpp
+	g++ $(FLAGS) -I ext -c $< -o $@
+src/Algo.o : src/Algo.cppm src/Utils.o
+	g++ $(FLAGS) -c $< -o $@
+
+clean :
+	-rm -f src/Utils.o src/command-line-parsing/cmdline.o
+	-rm -Rf gcm.cache
