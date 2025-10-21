@@ -58,6 +58,12 @@ export typedef long long anchor_index_t;
 export typedef tuple<anchor_index_t, anchor_index_t, anchor_index_t> anchor_t;
 
 /*
+ * computes cost of connecting anc2 after anc1 (max gap + absolute overlap diff)
+ */
+export anchor_index_t connect(const anchor_t &anc1, const anchor_t &anc2);
+export inline anchor_index_t connect(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2);
+
+/*
  * generate n random anchors
  * NB: anchors can overlap, intersect, be contained in one another
  * (see filter_perfect_chains)
@@ -109,6 +115,44 @@ export void plot_gap_gap_lower_diag(
 		vector<anchor_t> &anchors,
 		vector<anchor_index_t> &costs
 	);
+
+export
+inline
+anchor_index_t connect(const anchor_t &anc1, const anchor_t &anc2)
+{
+	const anchor_index_t a1 = get<0>(anc1);
+	const anchor_index_t b1 = get<0>(anc1) + get<2>(anc1);
+	const anchor_index_t c1 = get<1>(anc1);
+	const anchor_index_t d1 = get<1>(anc1) + get<2>(anc1);
+
+	const anchor_index_t a2 = get<0>(anc2);
+	const anchor_index_t b2 = get<0>(anc2) + get<2>(anc2);
+	const anchor_index_t c2 = get<1>(anc2);
+	const anchor_index_t d2 = get<1>(anc2) + get<2>(anc2);
+
+	const anchor_index_t Tgap = max((anchor_index_t)0, a2 - b1);
+	const anchor_index_t Qgap = max((anchor_index_t)0, c2 - d1);
+	const anchor_index_t g = max(Tgap, Qgap);
+	const anchor_index_t Tovl = max((anchor_index_t)0, b1 - a2);
+	const anchor_index_t Qovl = max((anchor_index_t)0, d1 - c2);
+	const anchor_index_t o = abs(Tovl - Qovl);
+
+	return g + o;
+}
+
+export
+inline
+anchor_index_t connect(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2)
+{
+	const anchor_index_t Tgap = max((anchor_index_t)0, a2 - b1);
+	const anchor_index_t Qgap = max((anchor_index_t)0, c2 - d1);
+	const anchor_index_t g = max(Tgap, Qgap);
+	const anchor_index_t Tovl = max((anchor_index_t)0, b1 - a2);
+	const anchor_index_t Qovl = max((anchor_index_t)0, d1 - c2);
+	const anchor_index_t o = abs(Tovl - Qovl);
+
+	return g + o;
+}
 
 export vector<anchor_t> random_anchors(anchor_index_t width, anchor_index_t height, int n, int random_seed)
 {

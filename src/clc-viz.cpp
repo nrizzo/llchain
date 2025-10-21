@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
 	// solve via the would-be linearithmic solution and compare
 	vector<long long> new_costs;
-	algo::solve_global_linearithmic_naive(anchors, new_costs, optimal_chain, costs);
+	algo::solve_global_linearithmic_naive(anchors, width, height, new_costs, optimal_chain, costs);
 	assert(new_costs.size() == costs.size() and new_costs.back() == costs.back());
 
 	return 0;
