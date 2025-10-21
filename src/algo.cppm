@@ -7,9 +7,10 @@ module; // global module fragment
 #include <map>
 #include <set>
 #include <cassert>
-import Utils; 
 
-export module Algo; // this module
+export module algo; // this module
+
+import utils;
 
 using std::vector;
 using std::tuple, std::pair;
@@ -17,7 +18,9 @@ using std::max, std::min;
 using std::cerr, std::endl;
 using std::map;
 using std::multiset;
+using utils::anchor_t;
 
+namespace algo {
 /*
  * solves chainx-precedence colinear chaining via DP
  * NB: O(n^2) time
@@ -733,3 +736,4 @@ export void solve_global_linearithmic_naive(
 		}
 	}
 }
+} // namespace algo

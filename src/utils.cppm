@@ -7,7 +7,7 @@ module; // global module fragment
 #include <iostream>
 #include "grid_to_bmp.hpp"
 
-export module Utils; // this module
+export module utils; // this module
 
 using std::vector;
 using std::tuple;
@@ -15,6 +15,8 @@ using std::uniform_int_distribution, std::random_device, std::mt19937; // random
 using std::max; // algorithm
 using std::cerr, std::endl;
 using grid_to_bmp::Color, grid_to_bmp::BmpImage; // grid_to_bmp
+
+namespace utils {
 export typedef grid_to_bmp::BmpImage Image;
 
 export namespace defaults
@@ -238,3 +240,4 @@ export void plot_gap_gap_lower_diag(BmpImage &image, vector<anchor_t> &anchors, 
 		}
 	}
 }
+} // namespace utils
