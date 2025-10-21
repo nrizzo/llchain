@@ -39,9 +39,10 @@ export void chainx_global_naive(
 /*
  * solves (relaxed chainx-precedence) colinear chaining via DP and mimicks the
  *   solution/data structures of our linearithmic-time prototype
- * NB: O(n^2) time or worse
+ * NB: O(n^2) time or worse due to case 2
  * NB: assumes anchors contains dummies (see place_dummy_anchors)
  * NB: assumes sorted anchors (see sort_anchors)
+ * NB: assumes there are no perfect chains between the anchors
  */
 export void solve_global_linearithmic_naive(
 		const vector<anchor_t> &anchors,
@@ -115,7 +116,7 @@ void update_startpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai
 void  update_endpoint_case_one (case_one_index &I, const anchor_t &a_j, const ai_t j_cost);
 
 /*
- * help function that checks all recursive cases considered by case one
+ * helper function that considers all recursive cases considered by case one
  */
 ai_t compute_case_one_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs);
 
@@ -128,25 +129,312 @@ ai_t compute_case_one_naive(const case_one_index_naive &I, const anchor_t &a_i);
 void update_startpoint_case_one_naive(case_one_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 void  update_endpoint_case_one_naive (case_one_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 
-enum line
-{
-	horizontal,
-	diagonal
-};
-
-struct case_two_index {
-	// TODO implement an efficient version
+/*
+ * case two: gap-gap case, bigger or equal-length gap in T
+ *   requires a complex data structure that handles all boundaries obtained
+ *   by propagating case 2 recursions to the right (horizontal or diagonal
+ *   lines)
+ *   TODO implement an efficient version
+ */
+enum line_t { horizontal, diagonal };
+struct case_two_index_naive {
 	const vector<anchor_t> &anchors;
-	vector<pair<ai_t,line>> delimiting_lines; // element is pair of anchor index and line type
+	vector<pair<ai_t,line_t>> delimiting_lines;
 	vector<ai_t> optimal_recursion_values;
 };
+struct case_two_index_naive init_case_two_naive(const vector<anchor_t> &anchors);
+ai_t compute_case_two_naive(case_two_index_naive &I, const anchor_t &anchor_i);
+void update_startpoint_case_two_naive(case_two_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_two_naive (case_two_index_naive &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
 
-struct case_two_index init_case_two(const vector<anchor_t> &anchors) {
-	case_two_index I = {anchors, {{0, horizontal}, {anchors.size()-1,horizontal}}, {std::numeric_limits<ai_t>::max()}};
+// helper functions
+/*
+ * consider all recursive cases considered by case two
+ */
+ai_t compute_case_two_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs_out);
+
+/*
+ * get the Q-position of a horizontal or diagonal line contained in the (naive)
+ *   index for case 2
+ */
+ai_t get_c(case_two_index_naive &I, ai_t line_index, ai_t current_a);
+
+/*
+ * handle intersection events for case 2 and remove lines that have been
+ *   "shadowed"
+ * NB: this naive version can take O(n^2) per call
+ */
+void prune_shadowed_delimiting_lines(case_two_index_naive &I, ai_t sweeping_line_a);
+
+/*
+ * case three: overlap in T, bigger diagonal
+ *   requires a 1-dimensional range minimum query data structure where the
+ *   (static) positions are anchor diagonals and the values (dynamic, better
+ *   values or removal ops only) are positive
+ */
+struct case_three_index {
+	MinSegmentTree<ai_t> recursive_values; // diagonal -> current C[j] + diag_j
+};
+struct case_three_index init_case_three(ai_t Tlength, ai_t Qlength);
+ai_t compute_case_three(const case_three_index &I, const anchor_t &a_i);
+void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_three (case_three_index &I, const anchor_t &a_j, const ai_t j_cost);
+
+/*
+ * helper function that considers all recursive cases considered by case three
+ */
+ai_t compute_case_three_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs);
+
+// unused functions below
+struct case_three_index_naive {
+	std::map<ai_t, multiset<ai_t>> recursive_values; // diagonal -> values C[j] + diag_j
+};
+struct case_three_index_naive init_case_three_naive();
+ai_t compute_case_three_naive(const case_three_index_naive &I, const anchor_t &a_i);
+void update_startpoint_case_three_naive(case_three_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
+void update_endpoint_case_three_naive(case_three_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
+
+/*
+ * case four: overlap in T, smaller diagonal
+ *   requires a 1-dimensional range minimum query data structure where the
+ *   (static) positions are anchor diagonals and the values (dynamic, better
+ *   values or removal ops only) can be negative
+ */
+struct case_four_index {
+	MinSegmentTree<ai_t> recursive_values; // diagonal -> current C[j] - diag_j
+};
+struct case_four_index init_case_four(ai_t Tlength, ai_t Qlength);
+ai_t compute_case_four(const case_four_index &I, const anchor_t &a_i);
+void update_startpoint_case_four(case_four_index &I, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_four (case_four_index &I, const anchor_t &a_j, const ai_t j_cost);
+
+/*
+ * helper function that considers all recursive cases considered by case four
+ */
+ai_t compute_case_four_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs_out);
+
+// unused functions below
+struct case_four_index_naive {
+	std::map<ai_t, multiset<ai_t>> recursive_values; // diagonal -> multiset of values C[j] + diag_j
+};
+struct case_four_index_naive init_case_four_naive();
+ai_t compute_case_four_naive(const case_four_index_naive &I, const anchor_t &a_i);
+void update_startpoint_case_four_naive(case_four_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
+void update_endpoint_case_four_naive(case_four_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
+
+
+/*
+ * case five: gap in T, overlap in Q
+ *   requires a 1-dimensional range minimum query data structure where the
+ *   (static) positions are Q positions and the values (semi-dynamic, better
+ *   values only) can be negative
+ */
+struct case_five_index {
+	MinSegmentTree<ai_t> recursive_values; // Q endpoint -> C[j] - diag_j
+};
+struct case_five_index init_case_five(ai_t Tlength, ai_t Qlength);
+ai_t compute_case_five(const case_five_index &I, const anchor_t &a_i);
+void update_startpoint_case_five(case_five_index &I, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_five (case_five_index &I, const anchor_t &a_j, const ai_t j_cost);
+
+/*
+ * helper function that considers all recursive cases considered by case five
+ */
+ai_t compute_case_five_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs_out);
+
+// unused functions below
+struct case_five_index_naive {
+	std::map<ai_t, ai_t> recursive_values; // j_d -> min(C[j] - diag_j)
+};
+struct case_five_index_naive init_case_five_naive();
+ai_t compute_case_five_naive(const case_five_index_naive &I, const anchor_t &a_i);
+void update_startpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
+void update_endpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
+
+export
+void solve_global_linearithmic_naive(
+		const vector<anchor_t> &anchors,
+		const ai_t Tlength,
+		const ai_t Qlength,
+		vector<ai_t> &costs_out,
+		vector<anchor_t> &chain_out,
+		const vector<ai_t> &correct_costs
+) {
+	ai_t n = anchors.size();
+	costs_out = vector<ai_t>(n, 0);
+	chain_out.clear();
+
+	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
+	points.reserve(2 * n - 2);
+	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
+		points.push_back(-i);
+	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
+		points.push_back(i);
+	std::stable_sort(points.begin(), points.end(),
+			[&](const ai_t i,
+				const ai_t j) -> bool
+			{
+			return (((i >= 0) ? std::get<0>(anchors[i]) : std::get<0>(anchors[-i]) + std::get<2>(anchors[-i])) <
+					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
+			});
+
+	case_one_index   I_one   = init_case_one(Tlength, Qlength);
+	case_two_index_naive   I_two   = init_case_two_naive(anchors);
+	case_three_index I_three = init_case_three(Tlength, Qlength);
+	case_four_index  I_four  = init_case_four(Tlength, Qlength);
+	case_five_index  I_five  = init_case_five(Tlength, Qlength);
+
+	for (ai_t point : points) {
+		if (point >= 0) { // startpoint
+			ai_t i = point;
+			ai_t i_a = get<0>(anchors[i]);
+			ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+			ai_t i_c = get<1>(anchors[i]);
+			ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+
+			// compute cost[i]
+			ai_t cost = costs_out[0] + max(i_a, i_c); // connect(a_0, a_i)
+			assert(compute_case_one  (I_one,   anchors[i]) == compute_case_one_debug (anchors, i, costs_out));
+			assert(compute_case_two_naive  (I_two,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
+			assert(compute_case_three(I_three, anchors[i]) == compute_case_three_debug(anchors, i, costs_out));
+			assert(compute_case_four (I_four,  anchors[i]) == compute_case_four_debug (anchors, i, costs_out));
+			assert(compute_case_five (I_five,  anchors[i]) == compute_case_five_debug (anchors, i, costs_out));
+
+			cost = std::min(cost, compute_case_one  (I_one,   anchors[i]));
+			cost = std::min(cost, compute_case_two_naive  (I_two,   anchors[i]));
+			cost = std::min(cost, compute_case_three(I_three, anchors[i]));
+			cost = std::min(cost, compute_case_four (I_four,  anchors[i]));
+			cost = std::min(cost, compute_case_five (I_five,  anchors[i]));
+			costs_out[i] = cost;
+			assert(costs_out[i] <= correct_costs[i]);
+
+			update_startpoint_case_one  (I_one,   anchors[i], costs_out[i]);
+			update_startpoint_case_two_naive  (I_two,   anchors[i], costs_out[i]);
+			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
+			update_startpoint_case_four (I_four,  anchors[i], costs_out[i]);
+			update_startpoint_case_five (I_five,  anchors[i], costs_out[i]);
+		} else { // endpoint
+			ai_t i = -point;
+			update_endpoint_case_one  (I_one,    anchors[i], costs_out[i]);
+			update_endpoint_case_two_naive  (I_two, i, anchors[i], costs_out[i]);
+			update_endpoint_case_three(I_three,  anchors[i], costs_out[i]);
+			update_endpoint_case_four (I_four,   anchors[i], costs_out[i]);
+			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
+		}
+	}
+}
+
+struct case_one_index_naive init_case_one_naive()
+{
+	return case_one_index_naive();
+}
+
+ai_t compute_case_one_naive(const case_one_index_naive &I, const anchor_t &a_i)
+{
+	ai_t i_a = get<0>(a_i);
+	ai_t i_c = get<1>(a_i);
+	ai_t i_diag = i_a - i_c;
+
+	// naive range min query
+	ai_t rec_min = std::numeric_limits<ai_t>::max();
+	for (auto it = I.recursive_values.upper_bound(i_diag); it != I.recursive_values.end(); it++) {
+		const ai_t rec_value = it->second;
+		rec_min = std::min(rec_value, rec_min);
+	}
+
+	if (rec_min < std::numeric_limits<ai_t>::max()) {
+		return i_c + rec_min;
+	} else {
+		return std::numeric_limits<ai_t>::max();
+	}
+}
+
+void update_startpoint_case_one_naive(case_one_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	// do nothing
+}
+
+void update_endpoint_case_one_naive(case_one_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	ai_t j_a = get<0>(a_j);
+	ai_t j_c = get<1>(a_j);
+	ai_t j_d = get<1>(a_j) + get<2>(a_j);
+	ai_t j_diag = j_a - j_c;
+	ai_t rec_value = j_cost - j_d;
+
+	if (I.recursive_values.contains(j_diag)) {
+		I.recursive_values[j_diag] = std::min(I.recursive_values[j_diag], rec_value);
+	} else {
+		I.recursive_values[j_diag] = rec_value;
+	}
+}
+
+struct case_one_index init_case_one(ai_t Tlength, ai_t Qlength)
+{
+	return case_one_index({ MinSegmentTree<ai_t>(-Qlength, Tlength) });
+}
+
+ai_t compute_case_one(const case_one_index &I, const anchor_t &a_i)
+{
+	const ai_t i_a = get<0>(a_i);
+	const ai_t i_c = get<1>(a_i);
+	const ai_t i_diag = i_a - i_c;
+
+	const ai_t rec_min = I.recursive_values.query(i_diag + 1, I.recursive_values.maxquery);
+
+	if (rec_min < std::numeric_limits<ai_t>::max()) {
+		return i_c + rec_min;
+	} else {
+		return std::numeric_limits<ai_t>::max();
+	}
+}
+
+void update_startpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	// do nothing
+}
+
+void update_endpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	const ai_t j_a = get<0>(a_j);
+	const ai_t j_c = get<1>(a_j);
+	const ai_t j_d = get<1>(a_j) + get<2>(a_j);
+	const ai_t j_diag = j_a - j_c;
+	const ai_t rec_value = j_cost - j_d;
+
+	I.recursive_values.update(j_diag, rec_value);
+}
+
+ai_t compute_case_one_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
+{
+	ai_t cost = std::numeric_limits<ai_t>::max();
+
+	const ai_t i_a = get<0>(anchors[i]);
+	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+	const ai_t i_c = get<1>(anchors[i]);
+	const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+
+	// anchor j < anchor i
+	for(ai_t j = i - 1; j > 0; j--) { // dummy start anchor is handled separately
+		const ai_t j_a = get<0>(anchors[j]);
+		const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
+		const ai_t j_c = get<1>(anchors[j]);
+		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
+
+		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		    j_b <= i_a and j_d <= i_c and j_a - j_c > i_a - i_c) // case 1
+			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
+	}
+
+	return cost;
+}
+
+struct case_two_index_naive init_case_two_naive(const vector<anchor_t> &anchors) {
+	case_two_index_naive I = {anchors, {{0, horizontal}, {anchors.size()-1,horizontal}}, {std::numeric_limits<ai_t>::max()}};
 	return I;
 }
 
-ai_t get_c(case_two_index &I, ai_t line_index, ai_t current_a)
+ai_t get_c(case_two_index_naive &I, ai_t line_index, ai_t current_a)
 {
 	assert(line_index >= 0 and line_index < I.delimiting_lines.size());
 	ai_t i = get<0>(I.delimiting_lines[line_index]);
@@ -159,15 +447,15 @@ ai_t get_c(case_two_index &I, ai_t line_index, ai_t current_a)
 	}
 }
 
-void prune_shadowed_delimiting_lines(case_two_index &I, ai_t sweeping_line_a)
+void prune_shadowed_delimiting_lines(case_two_index_naive &I, ai_t sweeping_line_a)
 {
 	if (I.delimiting_lines.size() > 0) {
 		assert(I.delimiting_lines.size() == I.optimal_recursion_values.size() + 1);
 		assert(I.delimiting_lines[0].second == horizontal);
 		for(ai_t l = 1; l < I.delimiting_lines.size() - 1; l++) { // l>=2?
 			// has a line reached the following one?
-			pair<ai_t,line> l1 = I.delimiting_lines[l];
-			pair<ai_t,line> l2 = I.delimiting_lines[l + 1];
+			pair<ai_t,line_t> l1 = I.delimiting_lines[l];
+			pair<ai_t,line_t> l2 = I.delimiting_lines[l + 1];
 			if (l1.second == diagonal and l2.second == horizontal) {
 				ai_t l1_diag = get<0>(I.anchors[l1.first]) - get<1>(I.anchors[l1.first]);
 				ai_t l2_d = get<1>(I.anchors[l2.first]) + get<2>(I.anchors[l2.first]);
@@ -192,9 +480,8 @@ void prune_shadowed_delimiting_lines(case_two_index &I, ai_t sweeping_line_a)
 	}
 }
 
-ai_t compute_case_two(case_two_index &I, const anchor_t &anchor_i)
+ai_t compute_case_two_naive(case_two_index_naive &I, const anchor_t &anchor_i)
 {
-	// TODO binary search
 	ai_t i_a = get<0>(anchor_i);
 	ai_t i_c = get<1>(anchor_i);
 	prune_shadowed_delimiting_lines(I, i_a);
@@ -216,12 +503,12 @@ ai_t compute_case_two(case_two_index &I, const anchor_t &anchor_i)
 	}
 }
 
-void update_startpoint_case_two(case_two_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_two_naive(case_two_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
 {
 	// do nothing
 }
 
-void update_endpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
+void update_endpoint_case_two_naive(case_two_index_naive &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
 	ai_t j_b = get<0>(a_j) + get<2>(a_j);
 	ai_t j_d = get<1>(a_j) + get<2>(a_j);
@@ -290,53 +577,36 @@ void update_endpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, co
 	}
 }
 
-ai_t naive_compute_case_two(const vector<anchor_t> &anchors, ai_t i, const vector<ai_t> &costs_out)
+ai_t compute_case_two_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
-	// naively compute what we THINK we are computing in case two
-	ai_t find_min_cost = std::numeric_limits<ai_t>::max();
+	ai_t cost = std::numeric_limits<ai_t>::max();
 
 	ai_t i_a = get<0>(anchors[i]);
-	ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+	ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
 	ai_t i_c = get<1>(anchors[i]);
-	ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+	ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
-	// anchor j < anchor i 
-	for(ai_t j = i - 1; j > 0; j--) // dummy anchor[0] is treated separately!
-	{
+	// anchor j < anchor i
+	for(ai_t j = i - 1; j > 0; j--) { // dummy start anchor is handled separately
 		ai_t j_a = get<0>(anchors[j]);
-		ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]) - 1;
+		ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
 		ai_t j_c = get<1>(anchors[j]);
-		ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]) - 1;
+		ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs_out[j] < std::numeric_limits<ai_t>::max() and 
-				j_b < i_a and j_d < i_c and j_a - j_c <= i_a - i_c) // case 2
-		{
-			ai_t gap1 = max((ai_t)0, i_a - j_b - 1);
-			ai_t gap2 = max((ai_t)0, i_c - j_d - 1);
-			ai_t g = max(gap1,gap2);
-
-			ai_t overlap1 = max((ai_t)0, j_b - i_a + 1);
-			ai_t overlap2 = max((ai_t)0, j_d - i_c + 1);
-			ai_t o = abs(overlap1 - overlap2);
-
-			find_min_cost = min(find_min_cost, costs_out[j] + g + o);
-		}
+		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		    j_b <= i_a and j_d <= i_c and j_a - j_c <= i_a - i_c) // case 2
+			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
 
-	return find_min_cost;
+	return cost;
 }
 
-struct case_three_index {
-	// TODO implement an efficient version
-	std::map<ai_t, multiset<ai_t>> recursive_values; // diagonal -> multiset of values C[j] + diag_j
-};
-
-struct case_three_index init_case_three()
+struct case_three_index_naive init_case_three_naive()
 {
-	return case_three_index();
+	return case_three_index_naive();
 }
 
-ai_t compute_case_three(const case_three_index &I, const anchor_t &a_i)
+ai_t compute_case_three_naive(const case_three_index_naive &I, const anchor_t &a_i)
 {
 	ai_t i_a = get<0>(a_i);
 	ai_t i_c = get<1>(a_i);
@@ -356,7 +626,7 @@ ai_t compute_case_three(const case_three_index &I, const anchor_t &a_i)
 	}
 }
 
-void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_three_naive(case_three_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
 {
 	ai_t j_a = get<0>(a_j);
 	ai_t j_c = get<1>(a_j);
@@ -370,7 +640,7 @@ void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, cons
 	}
 }
 
-void update_endpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_endpoint_case_three_naive(case_three_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
 {
 	ai_t j_a = get<0>(a_j);
 	ai_t j_c = get<1>(a_j);
@@ -385,53 +655,76 @@ void update_endpoint_case_three(case_three_index &I, const anchor_t &a_j, const 
 	}
 }
 
-ai_t naive_compute_case_three(const vector<anchor_t> &anchors, ai_t i, const vector<ai_t> &costs_out)
+ai_t compute_case_three_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
-	// naively compute what we THINK we are computing in case three
-	ai_t find_min_cost = std::numeric_limits<ai_t>::max();
+	ai_t cost = std::numeric_limits<ai_t>::max();
 
-	ai_t i_a = get<0>(anchors[i]);
-	ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
-	ai_t i_c = get<1>(anchors[i]);
-	ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+	const ai_t i_a = get<0>(anchors[i]);
+	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+	const ai_t i_c = get<1>(anchors[i]);
+	const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
-	// anchor j < anchor i 
-	for(ai_t j = i - 1; j > 0; j--) // dummy anchor[0] is treated separately!
-	{
-		ai_t j_a = get<0>(anchors[j]);
-		ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]) - 1;
-		ai_t j_c = get<1>(anchors[j]);
-		ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]) - 1;
+	// anchor j < anchor i
+	for(ai_t j = i - 1; j > 0; j--) { // dummy start anchor is handled separately
+		const ai_t j_a = get<0>(anchors[j]);
+		const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
+		const ai_t j_c = get<1>(anchors[j]);
+		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs_out[i] < std::numeric_limits<ai_t>::max() and 
-				j_a <= i_a and i_a <= j_b and j_a - j_c > i_a - i_c) // case 3
-		{
-			ai_t gap1 = max((ai_t)0, i_a - j_b - 1);
-			ai_t gap2 = max((ai_t)0, i_c - j_d - 1);
-			ai_t g = max(gap1,gap2);
-
-			ai_t overlap1 = max((ai_t)0, j_b - i_a + 1);
-			ai_t overlap2 = max((ai_t)0, j_d - i_c + 1);
-			ai_t o = abs(overlap1 - overlap2);
-
-			find_min_cost = min(find_min_cost, costs_out[j] + g + o);
-		}
+		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		    j_a <= i_a and i_a < j_b and j_a - j_c > i_a - i_c) // case 3
+			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
 
-	return find_min_cost;
+	return cost;
 }
 
-struct case_four_index {
-	// TODO implement an efficient version
-	std::map<ai_t, multiset<ai_t>> recursive_values; // diagonal -> multiset of values C[j] + diag_j
-};
-
-struct case_four_index init_case_four()
+struct case_three_index init_case_three(ai_t Tlength, ai_t Qlength)
 {
-	return case_four_index();
+	return case_three_index({ MinSegmentTree<ai_t>(-Qlength, Tlength) });
 }
 
-ai_t compute_case_four(const case_four_index &I, const anchor_t &a_i)
+ai_t compute_case_three(const case_three_index &I, const anchor_t &a_i)
+{
+	const ai_t i_a = get<0>(a_i);
+	const ai_t i_c = get<1>(a_i);
+	const ai_t i_diag = i_a - i_c;
+
+	const ai_t rec_min = I.recursive_values.query(i_diag + 1, I.recursive_values.maxquery);
+
+	if (rec_min < std::numeric_limits<ai_t>::max()) {
+		return rec_min - i_diag;
+	} else {
+		return std::numeric_limits<ai_t>::max();
+	}
+}
+
+void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	const ai_t j_a = get<0>(a_j);
+	const ai_t j_c = get<1>(a_j);
+	const ai_t j_diag = j_a - j_c;
+
+	assert(I.recursive_values.query(j_diag, j_diag) == std::numeric_limits<ai_t>::max());
+	I.recursive_values.update(j_diag, j_cost + j_diag);
+}
+
+void  update_endpoint_case_three (case_three_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	const ai_t j_a = get<0>(a_j);
+	const ai_t j_c = get<1>(a_j);
+	const ai_t j_diag = j_a - j_c;
+
+	assert(I.recursive_values.query(j_diag, j_diag) == j_cost + j_diag);
+	I.recursive_values.remove(j_diag);
+}
+
+struct case_four_index_naive init_case_four_naive()
+{
+	return case_four_index_naive();
+}
+
+ai_t compute_case_four_naive(const case_four_index_naive &I, const anchor_t &a_i)
 {
 	ai_t i_a = get<0>(a_i);
 	ai_t i_c = get<1>(a_i);
@@ -451,7 +744,7 @@ ai_t compute_case_four(const case_four_index &I, const anchor_t &a_i)
 	}
 }
 
-void update_startpoint_case_four(case_four_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_four_naive(case_four_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
 {
 	ai_t j_a = get<0>(a_j);
 	ai_t j_c = get<1>(a_j);
@@ -465,7 +758,7 @@ void update_startpoint_case_four(case_four_index &I, const anchor_t &a_j, const 
 	}
 }
 
-void update_endpoint_case_four(case_four_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_endpoint_case_four_naive(case_four_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
 {
 	ai_t j_a = get<0>(a_j);
 	ai_t j_c = get<1>(a_j);
@@ -480,53 +773,77 @@ void update_endpoint_case_four(case_four_index &I, const anchor_t &a_j, const ai
 	}
 }
 
-ai_t naive_compute_case_four(const vector<anchor_t> &anchors, ai_t i, const vector<ai_t> &costs_out)
+ai_t compute_case_four_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
-	// naively compute what we THINK we are computing in case four
-	ai_t find_min_cost = std::numeric_limits<ai_t>::max();
+	ai_t cost = std::numeric_limits<ai_t>::max();
 
-	ai_t i_a = get<0>(anchors[i]);
-	ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
-	ai_t i_c = get<1>(anchors[i]);
-	ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+	const ai_t i_a = get<0>(anchors[i]);
+	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+	const ai_t i_c = get<1>(anchors[i]);
+	const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
-	// anchor j < anchor i 
-	for(ai_t j = i - 1; j > 0; j--) // dummy anchor[0] is treated separately!
-	{
-		ai_t j_a = get<0>(anchors[j]);
-		ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]) - 1;
-		ai_t j_c = get<1>(anchors[j]);
-		ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]) - 1;
+	// anchor j < anchor i
+	for(ai_t j = i - 1; j > 0; j--) { // dummy start anchor is handled separately
+		const ai_t j_a = get<0>(anchors[j]);
+		const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
+		const ai_t j_c = get<1>(anchors[j]);
+		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs_out[i] < std::numeric_limits<ai_t>::max() and 
-				j_a <= i_a and i_a <= j_b and j_a - j_c <= i_a - i_c) // case 4
-		{
-			ai_t gap1 = max((ai_t)0, i_a - j_b - 1);
-			ai_t gap2 = max((ai_t)0, i_c - j_d - 1);
-			ai_t g = max(gap1,gap2);
-
-			ai_t overlap1 = max((ai_t)0, j_b - i_a + 1);
-			ai_t overlap2 = max((ai_t)0, j_d - i_c + 1);
-			ai_t o = abs(overlap1 - overlap2);
-
-			find_min_cost = min(find_min_cost, costs_out[j] + g + o);
-		}
+		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		    j_a <= i_a and i_a < j_b and j_a - j_c < i_a - i_c) // case 4
+			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
 
-	return find_min_cost;
+	return cost;
 }
 
-struct case_five_index {
-	// TODO implement an efficient version
-	std::map<ai_t, ai_t> recursive_values; // j_d -> min(C[j] - diag_j)
-};
-
-struct case_five_index init_case_five()
+struct case_four_index init_case_four(ai_t Tlength, ai_t Qlength)
 {
-	return case_five_index();
+	return case_four_index({ MinSegmentTree<ai_t>(-Qlength, Tlength) });
 }
 
-ai_t compute_case_five(const case_five_index &I, const anchor_t &a_i) {
+ai_t compute_case_four(const case_four_index &I, const anchor_t &a_i)
+{
+	const ai_t i_a = get<0>(a_i);
+	const ai_t i_c = get<1>(a_i);
+	const ai_t i_diag = i_a - i_c;
+
+	const ai_t rec_min = I.recursive_values.query(I.recursive_values.minquery, i_diag - 1);
+
+	if (rec_min < std::numeric_limits<ai_t>::max()) {
+		return rec_min + i_diag;
+	} else {
+		return std::numeric_limits<ai_t>::max();
+	}
+}
+
+void update_startpoint_case_four(case_four_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	const ai_t j_a = get<0>(a_j);
+	const ai_t j_c = get<1>(a_j);
+	const ai_t j_diag = j_a - j_c;
+
+	assert(I.recursive_values.query(j_diag, j_diag) == std::numeric_limits<ai_t>::max());
+	I.recursive_values.update(j_diag, j_cost - j_diag);
+}
+
+void  update_endpoint_case_four (case_four_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	const ai_t j_a = get<0>(a_j);
+	const ai_t j_c = get<1>(a_j);
+	const ai_t j_diag = j_a - j_c;
+
+	assert(I.recursive_values.query(j_diag, j_diag) == j_cost - j_diag);
+	I.recursive_values.remove(j_diag);
+}
+
+struct case_five_index_naive init_case_five_naive()
+{
+	return case_five_index_naive();
+}
+
+ai_t compute_case_five_naive(const case_five_index_naive &I, const anchor_t &a_i)
+{
 	ai_t i_a = get<0>(a_i);
 	ai_t i_c = get<1>(a_i);
 	ai_t i_d = get<1>(a_i) + get<2>(a_i);
@@ -546,12 +863,12 @@ ai_t compute_case_five(const case_five_index &I, const anchor_t &a_i) {
 	}
 }
 
-void update_startpoint_case_five(case_five_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
 {
 	// do nothing
 }
 
-void update_endpoint_case_five(case_five_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_endpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
 {
 	ai_t j_a = get<0>(a_j);
 	ai_t j_c = get<1>(a_j);
@@ -566,221 +883,64 @@ void update_endpoint_case_five(case_five_index &I, const anchor_t &a_j, const ai
 	}
 }
 
-ai_t naive_compute_case_five(const vector<anchor_t> &anchors, ai_t i, const vector<ai_t> &costs_out)
-{
-	//compute cost[i] here
-	ai_t find_min_cost = std::numeric_limits<ai_t>::max();
-
-	ai_t i_a = get<0>(anchors[i]);
-	ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
-	ai_t i_c = get<1>(anchors[i]);
-	ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
-
-	// anchor j < anchor i 
-	for(ai_t j = i - 1; j > 0; j--) // dummy anchor[0] is treated separately!
-	{
-		ai_t j_a = get<0>(anchors[j]);
-		ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]) - 1;
-		ai_t j_c = get<1>(anchors[j]);
-		ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]) - 1;
-
-		if (costs_out[i] < std::numeric_limits<ai_t>::max() and 
-				//j_a < i_a and j_b < i_b and j_c < i_c and j_d < i_d and // TODO remove this?
-				j_b < i_a and i_c <= j_d and j_d <= i_d) // case 5
-		{
-			ai_t gap1 = max((ai_t)0, i_a - j_b - 1);
-			ai_t gap2 = max((ai_t)0, i_c - j_d - 1);
-			ai_t g = max(gap1,gap2);
-
-			ai_t overlap1 = max((ai_t)0, j_b - i_a + 1);
-			ai_t overlap2 = max((ai_t)0, j_d - i_c + 1);
-			ai_t o = abs(overlap1 - overlap2);
-
-			find_min_cost = min(find_min_cost, costs_out[j] + g + o);
-		}
-	}
-
-	return find_min_cost;
-}
-
-export void solve_global_linearithmic_naive(
-		const vector<anchor_t> &anchors,
-		const ai_t Tlength,
-		const ai_t Qlength,
-		vector<ai_t> &costs_out,
-		vector<anchor_t> &chain_out,
-		const vector<ai_t> &correct_costs
-	)
-{
-	// NB anchors down here are closed-open intervals [i_a..i_b), [i_c..i_d) MOST OF THE TIME TODO
-	ai_t n = anchors.size();
-	costs_out = vector<ai_t>(n, 0);
-	chain_out.clear();
-
-	vector<ai_t> points; // horizontal line sweep (+j means start, -j means end)
-	points.reserve(2 * n - 2);
-	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
-		points.push_back(-i);
-	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
-		points.push_back(i);
-	std::stable_sort(points.begin(), points.end(),
-			[&](const ai_t i,
-				const ai_t j) -> bool
-			{
-			return (((i >= 0) ? std::get<0>(anchors[i]) : std::get<0>(anchors[-i]) + std::get<2>(anchors[-i])) <
-					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
-			});
-
-	case_one_index   I_one   = init_case_one(Tlength, Qlength);
-	case_two_index   I_two   = init_case_two(anchors);
-	case_three_index I_three = init_case_three();
-	case_four_index  I_four  = init_case_four();
-	case_five_index  I_five  = init_case_five();
-
-	// compute optimal costs (ChainX RELAXED precedence)
-	for (ai_t point : points) {
-		if (point >= 0) { // startpoint
-			ai_t i = point;
-			ai_t i_a = get<0>(anchors[i]);
-			ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
-			ai_t i_c = get<1>(anchors[i]);
-			ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
-
-			// compute cost[i]
-			ai_t cost = costs_out[0] + max(i_a, i_c); // connect(a_0, a_i)
-			assert(compute_case_one  (I_one,   anchors[i]) == compute_case_one_debug (anchors, i, costs_out));
-			assert(compute_case_two  (I_two,   anchors[i]) == naive_compute_case_two  (anchors, i, costs_out));
-			assert(compute_case_three(I_three, anchors[i]) == naive_compute_case_three(anchors, i, costs_out));
-			assert(compute_case_four (I_four,  anchors[i]) == naive_compute_case_four (anchors, i, costs_out));
-			assert(compute_case_five (I_five,  anchors[i]) == naive_compute_case_five (anchors, i, costs_out));
-
-			cost = std::min(cost, compute_case_one  (I_one,   anchors[i]));
-			cost = std::min(cost, compute_case_two  (I_two,   anchors[i]));
-			cost = std::min(cost, compute_case_three(I_three, anchors[i]));
-			cost = std::min(cost, compute_case_four (I_four,  anchors[i]));
-			cost = std::min(cost, compute_case_five (I_five,  anchors[i]));
-			costs_out[i] = cost;
-			assert(costs_out[i] <= correct_costs[i]);
-
-			update_startpoint_case_one  (I_one,   anchors[i], costs_out[i]);
-			update_startpoint_case_two  (I_two,   anchors[i], costs_out[i]);
-			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
-			update_startpoint_case_four (I_four,  anchors[i], costs_out[i]);
-			update_startpoint_case_five (I_five,  anchors[i], costs_out[i]);
-		} else { // endpoint
-			ai_t i = -point;
-			update_endpoint_case_one  (I_one,    anchors[i], costs_out[i]);
-			update_endpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
-			update_endpoint_case_three(I_three,  anchors[i], costs_out[i]);
-			update_endpoint_case_four (I_four,   anchors[i], costs_out[i]);
-			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
-		}
-	}
-}
-
-struct case_one_index_naive init_case_one_naive()
-{
-	return case_one_index_naive();
-}
-ai_t compute_case_one_naive(const case_one_index_naive &I, const anchor_t &a_i)
-{
-	ai_t i_a = get<0>(a_i);
-	ai_t i_c = get<1>(a_i);
-	ai_t i_diag = i_a - i_c;
-
-	// naive range min query
-	ai_t rec_min = std::numeric_limits<ai_t>::max();
-	for (auto it = I.recursive_values.upper_bound(i_diag); it != I.recursive_values.end(); it++) {
-		const ai_t rec_value = it->second;
-		rec_min = std::min(rec_value, rec_min);
-	}
-
-	if (rec_min < std::numeric_limits<ai_t>::max()) {
-		return i_c + rec_min;
-	} else {
-		return std::numeric_limits<ai_t>::max();
-	}
-}
-void update_startpoint_case_one_naive(case_one_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
-{
-	// do nothing
-}
-void update_endpoint_case_one_naive(case_one_index_naive &I, const anchor_t &a_j, const ai_t j_cost)
-{
-	ai_t j_a = get<0>(a_j);
-	ai_t j_c = get<1>(a_j);
-	ai_t j_d = get<1>(a_j) + get<2>(a_j);
-	ai_t j_diag = j_a - j_c;
-	ai_t rec_value = j_cost - j_d;
-
-	if (I.recursive_values.contains(j_diag)) {
-		I.recursive_values[j_diag] = std::min(I.recursive_values[j_diag], rec_value);
-	} else {
-		I.recursive_values[j_diag] = rec_value;
-	}
-}
-
-struct case_one_index init_case_one(ai_t Tlength, ai_t Qlength)
-{
-	return case_one_index({ MinSegmentTree<ai_t>(-Qlength, Tlength) });
-}
-
-ai_t compute_case_one(const case_one_index &I, const anchor_t &a_i)
-{
-	const ai_t i_a = get<0>(a_i);
-	const ai_t i_c = get<1>(a_i);
-	const ai_t i_diag = i_a - i_c;
-
-	// naive range min query
-	const ai_t rec_min = I.recursive_values.query(i_diag + 1, I.recursive_values.maxquery);
-
-	if (rec_min < std::numeric_limits<ai_t>::max()) {
-		return i_c + rec_min;
-	} else {
-		return std::numeric_limits<ai_t>::max();
-	}
-}
-
-void update_startpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai_t j_cost)
-{
-	// do nothing
-}
-
-void update_endpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai_t j_cost)
-{
-	const ai_t j_a = get<0>(a_j);
-	const ai_t j_c = get<1>(a_j);
-	const ai_t j_d = get<1>(a_j) + get<2>(a_j);
-	const ai_t j_diag = j_a - j_c;
-	const ai_t rec_value = j_cost - j_d;
-
-	I.recursive_values.update(j_diag, rec_value);
-}
-
-ai_t compute_case_one_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
+ai_t compute_case_five_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
 	ai_t cost = std::numeric_limits<ai_t>::max();
 
-	ai_t i_a = get<0>(anchors[i]);
-	ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
-	ai_t i_c = get<1>(anchors[i]);
-	ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+	const ai_t i_a = get<0>(anchors[i]);
+	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+	const ai_t i_c = get<1>(anchors[i]);
+	const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
-	// anchor j < anchor i 
-	for(ai_t j = i - 1; j > 0; j--) // dummy start anchor is handled separately
-	{
-		ai_t j_a = get<0>(anchors[j]);
-		ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
-		ai_t j_c = get<1>(anchors[j]);
-		ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
+	// anchor j < anchor i
+	for(ai_t j = i - 1; j > 0; j--) { // dummy start anchor is handled separately
+		const ai_t j_a = get<0>(anchors[j]);
+		const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
+		const ai_t j_c = get<1>(anchors[j]);
+		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs[i] < std::numeric_limits<ai_t>::max() and
-		    j_b <= i_a and j_d <= i_c and j_a - j_c > i_a - i_c) // case 1
+		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		    j_b <= i_a and i_c < j_d and j_d <= i_d) // case 5
 			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
 
 	return cost;
 }
 
+struct case_five_index init_case_five(ai_t Tlength, ai_t Qlength)
+{
+	return case_five_index({ MinSegmentTree<ai_t>(0, Qlength) });
+}
+
+ai_t compute_case_five(const case_five_index &I, const anchor_t &a_i)
+{
+	const ai_t i_a = get<0>(a_i);
+	const ai_t i_c = get<1>(a_i);
+	const ai_t i_d = get<1>(a_i) + get<2>(a_i);
+	const ai_t i_diag = i_a - i_c;
+
+	const ai_t rec_min = I.recursive_values.query(i_c, i_d - 1);
+
+	if (rec_min < std::numeric_limits<ai_t>::max()) {
+		return rec_min + i_diag;
+	} else {
+		return std::numeric_limits<ai_t>::max();
+	}
+}
+
+void update_startpoint_case_five(case_five_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	// do nothing
+}
+
+void  update_endpoint_case_five (case_five_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	const ai_t j_a = get<0>(a_j);
+	const ai_t j_c = get<1>(a_j);
+	const ai_t j_d = get<1>(a_j) + get<2>(a_j);
+	const ai_t j_diag = j_a - j_c;
+
+	I.recursive_values.update(j_d - 1, j_cost - j_diag);
+}
 
 } // namespace algo

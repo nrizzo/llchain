@@ -38,6 +38,13 @@ struct MinSegmentTree {
 			tree[i] = op(tree[2 * i], tree[2 * i + 1]);
 	}
 
+	void remove(q_t i) {
+		assert(minquery <= i and i <= maxquery);
+		i += -minquery + 1;
+		for(tree[i + (maxquery - minquery + 2)] = id, i = (i + (maxquery - minquery + 2)) / 2; i > 0; i /= 2)
+			tree[i] = op(tree[2 * i], tree[2 * i + 1]);
+	}
+
 	T query(q_t l, q_t r) const {
 		if (l > r) return id; // allow empty queries
 		assert(minquery <= l and l <= r and r <= maxquery);
