@@ -6,6 +6,7 @@ module; // global module fragment
 #include <iostream>
 #include <map>
 #include <set>
+#include <list>
 #include <cassert>
 
 export module algo; // this module
@@ -17,8 +18,9 @@ using std::vector;
 using std::tuple, std::pair;
 using std::max, std::min, std::abs;
 using std::cerr, std::endl;
-using std::map;
-using std::multiset;
+using std::map, std::multimap;
+using std::set, std::multiset;
+using std::list;
 using utils::anchor_t, utils::connect;
 typedef utils::anchor_index_t ai_t;
 
@@ -39,17 +41,26 @@ export void chainx_global_naive(
 /*
  * solves (relaxed chainx-precedence) colinear chaining via DP and mimicks the
  *   solution/data structures of our linearithmic-time prototype
- * NB: O(n^2) time or worse due to case 2
  * NB: assumes anchors contains dummies (see place_dummy_anchors)
  * NB: assumes sorted anchors (see sort_anchors)
  * NB: assumes there are no perfect chains between the anchors
+ * TODO implement backtracking
  */
-export void solve_global_linearithmic_naive(
+export void solve_global_linearithmic(
+		const vector<anchor_t> &anchors,
+		const ai_t Tlength,
+		const ai_t Qlength,
+		vector<ai_t> &costs_out
+	);
+/*
+ * debug version that checks that all partial costs are correct
+ * NB: O(n^2) time or worse
+ */
+export void solve_global_linearithmic_debug(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
 		vector<ai_t> &costs_out,
-		vector<anchor_t> &chain_out,
 		const vector<ai_t> &correct_costs
 	);
 
@@ -134,11 +145,26 @@ void  update_endpoint_case_one_naive (case_one_index_naive &I, const anchor_t &a
  *   requires a complex data structure that handles all boundaries obtained
  *   by propagating case 2 recursions to the right (horizontal or diagonal
  *   lines)
- *   TODO implement an efficient version
+ *   TODO implement backtracking
  */
 enum line_t { horizontal, diagonal };
+typedef tuple<ai_t, line_t, ai_t> l_t; // (anchor index j, hor/diag, C[k] - t_e^k)
+struct case_two_index {
+	const vector<anchor_t>& anchors;
+	list<l_t> delimiting_lines; // top-to-bottom ordered list of lines/rec values involved in case 2
+	vector<list<l_t>::iterator> anchor_diag_to_list; // [j] contains pointer to diagonal   list element of anchor[j]
+	vector<list<l_t>::iterator> anchor_hor_to_list;  // [j] contains pointer to horizontal list element of anchor[j]
+	multimap<ai_t,ai_t> updates; // event T-position -> anchor j whose diagonal line might cross the next line
+	map<ai_t, ai_t> active_horizontal_lines; // horizontal line -> anchor j
+	map<ai_t, ai_t> active_diagonal_lines;   // diagonal line -> anchor j
+};
+struct case_two_index init_case_two(const vector<anchor_t> &anchors);
+ai_t compute_case_two(case_two_index &I, const anchor_t &anchor_i);
+void update_startpoint_case_two(case_two_index &I, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_two (case_two_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
+
 struct case_two_index_naive {
-	const vector<anchor_t> &anchors;
+	const vector<anchor_t>& anchors;
 	vector<pair<ai_t,line_t>> delimiting_lines;
 	vector<ai_t> optimal_recursion_values;
 };
@@ -147,24 +173,25 @@ ai_t compute_case_two_naive(case_two_index_naive &I, const anchor_t &anchor_i);
 void update_startpoint_case_two_naive(case_two_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 void  update_endpoint_case_two_naive (case_two_index_naive &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
 
-// helper functions
 /*
- * consider all recursive cases considered by case two
+ * helper function that considers all recursive cases considered by case two
  */
 ai_t compute_case_two_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs_out);
 
 /*
- * get the Q-position of a horizontal or diagonal line contained in the (naive)
- *   index for case 2
+ * helper function that gets the Q-position of a horizontal or diagonal line contained in the index
+ *   for case 2
  */
 ai_t get_c(case_two_index_naive &I, ai_t line_index, ai_t current_a);
 
 /*
- * handle intersection events for case 2 and remove lines that have been
- *   "shadowed"
- * NB: this naive version can take O(n^2) per call
+ * helper function to handle intersection events for case 2 and to remove lines
+ *   that have been crossed
+ * NB: the naive version can take O(n^2) per call (but is probably O(n)
+ *     in practice)
  */
-void prune_shadowed_delimiting_lines(case_two_index_naive &I, ai_t sweeping_line_a);
+void prune_shadowed_delimiting_lines_naive(case_two_index_naive &I, ai_t sweeping_line_a);
+void prune_shadowed_delimiting_lines(case_two_index &I, const ai_t sweeping_line_a);
 
 /*
  * case three: overlap in T, bigger diagonal
@@ -222,7 +249,6 @@ ai_t compute_case_four_naive(const case_four_index_naive &I, const anchor_t &a_i
 void update_startpoint_case_four_naive(case_four_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 void update_endpoint_case_four_naive(case_four_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 
-
 /*
  * case five: gap in T, overlap in Q
  *   requires a 1-dimensional range minimum query data structure where the
@@ -252,21 +278,85 @@ void update_startpoint_case_five_naive(case_five_index_naive &I, const anchor_t 
 void update_endpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 
 export
-void solve_global_linearithmic_naive(
+void solve_global_linearithmic(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
 		vector<ai_t> &costs_out,
-		vector<anchor_t> &chain_out,
-		const vector<ai_t> &correct_costs
+		vector<anchor_t> &chain_out
 ) {
-	ai_t n = anchors.size();
+	const ai_t n = anchors.size();
 	costs_out = vector<ai_t>(n, 0);
 	chain_out.clear();
 
 	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
-	points.reserve(2 * n - 2);
+	points.reserve(2 * n - 3);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
+		points.push_back(-i);
 	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
+		points.push_back(i);
+	std::stable_sort(points.begin(), points.end(),
+			[&anchors](const ai_t i,
+				const ai_t j) -> bool
+			{
+			return (((i >= 0) ? std::get<0>(anchors[i]) : std::get<0>(anchors[-i]) + std::get<2>(anchors[-i])) <
+					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
+			});
+
+	case_one_index   I_one   = init_case_one(Tlength, Qlength);
+	case_two_index   I_two   = init_case_two(anchors);
+	case_three_index I_three = init_case_three(Tlength, Qlength);
+	case_four_index  I_four  = init_case_four(Tlength, Qlength);
+	case_five_index  I_five  = init_case_five(Tlength, Qlength);
+
+	for (ai_t point : points) {
+		if (point >= 0) { // startpoint
+			ai_t i = point;
+			ai_t i_a = get<0>(anchors[i]);
+			ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+			ai_t i_c = get<1>(anchors[i]);
+			ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+
+			// compute cost[i]
+			ai_t cost = costs_out[0] + max(i_a, i_c); // connect(a_0, a_i)
+
+			cost = std::min(cost, compute_case_one  (I_one,   anchors[i]));
+			cost = std::min(cost, compute_case_two  (I_two,   anchors[i]));
+			cost = std::min(cost, compute_case_three(I_three, anchors[i]));
+			cost = std::min(cost, compute_case_four (I_four,  anchors[i]));
+			cost = std::min(cost, compute_case_five (I_five,  anchors[i]));
+			costs_out[i] = cost;
+
+			update_startpoint_case_one  (I_one,   anchors[i], costs_out[i]);
+			update_startpoint_case_two  (I_two,   anchors[i], costs_out[i]);
+			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
+			update_startpoint_case_four (I_four,  anchors[i], costs_out[i]);
+			update_startpoint_case_five (I_five,  anchors[i], costs_out[i]);
+		} else { // endpoint
+			ai_t i = -point;
+			update_endpoint_case_one  (I_one,    anchors[i], costs_out[i]);
+			update_endpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
+			update_endpoint_case_three(I_three,  anchors[i], costs_out[i]);
+			update_endpoint_case_four (I_four,   anchors[i], costs_out[i]);
+			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
+		}
+	}
+}
+
+export
+void solve_global_linearithmic_debug(
+		const vector<anchor_t> &anchors,
+		const ai_t Tlength,
+		const ai_t Qlength,
+		vector<ai_t> &costs_out,
+		const vector<ai_t> &correct_costs
+) {
+	ai_t n = anchors.size();
+	costs_out = vector<ai_t>(n, 0);
+
+	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
+	points.reserve(2 * n - 2);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points.push_back(-i);
 	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
 		points.push_back(i);
@@ -279,7 +369,8 @@ void solve_global_linearithmic_naive(
 			});
 
 	case_one_index   I_one   = init_case_one(Tlength, Qlength);
-	case_two_index_naive   I_two   = init_case_two_naive(anchors);
+	case_two_index   I_two   = init_case_two(anchors);
+	case_two_index_naive   I_two_naive   = init_case_two_naive(anchors);
 	case_three_index I_three = init_case_three(Tlength, Qlength);
 	case_four_index  I_four  = init_case_four(Tlength, Qlength);
 	case_five_index  I_five  = init_case_five(Tlength, Qlength);
@@ -295,13 +386,14 @@ void solve_global_linearithmic_naive(
 			// compute cost[i]
 			ai_t cost = costs_out[0] + max(i_a, i_c); // connect(a_0, a_i)
 			assert(compute_case_one  (I_one,   anchors[i]) == compute_case_one_debug (anchors, i, costs_out));
-			assert(compute_case_two_naive  (I_two,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
+			assert(compute_case_two  (I_two,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
+			assert(compute_case_two_naive  (I_two_naive,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
 			assert(compute_case_three(I_three, anchors[i]) == compute_case_three_debug(anchors, i, costs_out));
 			assert(compute_case_four (I_four,  anchors[i]) == compute_case_four_debug (anchors, i, costs_out));
 			assert(compute_case_five (I_five,  anchors[i]) == compute_case_five_debug (anchors, i, costs_out));
 
 			cost = std::min(cost, compute_case_one  (I_one,   anchors[i]));
-			cost = std::min(cost, compute_case_two_naive  (I_two,   anchors[i]));
+			cost = std::min(cost, compute_case_two  (I_two,   anchors[i]));
 			cost = std::min(cost, compute_case_three(I_three, anchors[i]));
 			cost = std::min(cost, compute_case_four (I_four,  anchors[i]));
 			cost = std::min(cost, compute_case_five (I_five,  anchors[i]));
@@ -309,14 +401,16 @@ void solve_global_linearithmic_naive(
 			assert(costs_out[i] <= correct_costs[i]);
 
 			update_startpoint_case_one  (I_one,   anchors[i], costs_out[i]);
-			update_startpoint_case_two_naive  (I_two,   anchors[i], costs_out[i]);
+			update_startpoint_case_two  (I_two,   anchors[i], costs_out[i]);
+			update_startpoint_case_two_naive  (I_two_naive,   anchors[i], costs_out[i]);
 			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
 			update_startpoint_case_four (I_four,  anchors[i], costs_out[i]);
 			update_startpoint_case_five (I_five,  anchors[i], costs_out[i]);
 		} else { // endpoint
 			ai_t i = -point;
 			update_endpoint_case_one  (I_one,    anchors[i], costs_out[i]);
-			update_endpoint_case_two_naive  (I_two, i, anchors[i], costs_out[i]);
+			update_endpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
+			update_endpoint_case_two_naive  (I_two_naive, i, anchors[i], costs_out[i]);
 			update_endpoint_case_three(I_three,  anchors[i], costs_out[i]);
 			update_endpoint_case_four (I_four,   anchors[i], costs_out[i]);
 			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
@@ -447,7 +541,7 @@ ai_t get_c(case_two_index_naive &I, ai_t line_index, ai_t current_a)
 	}
 }
 
-void prune_shadowed_delimiting_lines(case_two_index_naive &I, ai_t sweeping_line_a)
+void prune_shadowed_delimiting_lines_naive(case_two_index_naive &I, ai_t sweeping_line_a)
 {
 	if (I.delimiting_lines.size() > 0) {
 		assert(I.delimiting_lines.size() == I.optimal_recursion_values.size() + 1);
@@ -463,16 +557,14 @@ void prune_shadowed_delimiting_lines(case_two_index_naive &I, ai_t sweeping_line
 				if (sweeping_line_a - l1_diag >= l2_d) {
 					if (l == I.delimiting_lines.size() - 2 or I.optimal_recursion_values[l-1] <= I.optimal_recursion_values[l+1]) {
 						// diagonal shadows horizontal
-						cerr << "DEBUG: line " << I.delimiting_lines[l].first << ((I.delimiting_lines[l].second == horizontal) ? "hor" : "diag") << " shadows " << I.delimiting_lines[l+1].first << ((I.delimiting_lines[l+1].second == horizontal) ? "hor" : "diag") << endl;
 						I.delimiting_lines.erase(I.delimiting_lines.begin() + l + 1);
 						I.optimal_recursion_values.erase(I.optimal_recursion_values.begin() + l);
 						l -= 1;
 					} else {
 						// horizontal shadows diagonal
-						cerr << "DEBUG: line " << I.delimiting_lines[l].first << ((I.delimiting_lines[l].second == horizontal) ? "hor" : "diag") << " is shadowed by " << I.delimiting_lines[l+1].first << ((I.delimiting_lines[l+1].second == horizontal) ? "hor" : "diag") << endl;
 						I.delimiting_lines.erase(I.delimiting_lines.begin() + l);
 						I.optimal_recursion_values.erase(I.optimal_recursion_values.begin() + l);
-						l = max(l - 2, 0LL);
+						l = max(l - 2, (ai_t)0);
 					}
 				}
 			}
@@ -484,7 +576,7 @@ ai_t compute_case_two_naive(case_two_index_naive &I, const anchor_t &anchor_i)
 {
 	ai_t i_a = get<0>(anchor_i);
 	ai_t i_c = get<1>(anchor_i);
-	prune_shadowed_delimiting_lines(I, i_a);
+	prune_shadowed_delimiting_lines_naive(I, i_a);
 
 	// no recursion available
 	if (I.delimiting_lines.size() == 0 or
@@ -512,7 +604,7 @@ void update_endpoint_case_two_naive(case_two_index_naive &I, ai_t j, const ancho
 {
 	ai_t j_b = get<0>(a_j) + get<2>(a_j);
 	ai_t j_d = get<1>(a_j) + get<2>(a_j);
-	prune_shadowed_delimiting_lines(I, j_b);
+	prune_shadowed_delimiting_lines_naive(I, j_b);
 
 	// value of the two lines to potentially insert
 	ai_t recursion_value = j_cost - j_b;
@@ -522,6 +614,8 @@ void update_endpoint_case_two_naive(case_two_index_naive &I, ai_t j, const ancho
 	while (i < I.delimiting_lines.size() and j_d > get_c(I, i, j_b)) i++;
 
 	if (I.delimiting_lines.size() == 0) {
+		// TODO remove this branch, as it never gets called
+		cerr << "DEBUG: does case 0 happen?" << endl;
 		I.optimal_recursion_values.insert(
 				I.optimal_recursion_values.begin(),
 				recursion_value);
@@ -941,6 +1035,183 @@ void  update_endpoint_case_five (case_five_index &I, const anchor_t &a_j, const 
 	const ai_t j_diag = j_a - j_c;
 
 	I.recursive_values.update(j_d - 1, j_cost - j_diag);
+}
+
+struct case_two_index init_case_two(const vector<anchor_t> &anchors)
+{
+	list<l_t> delimiting_lines = {{0, horizontal, std::numeric_limits<ai_t>::max()}, {anchors.size()-1, horizontal, std::numeric_limits<ai_t>::min()}};
+	vector<list<l_t>::iterator> anchor_diag_to_list(anchors.size());
+	vector<list<l_t>::iterator> anchor_hor_to_list (anchors.size());
+	anchor_hor_to_list[0] = delimiting_lines.begin();
+	anchor_hor_to_list[anchors.size()-1] = --delimiting_lines.end();
+	return case_two_index({
+		anchors,
+		std::move(delimiting_lines),
+		std::move(anchor_diag_to_list),
+		std::move(anchor_hor_to_list),
+		{},
+		{{0, 0}, {get<1>(anchors.back()) + get<2>(anchors.back()), anchors.size() - 1}},
+		{}
+			});
+}
+
+void prune_shadowed_delimiting_lines(case_two_index &I, const ai_t sweeping_line_a)
+{
+	const auto bound = I.updates.upper_bound(sweeping_line_a);
+	for (auto e = I.updates.begin(); e != bound; ++e) { // TODO is this linear-time complexity or linearithmic?
+		const ai_t j = e->second;
+		const ai_t j_diag = get<0>(I.anchors[j]) - get<1>(I.anchors[j]);
+
+		// check if diagonal line is still in the list or if we just added a new update before bound
+		if (!I.active_diagonal_lines.contains(j_diag) or
+				I.active_diagonal_lines[j_diag] != j or
+				sweeping_line_a < e->first)
+		       	continue;
+
+		const auto line_it = I.anchor_diag_to_list[j];
+		const auto next_it = std::next(line_it);
+		const auto [_j, j_line, j_val] = *line_it;
+		const auto [k,  k_line, k_val] = *next_it;
+		const ai_t k_d = get<1>(I.anchors[k]) + get<2>(I.anchors[k]);
+		const ai_t k_diag = get<0>(I.anchors[k]) - get<1>(I.anchors[k]);
+		assert(j == _j);
+
+		// check if update is still valid for this exact diagonal/horizontal position
+		if (k_line != horizontal or k_d + j_diag != e->first)
+			continue;
+
+		if (get<2>(*std::prev(line_it)) <= k_val) { // TODO is this the correct order?
+			// diagonal shadows horizontal
+			cerr << "DEBUG: line " << j << "diag" << " shadows " << k << "hor" << endl;
+			get<2>(*line_it) = k_val;
+			I.delimiting_lines.erase(next_it);
+			assert(I.active_horizontal_lines[k_d] == k);
+			I.active_horizontal_lines.erase(k_d);
+			const auto [h, h_line, _] = *std::next(line_it);
+			if (h_line == horizontal) {
+				const ai_t h_d = get<1>(I.anchors[h]) + get<2>(I.anchors[h]);
+				I.updates.insert({ h_d + j_diag, j });
+			}
+		} else {
+			// horizontal shadows diagonal
+			cerr << "DEBUG: line " << j << "diag" << " is shadowed by " << k << "hor" << endl;
+			I.delimiting_lines.erase(line_it);
+			assert(I.active_diagonal_lines[j_diag] == j);
+			I.active_diagonal_lines.erase(j_diag);
+
+			const auto [h, h_line, _] = *std::prev(next_it);
+			if (h_line == diagonal) {
+				const ai_t h_diag = get<0>(I.anchors[h]) - get<1>(I.anchors[h]);
+				I.updates.insert({ k_d + h_diag, h });
+			}
+		}
+	}
+
+	// delete events
+	I.updates.erase(I.updates.begin(), I.updates.upper_bound(sweeping_line_a)); // recompute bound? TODO check
+}
+
+ai_t compute_case_two(case_two_index &I, const anchor_t &anchor_i)
+{
+	const ai_t i_a    = get<0>(anchor_i);
+	const ai_t i_c    = get<1>(anchor_i);
+	const ai_t i_diag = i_a - i_c;
+
+	prune_shadowed_delimiting_lines(I, i_a);
+
+	// locate closest lines
+	const auto hor_lb  = std::prev(I.active_horizontal_lines.upper_bound(i_c));
+	const auto diag_lb = I.active_diagonal_lines.upper_bound(i_diag); // NB we exclude the diagonal itself
+
+	const ai_t c_hor_lb = hor_lb->first;
+	const ai_t c_diag_lb = ((diag_lb != I.active_diagonal_lines.end()) ? i_a - (get<0>(I.anchors[diag_lb->second]) - get<1>(I.anchors[diag_lb->second])) : std::numeric_limits<ai_t>::min());
+	ai_t rec_value;
+	if (c_hor_lb <= c_diag_lb) {
+		rec_value = get<2>(*(I.anchor_diag_to_list[diag_lb->second]));
+	} else {
+		rec_value = get<2>(*(I.anchor_hor_to_list[hor_lb->second]));
+	}
+
+	if (rec_value == std::numeric_limits<ai_t>::max()) {
+		return std::numeric_limits<ai_t>::max();
+	} else {
+		return rec_value + i_a;
+	}
+}
+
+void update_startpoint_case_two(case_two_index &I, const anchor_t &a_j, const ai_t j_cost)
+{
+	// do nothing
+}
+
+void  update_endpoint_case_two (case_two_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
+{
+	const ai_t j_b = get<0>(a_j) + get<2>(a_j);
+	const ai_t j_d = get<1>(a_j) + get<2>(a_j);
+	const ai_t j_diag = j_b - j_d;
+
+	prune_shadowed_delimiting_lines(I, j_b);
+
+	// value of the two lines to (potentially?) insert
+	ai_t recursion_value = j_cost - j_b;
+
+	// find position in delimiting_lines
+	list<l_t>::iterator pos;
+	const auto hor_lb  = std::prev(I.active_horizontal_lines.upper_bound(j_d));
+	const auto diag_lb = I.active_diagonal_lines.upper_bound(j_diag - 1); // NB we include the diagonal
+	const ai_t c_hor_lb = hor_lb->first;
+	const ai_t c_diag_lb = ((diag_lb != I.active_diagonal_lines.end()) ? j_b - (get<0>(I.anchors[diag_lb->second]) - get<1>(I.anchors[diag_lb->second])) : std::numeric_limits<ai_t>::min());
+
+	if (c_hor_lb <= c_diag_lb) {
+		pos = I.anchor_diag_to_list[diag_lb->second];
+	} else {
+		pos = I.anchor_hor_to_list [hor_lb->second];
+	}
+	const auto [p, p_line, p_val] = *pos;
+	const ai_t p_d = get<1>(I.anchors[p]) + get<2>(I.anchors[p]);
+	const ai_t p_diag = get<0>(I.anchors[p]) - get<1>(I.anchors[p]);
+
+	if (((p_line == horizontal) ? p_d : j_b - p_diag) < j_d) {
+		// case 1: no line intersects with the two new ones
+		const auto j_diag_pos = I.delimiting_lines.insert(std::next(pos), { j, diagonal, p_val });
+		I.anchor_diag_to_list[j] = j_diag_pos;
+		I.active_diagonal_lines[j_diag] = j;
+		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_cost - j_b });
+		I.anchor_hor_to_list[j] = j_hor_pos;
+		I.active_horizontal_lines[j_d] = j;
+		if (p_line == diagonal) {
+			I.updates.insert({ j_d + p_diag, p });
+		}
+		const auto [k, k_line, _] = *std::next(j_diag_pos);
+		if (k_line == horizontal) {
+			const ai_t k_d = get<1>(I.anchors[k]) + get<2>(I.anchors[k]);
+			I.updates.insert({ k_d + j_diag, j });
+		}
+	} else {
+		// case 2: some line intersects with the two new ones
+		assert(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_cost - j_b <= p_val);
+		const auto j_diag_pos = I.delimiting_lines.insert(std::next(pos), { j, diagonal, p_val });
+		I.anchor_diag_to_list[j] = j_diag_pos;
+		I.active_diagonal_lines[j_diag] = j;
+		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_cost - j_b });
+		I.anchor_hor_to_list[j] = j_hor_pos;
+		I.active_horizontal_lines[j_d] = j;
+
+		I.delimiting_lines.erase(pos);
+
+		const auto [k, k_line, _] = *std::next(j_diag_pos);
+		if (k_line == horizontal) {
+			const ai_t k_d = get<1>(I.anchors[k]) + get<2>(I.anchors[k]);
+			I.updates.insert({ k_d + j_diag, j });
+		}
+		assert((k_line == horizontal) ? (get<1>(I.anchors[k]) + get<2>(I.anchors[k]) != j_d) : (get<0>(I.anchors[k]) - get<1>(I.anchors[k]) != j_diag));
+		// TODO possible duplication?
+		const auto [h, h_line, __] = *std::prev(j_hor_pos);
+		if (h_line == diagonal) {
+			const ai_t h_diag = get<0>(I.anchors[h]) - get<1>(I.anchors[h]);
+			I.updates.insert({ j_d + h_diag, h });
+		}
+	}
 }
 
 } // namespace algo
