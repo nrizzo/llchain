@@ -1,4 +1,5 @@
 # clc-viz-experiments
+Tested on GCC version 15.2.1.
 ```
 Usage: clc-viz [-n ANCHORNUM] [-g gap-gap-ld.bmp]
 Verification, WIP implementation, and visualization of linearithmic-time
@@ -15,8 +16,13 @@ colinear chaining
                                   invocation)  (default=`-1')
 ```
 
+## External libraries
+- [grid_to_bmp](https://people.sc.fsu.edu/~jburkardt/cpp_src/grid_to_bmp/grid_to_bmp.html) that we adapted for debugging
+
 ## Dependencies
 `gengetopt` for development
 
 ## TODOs
-
+- semi-global mode
+- reach feature-parity with [ChainX](https://github.com/algbio/ChainX/)
+- test performance

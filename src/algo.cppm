@@ -1,16 +1,13 @@
-module; // global module fragment
+export module algo;
 
-#include <vector>
-#include <tuple>
-#include <algorithm> // std::sort
-#include <iostream>
-#include <map>
-#include <set>
-#include <list>
-#include <cassert>
-
-export module algo; // this module
-
+import <vector>;
+import <tuple>;
+import <algorithm>; // std::sort
+import <iostream>;
+import <map>;
+import <set>;
+import <list>;
+import <cassert>;
 import utils;
 import MinSegmentTree;
 

@@ -1,15 +1,14 @@
-module; // global module fragment
-
-#include <vector>
-#include <algorithm>
-#include <limits>
-#include <cassert>
-import utils;
-
 export module MinSegmentTree; // this module
 
+import <vector>;
+import <algorithm>;
+import <limits>;
+import <cassert>;
+import utils;
+
 using std::vector;
-using std::min;
+using std::min; // algorithm
+using std::numeric_limits;
 using q_t = utils::anchor_index_t;
 
 /*
@@ -22,13 +21,13 @@ struct MinSegmentTree {
 	const q_t minquery, maxquery; // extremes included
 	vector<T> tree;
 	T op(const T a, const T b) const {
-		return std::min(a,b);
+		return min(a,b);
 	}
-	const T id = std::numeric_limits<T>::max();
+	const T id = numeric_limits<T>::max();
 	MinSegmentTree(q_t _minquery, q_t _maxquery) :
 		minquery(_minquery),
 		maxquery(_maxquery),
-		tree(2 * (maxquery - minquery + 2), std::numeric_limits<T>::max())
+		tree(2 * (maxquery - minquery + 2), numeric_limits<T>::max())
 	{}
 
 	void update(q_t i, T val) {

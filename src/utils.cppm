@@ -1,13 +1,11 @@
-module; // global module fragment
-
-#include <vector>
-#include <tuple>
-#include <random>
-#include <algorithm> // std::sort
-#include <iostream>
-#include "grid_to_bmp.hpp"
-
 export module utils; // this module
+
+import <vector>;
+import <tuple>;
+import <random>;
+import <algorithm>; // std::sort
+import <iostream>;
+import grid_to_bmp;
 
 using std::vector;
 using std::tuple;

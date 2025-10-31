@@ -5,15 +5,16 @@
 // The BmpImage class was written by Daniel LePage, 2007
 // The main method was written by Aaron Bloomfield, 2008
 
-# include <iostream>
-# include <vector>
-# include <fstream>
-# include <stdio.h>
+export module grid_to_bmp;
 
-namespace grid_to_bmp {
+import <iostream>;
+import <vector>;
+import <fstream>;
+import <stdio.h>;
 
-using namespace std;
-using std::vector;
+export namespace grid_to_bmp {
+
+using std::vector, std::string, std::ofstream, std::ios;
 
 class Color {
  public:
