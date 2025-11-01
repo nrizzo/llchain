@@ -58,8 +58,14 @@ export typedef tuple<anchor_index_t, anchor_index_t, anchor_index_t> anchor_t;
 /*
  * computes cost of connecting anc2 after anc1 (max gap + absolute overlap diff)
  */
-export anchor_index_t connect(const anchor_t &anc1, const anchor_t &anc2);
+export inline anchor_index_t connect(const anchor_t &anc1, const anchor_t &anc2);
 export inline anchor_index_t connect(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2);
+export inline anchor_index_t connect(const anchor_t &anc1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2);
+
+/*
+ * computes gap in Q (the second string) between anc1 and anc2, 0 if no gap
+ */
+export inline anchor_index_t connect_Qgap(const anchor_t &anc1, anchor_index_t c2);
 
 /*
  * generate n random anchors
@@ -116,18 +122,8 @@ export void plot_gap_gap_lower_diag(
 
 export
 inline
-anchor_index_t connect(const anchor_t &anc1, const anchor_t &anc2)
+anchor_index_t connect(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2)
 {
-	const anchor_index_t a1 = get<0>(anc1);
-	const anchor_index_t b1 = get<0>(anc1) + get<2>(anc1);
-	const anchor_index_t c1 = get<1>(anc1);
-	const anchor_index_t d1 = get<1>(anc1) + get<2>(anc1);
-
-	const anchor_index_t a2 = get<0>(anc2);
-	const anchor_index_t b2 = get<0>(anc2) + get<2>(anc2);
-	const anchor_index_t c2 = get<1>(anc2);
-	const anchor_index_t d2 = get<1>(anc2) + get<2>(anc2);
-
 	const anchor_index_t Tgap = max((anchor_index_t)0, a2 - b1);
 	const anchor_index_t Qgap = max((anchor_index_t)0, c2 - d1);
 	const anchor_index_t g = max(Tgap, Qgap);
@@ -140,16 +136,39 @@ anchor_index_t connect(const anchor_t &anc1, const anchor_t &anc2)
 
 export
 inline
-anchor_index_t connect(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2)
+anchor_index_t connect(const anchor_t &anc1, const anchor_t &anc2)
 {
-	const anchor_index_t Tgap = max((anchor_index_t)0, a2 - b1);
-	const anchor_index_t Qgap = max((anchor_index_t)0, c2 - d1);
-	const anchor_index_t g = max(Tgap, Qgap);
-	const anchor_index_t Tovl = max((anchor_index_t)0, b1 - a2);
-	const anchor_index_t Qovl = max((anchor_index_t)0, d1 - c2);
-	const anchor_index_t o = abs(Tovl - Qovl);
+	const anchor_index_t a1 = get<0>(anc1);
+	const anchor_index_t b1 = get<0>(anc1) + get<2>(anc1);
+	const anchor_index_t c1 = get<1>(anc1);
+	const anchor_index_t d1 = get<1>(anc1) + get<2>(anc1);
 
-	return g + o;
+	const anchor_index_t a2 = get<0>(anc2);
+	const anchor_index_t b2 = get<0>(anc2) + get<2>(anc2);
+	const anchor_index_t c2 = get<1>(anc2);
+	const anchor_index_t d2 = get<1>(anc2) + get<2>(anc2);
+
+	return connect(a1, b1, c1, d1, a2, b2, c2, d2);
+}
+
+export
+inline
+anchor_index_t connect(const anchor_t &anc1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2)
+{
+	const anchor_index_t a1 = get<0>(anc1);
+	const anchor_index_t b1 = get<0>(anc1) + get<2>(anc1);
+	const anchor_index_t c1 = get<1>(anc1);
+	const anchor_index_t d1 = get<1>(anc1) + get<2>(anc1);
+
+	return connect(a1, b1, c1, d1, a2, b2, c2, d2);
+}
+
+export
+inline
+anchor_index_t connect_Qgap(const anchor_t &anc1, anchor_index_t c2)
+{
+	const anchor_index_t d1 = get<1>(anc1) + get<2>(anc1);
+	return max((anchor_index_t)0, c2 - d1);
 }
 
 export vector<anchor_t> random_anchors(anchor_index_t width, anchor_index_t height, int n, int random_seed)

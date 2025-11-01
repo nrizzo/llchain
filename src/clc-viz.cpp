@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 	Image image(width, height);
 	vector<long long> costs;
 	vector<anchor_t> optimal_chain;
-	algo::chainx_global_naive(anchors, costs, optimal_chain);
+	algo::chainx_naive(anchors, algo::chaining_mode::semiglobal, costs, optimal_chain);
 	plot_gap_gap_lower_diag(image, anchors, costs); // plot case 2 recursions
 	plot_anchors(image, anchors); // plot all anchors
 	plot_anchors(image, optimal_chain, utils::defaults::selected_anchor_color); // recolor the optimal chain
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
 	// solve via the would-be linearithmic solution and compare
 	vector<long long> new_costs;
-	algo::solve_global_linearithmic_debug(anchors, width, height, new_costs, costs);
+	algo::solve_linearithmic_debug(anchors, width, height, algo::chaining_mode::semiglobal, new_costs, costs);
 	assert(new_costs.size() == costs.size() and new_costs.back() == costs.back());
 
 	return 0;

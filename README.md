@@ -23,6 +23,6 @@ colinear chaining
 `gengetopt` for development
 
 ## TODOs
-- semi-global mode
+- backtracking
 - reach feature-parity with [ChainX](https://github.com/algbio/ChainX/)
-- test performance
+- compare results with ChainX and test performance

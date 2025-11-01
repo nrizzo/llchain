@@ -18,10 +18,11 @@ using std::cerr, std::endl;
 using std::map, std::multimap;
 using std::set, std::multiset;
 using std::list;
-using utils::anchor_t, utils::connect;
+using utils::anchor_t, utils::connect, utils::connect_Qgap;
 typedef utils::anchor_index_t ai_t;
 
 namespace algo {
+export enum chaining_mode { global, semiglobal };
 /*
  * solves chainx-precedence colinear chaining via DP, returns an optimal chain
  *   via backtracking; adapted from github.com/at-cg/ChainX
@@ -29,8 +30,9 @@ namespace algo {
  * NB: assumes anchors contains dummies (see place_dummy_anchors)
  * NB: assumes sorted anchors (see sort_anchors)
  */
-export void chainx_global_naive(
+export void chainx_naive(
 		const vector<anchor_t> &anchors,
+		const chaining_mode m,
 		vector<ai_t> &costs_out,
 		vector<anchor_t> &chain_out
 	);
@@ -43,28 +45,31 @@ export void chainx_global_naive(
  * NB: assumes there are no perfect chains between the anchors
  * TODO implement backtracking
  */
-export void solve_global_linearithmic(
+export void solve_linearithmic(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
+		const chaining_mode m,
 		vector<ai_t> &costs_out
 	);
 /*
  * debug version that checks that all partial costs are correct
  * NB: O(n^2) time or worse
  */
-export void solve_global_linearithmic_debug(
+export void solve_linearithmic_debug(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
+		const chaining_mode m,
 		vector<ai_t> &costs_out,
 		const vector<ai_t> &correct_costs
 	);
 
 // start of implementation
 export
-void chainx_global_naive(
+void chainx_naive(
 		const vector<anchor_t> &anchors,
+		const chaining_mode m,
 		vector<ai_t> &costs_out,
 		vector<anchor_t> &chain_out
 ) {
@@ -74,7 +79,7 @@ void chainx_global_naive(
 	chain_out.clear();
 
 	costs_out[0] = 0; // first dummy anchor
-	for (ai_t i = 1; i < n; i++) {
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) {
 		ai_t i_cost = std::numeric_limits<ai_t>::max();
 		ai_t backtrack = -1;
 
@@ -83,7 +88,14 @@ void chainx_global_naive(
 		const ai_t i_c = get<1>(anchors[i]);
 		const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
-		for (ai_t j = i - 1; j >= 0; j--) { // anchor j < anchor i 
+		if (m == global) {
+			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d);
+		} else {
+			i_cost = connect_Qgap(anchors[0], i_c);
+		}
+		backtrack = 0;
+
+		for (ai_t j = i - 1; j > 0; j--) { // anchor j < anchor i, first dummy anchor is treated separately
 			const ai_t j_a = get<0>(anchors[j]);
 			const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
 			const ai_t j_c = get<1>(anchors[j]);
@@ -99,6 +111,20 @@ void chainx_global_naive(
 		//save optimal cost at offset i
 		costs_out[i] = i_cost;
 		backtracks[i] = backtrack;
+	}
+	if (m == semiglobal) {
+		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		ai_t backtrack = -1;
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = 1; j < n - 1; j++) {
+			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				if (c < final_cost) backtrack = j;
+				final_cost = min(final_cost, c);
+			}
+		}
+		costs_out[n-1] = final_cost;
+		backtracks[n-1] = backtrack;
 	}
 
 	// trace back an optimal chain
@@ -275,10 +301,11 @@ void update_startpoint_case_five_naive(case_five_index_naive &I, const anchor_t 
 void update_endpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 
 export
-void solve_global_linearithmic(
+void solve_linearithmic(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
+		const chaining_mode m,
 		vector<ai_t> &costs_out,
 		vector<anchor_t> &chain_out
 ) {
@@ -290,7 +317,7 @@ void solve_global_linearithmic(
 	points.reserve(2 * n - 3);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points.push_back(-i);
-	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
 		points.push_back(i);
 	std::stable_sort(points.begin(), points.end(),
 			[&anchors](const ai_t i,
@@ -315,7 +342,12 @@ void solve_global_linearithmic(
 			ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
 			// compute cost[i]
-			ai_t cost = costs_out[0] + max(i_a, i_c); // connect(a_0, a_i)
+			ai_t cost = std::numeric_limits<ai_t>::max();
+			if (m == global) {
+				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
+			} else {
+				cost = connect_Qgap(anchors[0], i_c);
+			}
 
 			cost = std::min(cost, compute_case_one  (I_one,   anchors[i]));
 			cost = std::min(cost, compute_case_two  (I_two,   anchors[i]));
@@ -338,13 +370,27 @@ void solve_global_linearithmic(
 			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
 		}
 	}
+	if (m == semiglobal) {
+		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		ai_t backtrack = -1;
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = 1; j < n - 1; j++) {
+			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				if (c < final_cost) backtrack = j;
+				final_cost = min(final_cost, c);
+			}
+		}
+		costs_out[n-1] = final_cost;
+	}
 }
 
 export
-void solve_global_linearithmic_debug(
+void solve_linearithmic_debug(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
+		const chaining_mode m,
 		vector<ai_t> &costs_out,
 		const vector<ai_t> &correct_costs
 ) {
@@ -355,7 +401,7 @@ void solve_global_linearithmic_debug(
 	points.reserve(2 * n - 2);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points.push_back(-i);
-	for (ai_t i = 1; i < n; i++) // skip starting dummy anchor
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
 		points.push_back(i);
 	std::stable_sort(points.begin(), points.end(),
 			[&](const ai_t i,
@@ -381,7 +427,12 @@ void solve_global_linearithmic_debug(
 			ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
 			// compute cost[i]
-			ai_t cost = costs_out[0] + max(i_a, i_c); // connect(a_0, a_i)
+			ai_t cost = std::numeric_limits<ai_t>::max();
+			if (m == global) {
+				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
+			} else {
+				cost = connect_Qgap(anchors[0], i_c);
+			}
 			assert(compute_case_one  (I_one,   anchors[i]) == compute_case_one_debug (anchors, i, costs_out));
 			assert(compute_case_two  (I_two,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
 			assert(compute_case_two_naive  (I_two_naive,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
@@ -412,6 +463,17 @@ void solve_global_linearithmic_debug(
 			update_endpoint_case_four (I_four,   anchors[i], costs_out[i]);
 			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
 		}
+	}
+	if (m == semiglobal) {
+		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = 1; j < n - 1; j++) {
+			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				final_cost = min(final_cost, c);
+			}
+		}
+		costs_out[n-1] = final_cost;
 	}
 }
 
