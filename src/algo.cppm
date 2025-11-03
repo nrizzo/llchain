@@ -18,7 +18,7 @@ using std::cerr, std::endl;
 using std::map, std::multimap;
 using std::set, std::multiset;
 using std::list;
-using utils::anchor_t, utils::connect, utils::connect_Qgap;
+using utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes;
 typedef utils::anchor_index_t ai_t;
 
 namespace algo {
@@ -43,7 +43,6 @@ export void chainx_naive(
  * NB: assumes anchors contains dummies (see place_dummy_anchors)
  * NB: assumes sorted anchors (see sort_anchors)
  * NB: assumes there are no perfect chains between the anchors
- * TODO implement backtracking
  */
 export void solve_linearithmic(
 		const vector<anchor_t> &anchors,
@@ -64,6 +63,33 @@ export void solve_linearithmic_debug(
 		vector<ai_t> &costs_out,
 		const vector<ai_t> &correct_costs
 	);
+
+/*
+ * backtrack an optimal chainx/weak chain (including the dummy anchors), given
+ *   the partial chaining costs
+ * NB: assumes anchors contains dummies (see place_dummy_anchors)
+ * NB: assumes sorted anchors (see sort_anchors)
+ * NB: assumes the DP costs have been found with the corresponding precedence
+ */
+export void chainx_backtrack(
+		const vector<anchor_t> &anchors,
+		const vector<ai_t> &costs,
+		const chaining_mode m,
+		vector<anchor_t> &chain_out
+	);
+export void weak_backtrack(
+		const vector<anchor_t> &anchors,
+		const vector<ai_t> &costs,
+		const chaining_mode m,
+		vector<anchor_t> &chain_out
+	);
+
+/*
+ * computes cost of a chain
+ * NB: assumes anchors contains dummies (see place_dummy_anchors)
+ * NB: assumes the chain is colinear (see chainx_precedes and weak_precedes)
+ */
+export ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mode m);
 
 // start of implementation
 export
@@ -1271,6 +1297,144 @@ void  update_endpoint_case_two (case_two_index &I, ai_t j, const anchor_t &a_j, 
 			I.updates.insert({ j_d + h_diag, h });
 		}
 	}
+}
+
+export
+void chainx_backtrack(
+		const vector<anchor_t> &anchors,
+		const vector<ai_t> &costs,
+		const chaining_mode m,
+		vector<anchor_t> &chain_out
+) {
+	const ai_t n = anchors.size();
+	chain_out.clear();
+
+	if (costs[n-1] == std::numeric_limits<ai_t>::max())
+		return;
+
+	ai_t i = n - 1;
+	chain_out.push_back(anchors[n-1]);
+	if (m == semiglobal) {
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = i - 1; j > 0; j--) {
+			if (costs[j] + connect_Qgap(anchors[j], final_c) == costs[n-1]) {
+				chain_out.push_back(anchors[j]);
+				i = j;
+				break;
+			}
+		}
+		assert(i != n - 1);
+	}
+
+	while (i > 0) {
+		bool success = false;
+		for (ai_t j = i - 1; j > 0; j--) {
+			if (costs[j] + connect(anchors[j], anchors[i]) == costs[i] and
+					chainx_precedes(anchors[j], anchors[i])) {
+				chain_out.push_back(anchors[j]);
+				i = j;
+				success = true;
+				break;
+			}
+		}
+
+		if (!success) {
+			if (m == global) {
+				if (costs[i] == connect(anchors[0], anchors[i])) {
+					break;
+				}
+			} else {
+				if (costs[i] == connect_Qgap(anchors[0], anchors[i])) {
+					break;
+				}
+			}
+			assert(false);
+		}
+	}
+	chain_out.push_back(anchors[0]);
+	std::reverse(chain_out.begin(), chain_out.end());
+}
+
+export
+void weak_backtrack(
+		const vector<anchor_t> &anchors,
+		const vector<ai_t> &costs,
+		const chaining_mode m,
+		vector<anchor_t> &chain_out
+) {
+	const ai_t n = anchors.size();
+	chain_out.clear();
+
+	if (costs[n-1] == std::numeric_limits<ai_t>::max())
+		return;
+
+	ai_t i = n - 1;
+	chain_out.push_back(anchors[n-1]);
+	if (m == semiglobal) {
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = i - 1; j > 0; j--) {
+			if (costs[j] + connect_Qgap(anchors[j], final_c) == costs[n-1]) {
+				chain_out.push_back(anchors[j]);
+				i = j;
+				break;
+			}
+		}
+		assert(i != n - 1);
+	}
+
+	while (i > 0) {
+		bool success = false;
+		for (ai_t j = i - 1; j > 0; j--) {
+			if (costs[j] + connect(anchors[j], anchors[i]) == costs[i] and
+					weak_precedes(anchors[j], anchors[i])) {
+				chain_out.push_back(anchors[j]);
+				i = j;
+				success = true;
+				break;
+			}
+		}
+
+		if (!success) {
+			if (m == global) {
+				if (costs[i] == connect(anchors[0], anchors[i])) {
+					break;
+				}
+			} else {
+				if (costs[i] == connect_Qgap(anchors[0], anchors[i])) {
+					break;
+				}
+			}
+			assert(false);
+		}
+	}
+	chain_out.push_back(anchors[0]);
+	std::reverse(chain_out.begin(), chain_out.end());
+}
+
+export
+ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mode m)
+{
+	const ai_t n = chain.size();
+	if (n <= 1) {
+		return std::numeric_limits<ai_t>::max();
+	}
+
+	ai_t cost = 0;
+	if (m == global) {
+		cost += connect(chain[0], chain[1]);
+	} else {
+		cost += connect_Qgap(chain[0], chain[1]);
+	}
+
+	for (ai_t i = 1; i < ((m == global) ? n-1 : n-2); i++) {
+		cost += connect(chain[i], chain[i+1]);
+	}
+
+	if (m == semiglobal) {
+		cost += connect_Qgap(chain[n - 2], chain[n - 1]);
+	}
+
+	return cost;
 }
 
 } // namespace algo

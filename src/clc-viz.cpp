@@ -39,11 +39,18 @@ int main(int argc, char **argv)
 	plot_anchors(image, anchors); // plot all anchors
 	plot_anchors(image, optimal_chain, utils::defaults::selected_anchor_color); // recolor the optimal chain
 	image.writeToFile(argsinfo.gap_gap_lower_diagonal_output_file_arg);
+	assert(costs.back() == compute_chain_cost(optimal_chain, algo::chaining_mode::semiglobal));
 
 	// solve via the would-be linearithmic solution and compare
 	vector<long long> new_costs;
 	algo::solve_linearithmic_debug(anchors, width, height, algo::chaining_mode::semiglobal, new_costs, costs);
 	assert(new_costs.size() == costs.size() and new_costs.back() == costs.back());
+
+	vector<anchor_t> checking_chain;
+	algo::weak_backtrack(anchors, costs, algo::chaining_mode::semiglobal, checking_chain);
+	cerr << "Optimal ChainX chain has cost     " << compute_chain_cost(optimal_chain, algo::chaining_mode::semiglobal) << endl;
+	cerr << "Backtracked ChainX chain has cost " << compute_chain_cost(checking_chain, algo::chaining_mode::semiglobal) << endl;
+	assert(compute_chain_cost(checking_chain, algo::chaining_mode::semiglobal) == compute_chain_cost(optimal_chain, algo::chaining_mode::semiglobal));
 
 	return 0;
 }

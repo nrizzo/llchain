@@ -23,6 +23,5 @@ colinear chaining
 `gengetopt` for development
 
 ## TODOs
-- backtracking
 - reach feature-parity with [ChainX](https://github.com/algbio/ChainX/)
 - compare results with ChainX and test performance

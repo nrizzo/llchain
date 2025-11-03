@@ -65,7 +65,14 @@ export inline anchor_index_t connect(const anchor_t &anc1, anchor_index_t a2, an
 /*
  * computes gap in Q (the second string) between anc1 and anc2, 0 if no gap
  */
-export inline anchor_index_t connect_Qgap(const anchor_t &anc1, anchor_index_t c2);
+export inline anchor_index_t connect_Qgap(const anchor_t &anc1, anchor_index_t a2);
+export inline anchor_index_t connect_Qgap(const anchor_t &anc1, const anchor_t &anc2);
+
+/*
+ * check if anc1 precedes anc2 according to ChainX/weak precedence
+ */
+export inline bool chainx_precedes(const anchor_t &anc1, const anchor_t &anc2);
+export inline bool weak_precedes  (const anchor_t &anc1, const anchor_t &anc2);
 
 /*
  * generate n random anchors
@@ -168,6 +175,15 @@ inline
 anchor_index_t connect_Qgap(const anchor_t &anc1, anchor_index_t c2)
 {
 	const anchor_index_t d1 = get<1>(anc1) + get<2>(anc1);
+	return max((anchor_index_t)0, c2 - d1);
+}
+
+export
+inline
+anchor_index_t connect_Qgap(const anchor_t &anc1, const anchor_t &anc2)
+{
+	const anchor_index_t d1 = get<1>(anc1) + get<2>(anc1);
+	const anchor_index_t c2 = get<1>(anc2);
 	return max((anchor_index_t)0, c2 - d1);
 }
 
@@ -301,4 +317,35 @@ export void plot_gap_gap_lower_diag(BmpImage &image, vector<anchor_t> &anchors, 
 		}
 	}
 }
+
+export
+inline
+bool chainx_precedes(const anchor_t &anc1, const anchor_t &anc2)
+{
+	const anchor_index_t anc1_a = get<0>(anc1);
+	const anchor_index_t anc1_b = get<0>(anc1) + get<2>(anc1);
+	const anchor_index_t anc1_c = get<1>(anc1);
+	const anchor_index_t anc1_d = get<1>(anc1) + get<2>(anc1);
+
+	const anchor_index_t anc2_a = get<0>(anc2);
+	const anchor_index_t anc2_b = get<0>(anc2) + get<2>(anc2);
+	const anchor_index_t anc2_c = get<1>(anc2);
+	const anchor_index_t anc2_d = get<1>(anc2) + get<2>(anc2);
+
+	return (anc1_a < anc2_a and anc1_b < anc2_b and anc1_c < anc2_c and anc1_d < anc2_d);
+}
+
+export
+inline
+bool weak_precedes(const anchor_t &anc1, const anchor_t &anc2)
+{
+	const anchor_index_t anc1_a = get<0>(anc1);
+	const anchor_index_t anc1_c = get<1>(anc1);
+
+	const anchor_index_t anc2_a = get<0>(anc2);
+	const anchor_index_t anc2_c = get<1>(anc2);
+
+	return (anc1_a < anc2_a and anc1_c < anc2_c);
+}
+
 } // namespace utils
