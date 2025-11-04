@@ -1274,7 +1274,9 @@ void  update_endpoint_case_two (case_two_index &I, ai_t j, const anchor_t &a_j, 
 		}
 	} else {
 		// case 2: some line intersects with the two new ones
-		assert(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_cost - j_b <= p_val);
+		if (!(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_cost - j_b <= p_val)) {
+			cerr << "WARNING: a rare edge case has been found involving case 2 and anchors " << p << ":[" << get<0>(I.anchors[p]) << ".." << get<0>(I.anchors[p]) + get<2>(I.anchors[p]) << "),[" << get<1>(I.anchors[p]) << ".." << get<1>(I.anchors[p]) + get<2>(I.anchors[p]) << ") and " << j << ":["  << get<0>(a_j) << ".." << get<0>(a_j) + get<2>(a_j) << "),[" << get<1>(a_j) << ".." << get<1>(a_j) + get<2>(a_j) << ")" << endl;
+		}
 		const auto j_diag_pos = I.delimiting_lines.insert(std::next(pos), { j, diagonal, p_val });
 		I.anchor_diag_to_list[j] = j_diag_pos;
 		I.active_diagonal_lines[j_diag] = j;

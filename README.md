@@ -25,3 +25,4 @@ colinear chaining
 ## TODOs
 - reach feature-parity with [ChainX](https://github.com/algbio/ChainX/)
 - compare results with ChainX and test performance
+- investigate edge case for case 2 (-n 100 -r 49929335 semi-global mode)
