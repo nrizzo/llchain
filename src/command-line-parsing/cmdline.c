@@ -27,7 +27,7 @@
 
 const char *gengetopt_args_info_purpose = "Verification, WIP implementation, and visualization of linearithmic-time\ncolinear chaining";
 
-const char *gengetopt_args_info_usage = "Usage: clc-viz [-n ANCHORNUM] [-g gap-gap-ld.bmp]";
+const char *gengetopt_args_info_usage = "Usage: clc-viz [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--random-anchors ANCHORNUM]\n[-g gap-gap-ld.bmp] [-r INT]";
 
 const char *gengetopt_args_info_versiontext = "";
 
@@ -36,8 +36,10 @@ const char *gengetopt_args_info_description = "";
 const char *gengetopt_args_info_help[] = {
   "  -h, --help                    Print help and exit",
   "  -V, --version                 Print version and exit",
-  "  -n, --anchors=ANCHORNUM       Number of anchors  (default=`5')",
-  "  -g, --gap-gap-lower-diagonal-output-file=BMPFILE\n                                Visualize the gap-gap, lower diagonal case in\n                                  this file (BMP format)\n                                  (default=`gap-gap-ld.bmp')",
+  "  -t, --text=PATH               Text sequences file",
+  "  -q, --query=PATH              Query sequences file",
+  "      --random-anchors=ANCHORNUM\n                                Number of random anchors to generate\n                                  (default=`-1')",
+  "  -g, --debug-case-two-output-file=BMPFILE\n                                Visualize case 2 in this file (BMP format)\n                                  (default=`')",
   "  -r, --random-seed=INT         Seed for the PRNG (-1 is different at every\n                                  invocation)  (default=`-1')",
     0
 };
@@ -66,8 +68,10 @@ void clear_given (struct gengetopt_args_info *args_info)
 {
   args_info->help_given = 0 ;
   args_info->version_given = 0 ;
-  args_info->anchors_given = 0 ;
-  args_info->gap_gap_lower_diagonal_output_file_given = 0 ;
+  args_info->text_given = 0 ;
+  args_info->query_given = 0 ;
+  args_info->random_anchors_given = 0 ;
+  args_info->debug_case_two_output_file_given = 0 ;
   args_info->random_seed_given = 0 ;
 }
 
@@ -75,10 +79,14 @@ static
 void clear_args (struct gengetopt_args_info *args_info)
 {
   FIX_UNUSED (args_info);
-  args_info->anchors_arg = 5;
-  args_info->anchors_orig = NULL;
-  args_info->gap_gap_lower_diagonal_output_file_arg = gengetopt_strdup ("gap-gap-ld.bmp");
-  args_info->gap_gap_lower_diagonal_output_file_orig = NULL;
+  args_info->text_arg = NULL;
+  args_info->text_orig = NULL;
+  args_info->query_arg = NULL;
+  args_info->query_orig = NULL;
+  args_info->random_anchors_arg = -1;
+  args_info->random_anchors_orig = NULL;
+  args_info->debug_case_two_output_file_arg = gengetopt_strdup ("");
+  args_info->debug_case_two_output_file_orig = NULL;
   args_info->random_seed_arg = -1;
   args_info->random_seed_orig = NULL;
   
@@ -91,9 +99,11 @@ void init_args_info(struct gengetopt_args_info *args_info)
 
   args_info->help_help = gengetopt_args_info_help[0] ;
   args_info->version_help = gengetopt_args_info_help[1] ;
-  args_info->anchors_help = gengetopt_args_info_help[2] ;
-  args_info->gap_gap_lower_diagonal_output_file_help = gengetopt_args_info_help[3] ;
-  args_info->random_seed_help = gengetopt_args_info_help[4] ;
+  args_info->text_help = gengetopt_args_info_help[2] ;
+  args_info->query_help = gengetopt_args_info_help[3] ;
+  args_info->random_anchors_help = gengetopt_args_info_help[4] ;
+  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[5] ;
+  args_info->random_seed_help = gengetopt_args_info_help[6] ;
   
 }
 
@@ -186,9 +196,13 @@ static void
 cmdline_parser_release (struct gengetopt_args_info *args_info)
 {
   unsigned int i;
-  free_string_field (&(args_info->anchors_orig));
-  free_string_field (&(args_info->gap_gap_lower_diagonal_output_file_arg));
-  free_string_field (&(args_info->gap_gap_lower_diagonal_output_file_orig));
+  free_string_field (&(args_info->text_arg));
+  free_string_field (&(args_info->text_orig));
+  free_string_field (&(args_info->query_arg));
+  free_string_field (&(args_info->query_orig));
+  free_string_field (&(args_info->random_anchors_orig));
+  free_string_field (&(args_info->debug_case_two_output_file_arg));
+  free_string_field (&(args_info->debug_case_two_output_file_orig));
   free_string_field (&(args_info->random_seed_orig));
   
   
@@ -229,10 +243,14 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "help", 0, 0 );
   if (args_info->version_given)
     write_into_file(outfile, "version", 0, 0 );
-  if (args_info->anchors_given)
-    write_into_file(outfile, "anchors", args_info->anchors_orig, 0);
-  if (args_info->gap_gap_lower_diagonal_output_file_given)
-    write_into_file(outfile, "gap-gap-lower-diagonal-output-file", args_info->gap_gap_lower_diagonal_output_file_orig, 0);
+  if (args_info->text_given)
+    write_into_file(outfile, "text", args_info->text_orig, 0);
+  if (args_info->query_given)
+    write_into_file(outfile, "query", args_info->query_orig, 0);
+  if (args_info->random_anchors_given)
+    write_into_file(outfile, "random-anchors", args_info->random_anchors_orig, 0);
+  if (args_info->debug_case_two_output_file_given)
+    write_into_file(outfile, "debug-case-two-output-file", args_info->debug_case_two_output_file_orig, 0);
   if (args_info->random_seed_given)
     write_into_file(outfile, "random-seed", args_info->random_seed_orig, 0);
   
@@ -497,13 +515,15 @@ cmdline_parser_internal (
       static struct option long_options[] = {
         { "help",	0, NULL, 'h' },
         { "version",	0, NULL, 'V' },
-        { "anchors",	1, NULL, 'n' },
-        { "gap-gap-lower-diagonal-output-file",	1, NULL, 'g' },
+        { "text",	1, NULL, 't' },
+        { "query",	1, NULL, 'q' },
+        { "random-anchors",	1, NULL, 0 },
+        { "debug-case-two-output-file",	1, NULL, 'g' },
         { "random-seed",	1, NULL, 'r' },
         { 0,  0, 0, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVn:g:r:", long_options, &option_index);
+      c = getopt_long (argc, argv, "hVt:q:g:r:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
@@ -519,26 +539,38 @@ cmdline_parser_internal (
           cmdline_parser_free (&local_args_info);
           exit (EXIT_SUCCESS);
 
-        case 'n':	/* Number of anchors.  */
+        case 't':	/* Text sequences file.  */
         
         
-          if (update_arg( (void *)&(args_info->anchors_arg), 
-               &(args_info->anchors_orig), &(args_info->anchors_given),
-              &(local_args_info.anchors_given), optarg, 0, "5", ARG_LONG,
+          if (update_arg( (void *)&(args_info->text_arg), 
+               &(args_info->text_orig), &(args_info->text_given),
+              &(local_args_info.text_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
-              "anchors", 'n',
+              "text", 't',
               additional_error))
             goto failure;
         
           break;
-        case 'g':	/* Visualize the gap-gap, lower diagonal case in this file (BMP format).  */
+        case 'q':	/* Query sequences file.  */
         
         
-          if (update_arg( (void *)&(args_info->gap_gap_lower_diagonal_output_file_arg), 
-               &(args_info->gap_gap_lower_diagonal_output_file_orig), &(args_info->gap_gap_lower_diagonal_output_file_given),
-              &(local_args_info.gap_gap_lower_diagonal_output_file_given), optarg, 0, "gap-gap-ld.bmp", ARG_STRING,
+          if (update_arg( (void *)&(args_info->query_arg), 
+               &(args_info->query_orig), &(args_info->query_given),
+              &(local_args_info.query_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
-              "gap-gap-lower-diagonal-output-file", 'g',
+              "query", 'q',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'g':	/* Visualize case 2 in this file (BMP format).  */
+        
+        
+          if (update_arg( (void *)&(args_info->debug_case_two_output_file_arg), 
+               &(args_info->debug_case_two_output_file_orig), &(args_info->debug_case_two_output_file_given),
+              &(local_args_info.debug_case_two_output_file_given), optarg, 0, "", ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "debug-case-two-output-file", 'g',
               additional_error))
             goto failure;
         
@@ -557,6 +589,22 @@ cmdline_parser_internal (
           break;
 
         case 0:	/* Long option with no short option */
+          /* Number of random anchors to generate.  */
+          if (strcmp (long_options[option_index].name, "random-anchors") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->random_anchors_arg), 
+                 &(args_info->random_anchors_orig), &(args_info->random_anchors_given),
+                &(local_args_info.random_anchors_given), optarg, 0, "-1", ARG_LONG,
+                check_ambiguity, override, 0, 0,
+                "random-anchors", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          
+          break;
         case '?':	/* Invalid option.  */
           /* `getopt_long' already printed an error message.  */
           goto failure;

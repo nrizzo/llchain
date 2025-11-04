@@ -31,7 +31,7 @@ extern "C" {
 
 #ifndef CMDLINE_PARSER_VERSION
 /** @brief the program version */
-#define CMDLINE_PARSER_VERSION "0.0.2"
+#define CMDLINE_PARSER_VERSION "0.0.3"
 #endif
 
 /** @brief Where the command line options are stored */
@@ -39,20 +39,28 @@ struct gengetopt_args_info
 {
   const char *help_help; /**< @brief Print help and exit help description.  */
   const char *version_help; /**< @brief Print version and exit help description.  */
-  long anchors_arg;	/**< @brief Number of anchors (default='5').  */
-  char * anchors_orig;	/**< @brief Number of anchors original value given at command line.  */
-  const char *anchors_help; /**< @brief Number of anchors help description.  */
-  char * gap_gap_lower_diagonal_output_file_arg;	/**< @brief Visualize the gap-gap, lower diagonal case in this file (BMP format) (default='gap-gap-ld.bmp').  */
-  char * gap_gap_lower_diagonal_output_file_orig;	/**< @brief Visualize the gap-gap, lower diagonal case in this file (BMP format) original value given at command line.  */
-  const char *gap_gap_lower_diagonal_output_file_help; /**< @brief Visualize the gap-gap, lower diagonal case in this file (BMP format) help description.  */
+  char * text_arg;	/**< @brief Text sequences file.  */
+  char * text_orig;	/**< @brief Text sequences file original value given at command line.  */
+  const char *text_help; /**< @brief Text sequences file help description.  */
+  char * query_arg;	/**< @brief Query sequences file.  */
+  char * query_orig;	/**< @brief Query sequences file original value given at command line.  */
+  const char *query_help; /**< @brief Query sequences file help description.  */
+  long random_anchors_arg;	/**< @brief Number of random anchors to generate (default='-1').  */
+  char * random_anchors_orig;	/**< @brief Number of random anchors to generate original value given at command line.  */
+  const char *random_anchors_help; /**< @brief Number of random anchors to generate help description.  */
+  char * debug_case_two_output_file_arg;	/**< @brief Visualize case 2 in this file (BMP format) (default='').  */
+  char * debug_case_two_output_file_orig;	/**< @brief Visualize case 2 in this file (BMP format) original value given at command line.  */
+  const char *debug_case_two_output_file_help; /**< @brief Visualize case 2 in this file (BMP format) help description.  */
   int random_seed_arg;	/**< @brief Seed for the PRNG (-1 is different at every invocation) (default='-1').  */
   char * random_seed_orig;	/**< @brief Seed for the PRNG (-1 is different at every invocation) original value given at command line.  */
   const char *random_seed_help; /**< @brief Seed for the PRNG (-1 is different at every invocation) help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
-  unsigned int anchors_given ;	/**< @brief Whether anchors was given.  */
-  unsigned int gap_gap_lower_diagonal_output_file_given ;	/**< @brief Whether gap-gap-lower-diagonal-output-file was given.  */
+  unsigned int text_given ;	/**< @brief Whether text was given.  */
+  unsigned int query_given ;	/**< @brief Whether query was given.  */
+  unsigned int random_anchors_given ;	/**< @brief Whether random-anchors was given.  */
+  unsigned int debug_case_two_output_file_given ;	/**< @brief Whether debug-case-two-output-file was given.  */
   unsigned int random_seed_given ;	/**< @brief Whether random-seed was given.  */
 
   char **inputs ; /**< @brief unnamed options (options without names) */
