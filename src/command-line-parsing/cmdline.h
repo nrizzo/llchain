@@ -45,6 +45,15 @@ struct gengetopt_args_info
   char * query_arg;	/**< @brief Query sequences file.  */
   char * query_orig;	/**< @brief Query sequences file original value given at command line.  */
   const char *query_help; /**< @brief Query sequences file help description.  */
+  char * mode_arg;	/**< @brief Chaining mode (global/semiglobal) (default='global').  */
+  char * mode_orig;	/**< @brief Chaining mode (global/semiglobal) original value given at command line.  */
+  const char *mode_help; /**< @brief Chaining mode (global/semiglobal) help description.  */
+  char * anchor_type_arg;	/**< @brief (MUM/MEM) (default='MUM').  */
+  char * anchor_type_orig;	/**< @brief (MUM/MEM) original value given at command line.  */
+  const char *anchor_type_help; /**< @brief (MUM/MEM) help description.  */
+  int anchor_length_arg;	/**< @brief Minimum anchor length (default='20').  */
+  char * anchor_length_orig;	/**< @brief Minimum anchor length original value given at command line.  */
+  const char *anchor_length_help; /**< @brief Minimum anchor length help description.  */
   long random_anchors_arg;	/**< @brief Number of random anchors to generate (default='-1').  */
   char * random_anchors_orig;	/**< @brief Number of random anchors to generate original value given at command line.  */
   const char *random_anchors_help; /**< @brief Number of random anchors to generate help description.  */
@@ -59,6 +68,9 @@ struct gengetopt_args_info
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int text_given ;	/**< @brief Whether text was given.  */
   unsigned int query_given ;	/**< @brief Whether query was given.  */
+  unsigned int mode_given ;	/**< @brief Whether mode was given.  */
+  unsigned int anchor_type_given ;	/**< @brief Whether anchor-type was given.  */
+  unsigned int anchor_length_given ;	/**< @brief Whether anchor-length was given.  */
   unsigned int random_anchors_given ;	/**< @brief Whether random-anchors was given.  */
   unsigned int debug_case_two_output_file_given ;	/**< @brief Whether debug-case-two-output-file was given.  */
   unsigned int random_seed_given ;	/**< @brief Whether random-seed was given.  */

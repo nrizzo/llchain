@@ -27,4 +27,11 @@ namespace mummer_essaMEM_wrapper {
 		sa.findMEM_each(q.data(), q.length(), seed_min_length, false, append_matches);
 	}
 
+	export void find_MUMs(const mummer::mummer::sparseSA &sa, const string &q, int seed_min_length, vector<tuple<long long, long long, long long>> &matches_out)
+	{
+		auto append_matches = [&](const mummer::mummer::match_t& m) { matches_out.emplace_back(m.ref, m.query, m.len); }; //0-based coordinates
+		matches_out.clear();
+		sa.findMUM_each(q.data(), q.length(), seed_min_length, false, append_matches);
+	}
+
 } // mummer_essaMEM_wrapper

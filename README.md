@@ -6,8 +6,8 @@ make -j
 ```
 
 ```
-Usage: clc-viz [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--random-anchors ANCHORNUM]
-[-g gap-gap-ld.bmp] [-r INT]
+Usage: clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)]
+[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]
 Verification, WIP implementation, and visualization of linearithmic-time
 colinear chaining
 
@@ -15,6 +15,10 @@ colinear chaining
   -V, --version                 Print version and exit
   -t, --text=PATH               Text sequences file
   -q, --query=PATH              Query sequences file
+  -m, --mode=MODE               Chaining mode (global/semiglobal)
+                                  (default=`global')
+  -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')
+  -l, --anchor-length=LENGTH    Minimum anchor length  (default=`20')
       --random-anchors=ANCHORNUM
                                 Number of random anchors to generate
                                   (default=`-1')
@@ -33,8 +37,7 @@ colinear chaining
 `gengetopt` for development
 
 ## TODOs
-- reach feature-parity with [ChainX](https://github.com/algbio/ChainX/)
 - stream queries from disk
-- replace kseq with another FASTA parsing library
 - compare results with ChainX and test performance
+- implement all-to-all comparison
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)

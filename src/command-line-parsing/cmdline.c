@@ -27,7 +27,7 @@
 
 const char *gengetopt_args_info_purpose = "Verification, WIP implementation, and visualization of linearithmic-time\ncolinear chaining";
 
-const char *gengetopt_args_info_usage = "Usage: clc-viz [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--random-anchors ANCHORNUM]\n[-g gap-gap-ld.bmp] [-r INT]";
+const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)]\n[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
 
 const char *gengetopt_args_info_versiontext = "";
 
@@ -38,6 +38,9 @@ const char *gengetopt_args_info_help[] = {
   "  -V, --version                 Print version and exit",
   "  -t, --text=PATH               Text sequences file",
   "  -q, --query=PATH              Query sequences file",
+  "  -m, --mode=MODE               Chaining mode (global/semiglobal)\n                                  (default=`global')",
+  "  -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')",
+  "  -l, --anchor-length=LENGTH    Minimum anchor length  (default=`20')",
   "      --random-anchors=ANCHORNUM\n                                Number of random anchors to generate\n                                  (default=`-1')",
   "  -g, --debug-case-two-output-file=BMPFILE\n                                Visualize case 2 in this file (BMP format)\n                                  (default=`')",
   "  -r, --random-seed=INT         Seed for the PRNG (-1 is different at every\n                                  invocation)  (default=`-1')",
@@ -70,6 +73,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->version_given = 0 ;
   args_info->text_given = 0 ;
   args_info->query_given = 0 ;
+  args_info->mode_given = 0 ;
+  args_info->anchor_type_given = 0 ;
+  args_info->anchor_length_given = 0 ;
   args_info->random_anchors_given = 0 ;
   args_info->debug_case_two_output_file_given = 0 ;
   args_info->random_seed_given = 0 ;
@@ -83,6 +89,12 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->text_orig = NULL;
   args_info->query_arg = NULL;
   args_info->query_orig = NULL;
+  args_info->mode_arg = gengetopt_strdup ("global");
+  args_info->mode_orig = NULL;
+  args_info->anchor_type_arg = gengetopt_strdup ("MUM");
+  args_info->anchor_type_orig = NULL;
+  args_info->anchor_length_arg = 20;
+  args_info->anchor_length_orig = NULL;
   args_info->random_anchors_arg = -1;
   args_info->random_anchors_orig = NULL;
   args_info->debug_case_two_output_file_arg = gengetopt_strdup ("");
@@ -101,9 +113,12 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->version_help = gengetopt_args_info_help[1] ;
   args_info->text_help = gengetopt_args_info_help[2] ;
   args_info->query_help = gengetopt_args_info_help[3] ;
-  args_info->random_anchors_help = gengetopt_args_info_help[4] ;
-  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[5] ;
-  args_info->random_seed_help = gengetopt_args_info_help[6] ;
+  args_info->mode_help = gengetopt_args_info_help[4] ;
+  args_info->anchor_type_help = gengetopt_args_info_help[5] ;
+  args_info->anchor_length_help = gengetopt_args_info_help[6] ;
+  args_info->random_anchors_help = gengetopt_args_info_help[7] ;
+  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[8] ;
+  args_info->random_seed_help = gengetopt_args_info_help[9] ;
   
 }
 
@@ -200,6 +215,11 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->text_orig));
   free_string_field (&(args_info->query_arg));
   free_string_field (&(args_info->query_orig));
+  free_string_field (&(args_info->mode_arg));
+  free_string_field (&(args_info->mode_orig));
+  free_string_field (&(args_info->anchor_type_arg));
+  free_string_field (&(args_info->anchor_type_orig));
+  free_string_field (&(args_info->anchor_length_orig));
   free_string_field (&(args_info->random_anchors_orig));
   free_string_field (&(args_info->debug_case_two_output_file_arg));
   free_string_field (&(args_info->debug_case_two_output_file_orig));
@@ -247,6 +267,12 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "text", args_info->text_orig, 0);
   if (args_info->query_given)
     write_into_file(outfile, "query", args_info->query_orig, 0);
+  if (args_info->mode_given)
+    write_into_file(outfile, "mode", args_info->mode_orig, 0);
+  if (args_info->anchor_type_given)
+    write_into_file(outfile, "anchor-type", args_info->anchor_type_orig, 0);
+  if (args_info->anchor_length_given)
+    write_into_file(outfile, "anchor-length", args_info->anchor_length_orig, 0);
   if (args_info->random_anchors_given)
     write_into_file(outfile, "random-anchors", args_info->random_anchors_orig, 0);
   if (args_info->debug_case_two_output_file_given)
@@ -517,13 +543,16 @@ cmdline_parser_internal (
         { "version",	0, NULL, 'V' },
         { "text",	1, NULL, 't' },
         { "query",	1, NULL, 'q' },
+        { "mode",	1, NULL, 'm' },
+        { "anchor-type",	1, NULL, 'a' },
+        { "anchor-length",	1, NULL, 'l' },
         { "random-anchors",	1, NULL, 0 },
         { "debug-case-two-output-file",	1, NULL, 'g' },
         { "random-seed",	1, NULL, 'r' },
         { 0,  0, 0, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVt:q:g:r:", long_options, &option_index);
+      c = getopt_long (argc, argv, "hVt:q:m:a:l:g:r:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
@@ -559,6 +588,42 @@ cmdline_parser_internal (
               &(local_args_info.query_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
               "query", 'q',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'm':	/* Chaining mode (global/semiglobal).  */
+        
+        
+          if (update_arg( (void *)&(args_info->mode_arg), 
+               &(args_info->mode_orig), &(args_info->mode_given),
+              &(local_args_info.mode_given), optarg, 0, "global", ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "mode", 'm',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'a':	/* (MUM/MEM).  */
+        
+        
+          if (update_arg( (void *)&(args_info->anchor_type_arg), 
+               &(args_info->anchor_type_orig), &(args_info->anchor_type_given),
+              &(local_args_info.anchor_type_given), optarg, 0, "MUM", ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "anchor-type", 'a',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'l':	/* Minimum anchor length.  */
+        
+        
+          if (update_arg( (void *)&(args_info->anchor_length_arg), 
+               &(args_info->anchor_length_orig), &(args_info->anchor_length_given),
+              &(local_args_info.anchor_length_given), optarg, 0, "20", ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "anchor-length", 'l',
               additional_error))
             goto failure;
         

@@ -1,7 +1,7 @@
-FLAGS=-std=c++20 -O2 -fmodules
-CFLAGS=-std=c++20 -O2
+FLAGS=-std=c++20 -O3 -fmodules
+CFLAGS=-std=c++20 -O3
 LDFLAGS=-lz
-STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set list string
+STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set list string chrono
 STDMODULES_FAKEFILES=$(foreach s,$(STDMODULES),makefile.cache/$(s))
 .PHONY : clean
 

@@ -1165,7 +1165,7 @@ void prune_shadowed_delimiting_lines(case_two_index &I, const ai_t sweeping_line
 
 		if (get<2>(*std::prev(line_it)) <= k_val) { // TODO is this the correct order?
 			// diagonal shadows horizontal
-			cerr << "DEBUG: line " << j << "diag" << " shadows " << k << "hor" << endl;
+			//cerr << "DEBUG: line " << j << "diag" << " shadows " << k << "hor" << endl;
 			get<2>(*line_it) = k_val;
 			I.delimiting_lines.erase(next_it);
 			assert(I.active_horizontal_lines[k_d] == k);
@@ -1177,7 +1177,7 @@ void prune_shadowed_delimiting_lines(case_two_index &I, const ai_t sweeping_line
 			}
 		} else {
 			// horizontal shadows diagonal
-			cerr << "DEBUG: line " << j << "diag" << " is shadowed by " << k << "hor" << endl;
+			//cerr << "DEBUG: line " << j << "diag" << " is shadowed by " << k << "hor" << endl;
 			I.delimiting_lines.erase(line_it);
 			assert(I.active_diagonal_lines[j_diag] == j);
 			I.active_diagonal_lines.erase(j_diag);

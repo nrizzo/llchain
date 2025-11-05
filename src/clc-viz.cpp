@@ -2,6 +2,7 @@ import <iostream>;
 import <string>;
 import <vector>;
 import <cassert>;
+import <chrono>;
 import utils;
 import algo;
 import kseq;
@@ -13,6 +14,8 @@ using std::cerr, std::endl;
 using std::string;
 using std::vector;
 using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::filter_perfect_chains, utils::place_dummy_anchors, utils::sort_anchors;
+
+enum anchor_type { MUM, MEM };
 
 int main(int argc, char **argv) 
 {
@@ -34,36 +37,69 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	const int anchorlength = argsinfo.anchor_length_arg;
+	if (anchorlength <= 0) { cerr << "Error: pick an anchor length >= 1." << endl; exit(1); };
+
 	if ((argsinfo.text_arg != NULL) and (argsinfo.query_arg != NULL)) {
-		vector<string> texts, text_ids;
-		kseq::read_sequences(string(argsinfo.text_arg), texts, text_ids);
+		algo::chaining_mode mode;
+		if      (string(argsinfo.mode_arg) == "global")     mode = algo::chaining_mode::global;
+		else if (string(argsinfo.mode_arg) == "semiglobal") mode = algo::chaining_mode::semiglobal;
+		else { cerr << "Error: pick a correct chaining mode (global/semiglobal)." << endl; exit(1); }
+
+		anchor_type anchortype;
+		if      (string(argsinfo.anchor_type_arg) == "MUM") anchortype = MUM;
+		else if (string(argsinfo.anchor_type_arg) == "MEM") anchortype = MEM;
+		else { cerr << "Error: pick a correct anchor type (MUM/MEM)." << endl; exit(1); }
+
+		vector<string> texts, text_ids, queries, query_ids;
+		kseq::read_sequences(string(argsinfo.text_arg),  texts,   text_ids);
+		kseq::read_sequences(string(argsinfo.query_arg), queries, query_ids);
 
 		cerr << "DEBUG: read text sequences ";
 		for (auto const &id : text_ids) cerr << id << " ";
 		cerr << "of sizes ";
 		for (auto const &text : texts) cerr << text.size() << " ";
 		cerr << endl;
-
-		vector<string> queries, query_ids;
-		kseq::read_sequences(string(argsinfo.query_arg), queries, query_ids);
 		cerr << "DEBUG: read query sequences ";
 		for (auto const &id : query_ids) cerr << id << " ";
 		cerr << "of sizes ";
 		for (auto const &query : queries) cerr << query.size() << " ";
 		cerr << endl;
-		auto sa = mummer_essaMEM_wrapper::index(texts[0], 20);
-		vector<anchor_t> matches;
-		mummer_essaMEM_wrapper::find_MEMs(sa, queries[0], 20, matches);
-		cerr << "DEBUG: Found " << matches.size() << " MEMs of length >= 20" << endl;
 
-		matches = filter_perfect_chains(matches); // only maximal anchors!
-		place_dummy_anchors(texts[0].size(), queries[0].size(), matches);
-		sort_anchors(matches);
-		vector<utils::anchor_index_t> costs;
-		algo::solve_linearithmic(matches, texts[0].size(), queries[0].size(), algo::chaining_mode::semiglobal, costs);
-		vector<anchor_t> chain;
-		algo::weak_backtrack(matches, costs, algo::chaining_mode::semiglobal, chain);
-		cerr << "DEBUG: Optimal chain has cost " << costs.back() << endl;
+		for (int t = 0; t < texts.size(); t++) {
+			auto const index = mummer_essaMEM_wrapper::index(texts[t], anchorlength);
+			std::chrono::duration<double> timespan;
+			auto start = std::chrono::steady_clock::now(), querystart = std::chrono::steady_clock::now();
+			for (int q = 0; q < queries.size(); q++) {
+				cerr << "DEBUG: querying " << query_ids[q] << " in " << text_ids[t] << " (" << ((anchortype == MUM) ? "MUM" : "MEM") << " seeds of length >= " << anchorlength << ")...";
+
+				querystart = std::chrono::steady_clock::now();
+				start = std::chrono::steady_clock::now();
+				vector<anchor_t> matches;
+				if (anchortype == MUM)
+					mummer_essaMEM_wrapper::find_MUMs(index, queries[q], anchorlength, matches);
+				else if (anchortype == MEM)
+					mummer_essaMEM_wrapper::find_MEMs(index, queries[q], anchorlength, matches);
+				const std::chrono::duration<double> seeding_time = std::chrono::steady_clock::now() - start;
+				const long found_anchors = matches.size();
+
+				start = std::chrono::steady_clock::now();
+				place_dummy_anchors(texts[t].size(), queries[q].size(), matches);
+				sort_anchors(matches);
+				const std::chrono::duration<double> preprocessing_time = std::chrono::steady_clock::now() - start;
+
+				start = std::chrono::steady_clock::now();
+				vector<utils::anchor_index_t> costs;
+				algo::solve_linearithmic(matches, texts[t].size(), queries[q].size(), mode, costs);
+				vector<anchor_t> chain;
+				algo::weak_backtrack(matches, costs, mode, chain);
+				const std::chrono::duration<double> chaining_time = std::chrono::steady_clock::now() - start;
+				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
+
+				cerr << "done (" << found_anchors << " anchors, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << chaining_time << " chaining, " << query_time << " total query time)" << endl;
+			}
+		}
+
 		return 0;
 	}
 
