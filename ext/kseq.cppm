@@ -24,13 +24,14 @@
 */
 
 /* Last Modified: 2017-02-11 */
+module;
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+#include <zlib.h>
 
 export module kseq;
 
-import <ctype.h>;
-import <string.h>;
-import <stdlib.h>;
-import <zlib.h>;
 import <string>;
 import <vector>;
 import <cassert>;

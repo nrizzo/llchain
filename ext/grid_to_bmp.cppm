@@ -4,13 +4,14 @@
 //
 // The BmpImage class was written by Daniel LePage, 2007
 // The main method was written by Aaron Bloomfield, 2008
+module;
+#include <stdio.h>
 
 export module grid_to_bmp;
 
 import <iostream>;
 import <vector>;
 import <fstream>;
-import <stdio.h>;
 
 export namespace grid_to_bmp {
 
