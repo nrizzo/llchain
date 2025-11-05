@@ -1,5 +1,10 @@
 # clc-viz-experiments
-Tested on GCC version 15.2.1.
+Tested on GCC version 15.2.1. Compile with
+```console
+git submodule update --init ext/mummer
+make -j
+```
+
 ```
 Usage: clc-viz [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--random-anchors ANCHORNUM]
 [-g gap-gap-ld.bmp] [-r INT]
@@ -10,7 +15,7 @@ colinear chaining
   -V, --version                 Print version and exit
   -t, --text=PATH               Text sequences file
   -q, --query=PATH              Query sequences file
-  -n, --random-anchors=ANCHORNUM
+      --random-anchors=ANCHORNUM
                                 Number of random anchors to generate
                                   (default=`-1')
   -g, --debug-case-two-output-file=BMPFILE
@@ -30,5 +35,6 @@ colinear chaining
 ## TODOs
 - reach feature-parity with [ChainX](https://github.com/algbio/ChainX/)
 - stream queries from disk
+- replace kseq with another FASTA parsing library
 - compare results with ChainX and test performance
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)

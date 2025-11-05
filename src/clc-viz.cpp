@@ -5,6 +5,7 @@ import <cassert>;
 import utils;
 import algo;
 import kseq;
+import mummer_essaMEM_wrapper;
 
 #include "command-line-parsing/cmdline.h" // cmdline_parser (gengetopt)
 
@@ -50,6 +51,19 @@ int main(int argc, char **argv)
 		cerr << "of sizes ";
 		for (auto const &query : queries) cerr << query.size() << " ";
 		cerr << endl;
+		auto sa = mummer_essaMEM_wrapper::index(texts[0], 20);
+		vector<anchor_t> matches;
+		mummer_essaMEM_wrapper::find_MEMs(sa, queries[0], 20, matches);
+		cerr << "DEBUG: Found " << matches.size() << " MEMs of length >= 20" << endl;
+
+		matches = filter_perfect_chains(matches); // only maximal anchors!
+		place_dummy_anchors(texts[0].size(), queries[0].size(), matches);
+		sort_anchors(matches);
+		vector<utils::anchor_index_t> costs;
+		algo::solve_linearithmic(matches, texts[0].size(), queries[0].size(), algo::chaining_mode::semiglobal, costs);
+		vector<anchor_t> chain;
+		algo::weak_backtrack(matches, costs, algo::chaining_mode::semiglobal, chain);
+		cerr << "DEBUG: Optimal chain has cost " << costs.back() << endl;
 		return 0;
 	}
 

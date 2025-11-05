@@ -98,7 +98,7 @@ export vector<anchor_t> filter_perfect_chains(const vector<anchor_t> &anchors);
  */
 export void place_dummy_anchors(
 		anchor_index_t Tlength,
-		int Qlength,
+		anchor_index_t Qlength,
 		vector<anchor_t> &anchors);
 
 /*
@@ -274,7 +274,7 @@ export void plot_anchors(BmpImage &image, const vector<anchor_t> &anchors, Color
 	}
 }
 
-export void place_dummy_anchors(int width, int height, vector<anchor_t> &anchors)
+export void place_dummy_anchors(anchor_index_t width, anchor_index_t height, vector<anchor_t> &anchors)
 {
 	anchors.emplace_back(-1,-1,1);
 	anchors.emplace_back(width, height, 1);

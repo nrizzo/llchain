@@ -332,12 +332,10 @@ void solve_linearithmic(
 		const ai_t Tlength,
 		const ai_t Qlength,
 		const chaining_mode m,
-		vector<ai_t> &costs_out,
-		vector<anchor_t> &chain_out
+		vector<ai_t> &costs_out
 ) {
 	const ai_t n = anchors.size();
 	costs_out = vector<ai_t>(n, 0);
-	chain_out.clear();
 
 	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
 	points.reserve(2 * n - 3);

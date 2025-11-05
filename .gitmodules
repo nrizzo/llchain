@@ -1,0 +1,3 @@
+[submodule "ext/mummer"]
+	path = ext/mummer
+	url = https://github.com/mummer4/mummer.git
