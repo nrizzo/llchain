@@ -36,6 +36,12 @@ import <string>;
 import <vector>;
 import <cassert>;
 import <iostream>;
+import <tuple>;
+
+using std::string;
+using std::vector;
+using std::cerr, std::endl;
+using std::tuple;
 
 namespace kseq {
 
@@ -247,27 +253,29 @@ typedef struct __kstring_t {
 	void kseq_destroy(kseq_t *ks); \
 	long long kseq_read(kseq_t *seq);
 
-/*
- * function adapted from github.com/algbio/ChainX
- */
 KSEQ_INIT(gzFile, gzread)
-export void read_sequences(const std::string &path, std::vector<std::string> &sequences_out, std::vector<std::string> &ids_out)
+
+/*
+ * reads all sequences contained in the (gzipped) fasta file pointed by path
+ *   adapted from github.com/at-cg/ChainX/src/include/utils.hpp
+ * NB: erases all strings in sequences_out and ids_out
+ */
+export void read_sequences(const string &path, vector<string> &sequences_out, vector<string> &ids_out)
 {
 	gzFile fp = gzopen(path.data(), "r");
+	sequences_out.clear();
+	ids_out.clear();
 
 	if (fp == NULL) {
-		std::cerr << "ERROR: gzopen failed to read input file " << path << std::endl;
+		cerr << "ERROR: gzopen failed to read input file " << path << endl;
 		exit(1);
 	}
-
-	assert (sequences_out.size() == 0);
 
 	kseq_t *seq = kseq_init(fp);
 	long long len;
 
-	while ((len = kseq_read(seq)) >= 0) 
-	{
-		std::string str (seq->seq.s);
+	while ((len = kseq_read(seq)) >= 0) {
+		string str (seq->seq.s);
 
 		//convert to upper case
 		for(long long i=0;str[i]!=0;i++) {
@@ -280,10 +288,57 @@ export void read_sequences(const std::string &path, std::vector<std::string> &se
 		ids_out.push_back(seq->name.s);
 	}
 
-	assert (sequences_out.size() > 0);
+	if (sequences_out.size() == 0) {
+		cerr << "ERROR: input file " << path << " contained no sequence." << endl;
+		exit(1);
+	}
 
-	kseq_destroy(seq);  
-	gzclose(fp); 
+	kseq_destroy(seq);
+	gzclose(fp);
 }
+
+export class FastaGzInput {
+	private:
+		gzFile fp;
+		kseq_t *seq;
+	public:
+		FastaGzInput() = delete;
+		FastaGzInput(const string &path)
+		{
+			fp = gzopen(path.data(), "r");
+			if (fp == NULL) {
+				cerr << "ERROR: gzopen failed to read input file " << path << endl;
+				exit(1);
+			}
+			seq = kseq_init(fp);
+		}
+
+		bool read_sequence(string &id_out, string &sequence_out)
+		{
+			if (kseq_read(seq) >= 0) {
+				string str (seq->seq.s);
+
+				//convert to upper case
+				for(long long i = 0; str[i] != 0; i++) {
+					if(str[i] <= 'z' && str[i] >= 'a') {
+						str[i] += 'A'-'a';
+					}
+				}
+
+				id_out = string(seq->name.s);
+				sequence_out = std::move(str);
+
+				return true; // successfully read a sequence
+			} else {
+				return false; // end of file
+			}
+		}
+
+		~FastaGzInput()
+		{
+			kseq_destroy(seq);
+			gzclose(fp);
+		}
+}; // FastaGzInput
 
 } // kseq

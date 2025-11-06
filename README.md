@@ -40,6 +40,5 @@ colinear chaining
 ## TODOs
 - MEM tests from at-cg/ChainX
 - PacBio HiFi long read test from algbio/ChainX
-- stream queries from disk
 - implement all-to-all comparison
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)

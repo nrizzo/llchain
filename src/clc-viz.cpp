@@ -51,46 +51,43 @@ int main(int argc, char **argv)
 		else if (string(argsinfo.anchor_type_arg) == "MEM") anchortype = MEM;
 		else { cerr << "Error: pick a correct anchor type (MUM/MEM)." << endl; exit(1); }
 
-		vector<string> texts, text_ids, queries, query_ids;
+		vector<string> texts, text_ids; // queries, query_ids;
 		kseq::read_sequences(string(argsinfo.text_arg),  texts,   text_ids);
-		kseq::read_sequences(string(argsinfo.query_arg), queries, query_ids);
 
 		cerr << "DEBUG: read text sequences ";
 		for (auto const &id : text_ids) cerr << id << " ";
 		cerr << "of sizes ";
 		for (auto const &text : texts) cerr << text.size() << " ";
 		cerr << endl;
-		cerr << "DEBUG: read query sequences ";
-		for (auto const &id : query_ids) cerr << id << " ";
-		cerr << "of sizes ";
-		for (auto const &query : queries) cerr << query.size() << " ";
-		cerr << endl;
 
 		for (int t = 0; t < texts.size(); t++) {
 			auto const index = mummer_essaMEM_wrapper::index(texts[t], anchorlength);
 			std::chrono::duration<double> timespan;
 			auto start = std::chrono::steady_clock::now(), querystart = std::chrono::steady_clock::now();
-			for (int q = 0; q < queries.size(); q++) {
-				cerr << "DEBUG: querying " << query_ids[q] << " in " << text_ids[t] << " (" << ((anchortype == MUM) ? "MUM" : "MEM") << " seeds of length >= " << anchorlength << ")...";
+
+			kseq::FastaGzInput fgz(string(argsinfo.query_arg));
+			string query_id, query;
+			while (fgz.read_sequence(query_id, query)) {
+				cerr << "DEBUG: querying " << query_id << " in " << text_ids[t] << " (" << ((anchortype == MUM) ? "MUM" : "MEM") << " seeds of length >= " << anchorlength << ")...";
 
 				querystart = std::chrono::steady_clock::now();
 				start = std::chrono::steady_clock::now();
 				vector<anchor_t> matches;
 				if (anchortype == MUM)
-					mummer_essaMEM_wrapper::find_MUMs(index, queries[q], anchorlength, matches);
+					mummer_essaMEM_wrapper::find_MUMs(index, query, anchorlength, matches);
 				else if (anchortype == MEM)
-					mummer_essaMEM_wrapper::find_MEMs(index, queries[q], anchorlength, matches);
+					mummer_essaMEM_wrapper::find_MEMs(index, query, anchorlength, matches);
 				const std::chrono::duration<double> seeding_time = std::chrono::steady_clock::now() - start;
 				const long found_anchors = matches.size();
 
 				start = std::chrono::steady_clock::now();
-				place_dummy_anchors(texts[t].size(), queries[q].size(), matches);
+				place_dummy_anchors(texts[t].size(), query.size(), matches);
 				sort_anchors(matches);
 				const std::chrono::duration<double> preprocessing_time = std::chrono::steady_clock::now() - start;
 
 				start = std::chrono::steady_clock::now();
 				vector<utils::anchor_index_t> costs;
-				algo::solve_linearithmic(matches, texts[t].size(), queries[q].size(), mode, costs);
+				algo::solve_linearithmic(matches, texts[t].size(), query.size(), mode, costs);
 				vector<anchor_t> chain;
 				algo::weak_backtrack(matches, costs, mode, chain);
 				const std::chrono::duration<double> chaining_time = std::chrono::steady_clock::now() - start;
