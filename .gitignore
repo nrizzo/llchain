@@ -4,3 +4,5 @@ debug-case-two.bmp
 gcm.cache
 makefile.cache
 *.o
+
+experiments/ChainX/output

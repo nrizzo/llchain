@@ -31,13 +31,15 @@ colinear chaining
 
 ## External libraries
 - [kseq](https://github.com/lh3/seqtk) for FASTA parsing
+- [mummer/essaMEM](https://github.com/mummer4/mummer.git) for seed finding
 - [grid_to_bmp](https://people.sc.fsu.edu/~jburkardt/cpp_src/grid_to_bmp/grid_to_bmp.html) that we adapted for debugging
 
 ## Dependencies
 `gengetopt` for development
 
 ## TODOs
+- MEM tests from at-cg/ChainX
+- PacBio HiFi long read test from algbio/ChainX
 - stream queries from disk
-- compare results with ChainX and test performance
 - implement all-to-all comparison
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)
