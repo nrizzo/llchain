@@ -43,7 +43,7 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 check=$(diff \
 	<(grep "distance =" time_global_chainx     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" time_global_clc-viz | cut -d' ' -f14))
+	<(grep "anchored edit distance" time_global_clc-viz | cut -d' ' -f16))
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
@@ -59,7 +59,7 @@ do
 	grep "maxresident" $t | cut -d' ' -f1 | tac >> stats_space_$t
 done
 echo "time (s)" > stats_time_time_global_clc-viz
-grep "anchored edit distance" time_global_clc-viz | cut -d' ' -f24 | tr -d "s" | tac >> stats_time_time_global_clc-viz
+grep "anchored edit distance" time_global_clc-viz | cut -d' ' -f26 | tr -d "s" | tac >> stats_time_time_global_clc-viz
 echo "space (kb)" > stats_space_time_global_clc-viz
 grep "maxresident" time_global_clc-viz | cut -d' ' -f1 | tac >> stats_space_time_global_clc-viz
 
@@ -102,7 +102,7 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 check=$(diff \
 	<(grep "distance =" time_semiglobal_chainx     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" time_semiglobal_clc-viz | cut -d' ' -f14))
+	<(grep "anchored edit distance" time_semiglobal_clc-viz | cut -d' ' -f16))
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
@@ -118,7 +118,7 @@ do
 	grep "maxresident" $t | cut -d' ' -f1 | tac >> stats_space_$t
 done
 echo "time (s)" > stats_time_time_semiglobal_clc-viz
-grep "anchored edit distance" time_semiglobal_clc-viz | cut -d' ' -f24 | tr -d "s" | tac >> stats_time_time_semiglobal_clc-viz
+grep "anchored edit distance" time_semiglobal_clc-viz | cut -d' ' -f26 | tr -d "s" | tac >> stats_time_time_semiglobal_clc-viz
 echo "space (kb)" > stats_space_time_semiglobal_clc-viz
 grep "maxresident" time_semiglobal_clc-viz | cut -d' ' -f1 | tac >> stats_space_time_semiglobal_clc-viz
 
@@ -164,7 +164,7 @@ do
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 	check=$(diff \
 		<(grep "distance =" correlation_global_chainx_$m     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-		<(grep "anchored edit distance" correlation_global_clc-viz_$m | cut -d' ' -f14))
+		<(grep "anchored edit distance" correlation_global_clc-viz_$m | cut -d' ' -f16))
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 done
 echo " done (no difference)."
@@ -229,7 +229,7 @@ do
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 	check=$(diff \
 		<(grep "distance =" correlation_semiglobal_chainx_$m     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-		<(grep "anchored edit distance" correlation_semiglobal_clc-viz_$m | cut -d' ' -f14))
+		<(grep "anchored edit distance" correlation_semiglobal_clc-viz_$m | cut -d' ' -f16))
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 done
 echo " done (no difference)."

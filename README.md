@@ -38,7 +38,7 @@ colinear chaining
 `gengetopt` for development
 
 ## TODOs
-- MEM tests from at-cg/ChainX
 - PacBio HiFi long read test from algbio/ChainX
 - implement all-to-all comparison
+- MEM tests from at-cg/ChainX, filtering invalid MEMs
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)

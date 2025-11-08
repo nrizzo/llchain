@@ -13,7 +13,7 @@ import mummer_essaMEM_wrapper;
 using std::cerr, std::endl;
 using std::string;
 using std::vector;
-using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::filter_perfect_chains, utils::place_dummy_anchors, utils::sort_anchors;
+using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::filter_perfect_chains, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains;
 
 enum anchor_type { MUM, MEM };
 
@@ -78,9 +78,10 @@ int main(int argc, char **argv)
 				else if (anchortype == MEM)
 					mummer_essaMEM_wrapper::find_MEMs(index, query, anchorlength, matches);
 				const std::chrono::duration<double> seeding_time = std::chrono::steady_clock::now() - start;
-				const long found_anchors = matches.size();
+				const long long found_anchors = matches.size();
 
 				start = std::chrono::steady_clock::now();
+				merge_perfect_chains(matches);
 				place_dummy_anchors(texts[t].size(), query.size(), matches);
 				sort_anchors(matches);
 				const std::chrono::duration<double> preprocessing_time = std::chrono::steady_clock::now() - start;
@@ -93,7 +94,7 @@ int main(int argc, char **argv)
 				const std::chrono::duration<double> chaining_time = std::chrono::steady_clock::now() - start;
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
 
-				cerr << "done (" << found_anchors << " anchors, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << chaining_time << " chaining, " << query_time << " total query time)" << endl;
+				cerr << "done (" << found_anchors << " anchors, " << matches.size() - 2 << " merged, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << chaining_time << " chaining, " << query_time << " total query time)" << endl;
 			}
 		}
 

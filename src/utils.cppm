@@ -5,6 +5,7 @@ import <tuple>;
 import <random>;
 import <algorithm>; // std::sort
 import <iostream>;
+import <cassert>;
 import grid_to_bmp;
 
 using std::vector;
@@ -88,9 +89,17 @@ export vector<anchor_t> random_anchors(
 
 /*
  * return a subset of the input anchors that does not contain perfect chains of
- * length >1 (connect(a_i, a_j) == 0)
+ *   length >1 (connect(a_i, a_j) == 0)
  */
 export vector<anchor_t> filter_perfect_chains(const vector<anchor_t> &anchors);
+
+/*
+ * merge perfect chains (connect(a_i, a_j) == 0) together, keeping the anchored
+ *   edit distance the same (see Corollary 1 of ISBRA paper)
+ * NB: modifies input anchors
+ * NB: assumes dummy anchors are NOT in anchors (see place_dummy_anchors)
+ */
+export void merge_perfect_chains(vector<anchor_t> &anchors);
 
 /*
  * adds dummy anchors a_start and a_end to the end of anchors
@@ -346,6 +355,53 @@ bool weak_precedes(const anchor_t &anc1, const anchor_t &anc2)
 	const anchor_index_t anc2_c = get<1>(anc2);
 
 	return (anc1_a < anc2_a and anc1_c < anc2_c);
+}
+
+export void merge_perfect_chains(vector<anchor_t> &anchors)
+{
+	// sort anchors by diagonal first, start position second
+	std::sort(anchors.begin(), anchors.end(),
+			[](const anchor_t& a,
+				const anchor_t& b) -> bool
+			{
+				anchor_index_t diag_a = get<0>(a) - get<1>(a);
+				anchor_index_t diag_b = get<0>(b) - get<1>(b);
+				return (diag_a < diag_b or
+						(diag_a == diag_b and
+						 get<0>(a) < get<0>(b)));
+			});
+
+	anchor_index_t prev = -1;
+	anchor_index_t prev_diag = std::numeric_limits<anchor_index_t>::max();
+	anchor_index_t processed_a = 0;
+	anchor_index_t merged = 0;
+	for (anchor_index_t i = 0; i < anchors.size(); i++) {
+		const anchor_index_t i_a = get<0>(anchors[i]);
+		const anchor_index_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+		const anchor_index_t i_diag = get<0>(anchors[i]) - get<1>(anchors[i]);
+
+		if (prev_diag != i_diag or i_a > processed_a) {
+			prev = i;
+			prev_diag = i_diag;
+			processed_a = i_b;
+		} else {
+			assert(connect(anchors[prev], anchors[i]) == 0);
+			const anchor_index_t new_i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+			const anchor_index_t new_i_length = new_i_b - i_a;
+			get<2>(anchors[prev]) = new_i_length;
+			anchors[i] = { -1, -1, -1 };
+			processed_a = new_i_b;
+			merged += 1;
+		}
+	}
+
+	for (anchor_index_t i = 0, j = 0; i < anchors.size(); i++) {
+		if (anchors[i] != anchor_t({-1, -1, -1})) {
+			anchors[j] = anchors[i];
+			j += 1;
+		}
+	}
+	anchors.resize(anchors.size() - merged);
 }
 
 } // namespace utils
