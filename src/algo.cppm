@@ -8,6 +8,7 @@ import <map>;
 import <set>;
 import <list>;
 import <cassert>;
+import <numeric>; // std::iota
 import utils;
 import MinSegmentTree;
 
@@ -18,6 +19,7 @@ using std::cerr, std::endl;
 using std::map, std::multimap;
 using std::set, std::multiset;
 using std::list;
+using std::iota;
 using utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes;
 typedef utils::anchor_index_t ai_t;
 
@@ -162,18 +164,28 @@ void chainx_naive(
 }
 
 /*
+ * computes diagonal/Q-pos rank of anchors: diagonal rank of i is r if the
+ *   (r+1)-th hit diagonal by any anchor is diag(i)); Q-pos ranks of anchor
+ *   [a..b),[c..d) are r for Q-pos c if c is the (r+1)-th hit Q-position by any
+ *   anchor (c or d), r' for Q-pos d if d is the (r+1)-th hit Q-position
+ */
+pair<ai_t,vector<ai_t>> compute_diagonal_ranks(const vector<anchor_t> &anchors);
+tuple<ai_t,vector<ai_t>,vector<ai_t>> compute_cd_ranks(const vector<anchor_t> &anchors);
+
+/*
  * case one: gap-gap case, bigger gap in Q
  *   requires a 1-dimensional range minimum query data structure where the
  *   (static) positions are anchor diagonals and the values (semi-dynamic,
  *   better values only) can be negative
  */
 struct case_one_index {
-	MinSegmentTree<ai_t> recursive_values; // diagonal -> min(C[j] - q_e^j)
+	const vector<ai_t>& ranks; // anchor index -> diagonal rank
+	MinSegmentTree<ai_t> recursive_values; // diagonal rank -> min(C[j] - q_e^j)
 };
-struct case_one_index init_case_one(ai_t Tlength, ai_t Qlength);
-ai_t compute_case_one(const case_one_index &I, const anchor_t &a_i);
-void update_startpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai_t j_cost);
-void  update_endpoint_case_one (case_one_index &I, const anchor_t &a_j, const ai_t j_cost);
+struct case_one_index init_case_one(ai_t max_rank, const vector<ai_t>& ranks);
+ai_t compute_case_one(const case_one_index &I, ai_t i, const anchor_t &a_i);
+void update_startpoint_case_one(case_one_index &I, ai_t j, const anchor_t &a_j, ai_t j_cost);
+void update_endpoint_case_one(case_one_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
 
 /*
  * helper function that considers all recursive cases considered by case one
@@ -249,12 +261,13 @@ void prune_shadowed_delimiting_lines(case_two_index &I, const ai_t sweeping_line
  *   values or removal ops only) are positive
  */
 struct case_three_index {
-	MinSegmentTree<ai_t> recursive_values; // diagonal -> current C[j] + diag_j
+	const vector<ai_t>& ranks; // anchor index -> diagonal rank
+	MinSegmentTree<ai_t> recursive_values; // diagonal rank -> current C[j] + diag_j
 };
-struct case_three_index init_case_three(ai_t Tlength, ai_t Qlength);
-ai_t compute_case_three(const case_three_index &I, const anchor_t &a_i);
-void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost);
-void  update_endpoint_case_three (case_three_index &I, const anchor_t &a_j, const ai_t j_cost);
+struct case_three_index init_case_three(ai_t max_rank, const vector<ai_t>& ranks);
+ai_t compute_case_three(const case_three_index &I, ai_t i, const anchor_t &a_i);
+void update_startpoint_case_three(case_three_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_three (case_three_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
 
 /*
  * helper function that considers all recursive cases considered by case three
@@ -277,12 +290,13 @@ void update_endpoint_case_three_naive(case_three_index_naive &I, const anchor_t 
  *   values or removal ops only) can be negative
  */
 struct case_four_index {
-	MinSegmentTree<ai_t> recursive_values; // diagonal -> current C[j] - diag_j
+	const vector<ai_t>& ranks; // anchor index -> diagonal rank
+	MinSegmentTree<ai_t> recursive_values; // diagonal rank -> current C[j] - diag_j
 };
-struct case_four_index init_case_four(ai_t Tlength, ai_t Qlength);
-ai_t compute_case_four(const case_four_index &I, const anchor_t &a_i);
-void update_startpoint_case_four(case_four_index &I, const anchor_t &a_j, const ai_t j_cost);
-void  update_endpoint_case_four (case_four_index &I, const anchor_t &a_j, const ai_t j_cost);
+struct case_four_index init_case_four(ai_t max_rank, const vector<ai_t>& ranks);
+ai_t compute_case_four(const case_four_index &I, ai_t i, const anchor_t &a_i);
+void update_startpoint_case_four(case_four_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_four (case_four_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
 
 /*
  * helper function that considers all recursive cases considered by case four
@@ -305,12 +319,14 @@ void update_endpoint_case_four_naive(case_four_index_naive &I, const anchor_t &a
  *   values only) can be negative
  */
 struct case_five_index {
-	MinSegmentTree<ai_t> recursive_values; // Q endpoint -> C[j] - diag_j
+	const vector<ai_t>& c_ranks; // anchor index -> anchor's c rank in hit Q-positions
+	const vector<ai_t>& d_ranks; // anchor index -> anchor's d rank in hit Q-positions
+	MinSegmentTree<ai_t> recursive_values; // Q endpoint rank -> C[j] - diag_j
 };
-struct case_five_index init_case_five(ai_t Tlength, ai_t Qlength);
-ai_t compute_case_five(const case_five_index &I, const anchor_t &a_i);
-void update_startpoint_case_five(case_five_index &I, const anchor_t &a_j, const ai_t j_cost);
-void  update_endpoint_case_five (case_five_index &I, const anchor_t &a_j, const ai_t j_cost);
+struct case_five_index init_case_five(ai_t max_rank, const vector<ai_t>& c_ranks, const vector<ai_t>& d_ranks);
+ai_t compute_case_five(const case_five_index &I, ai_t i, const anchor_t &a_i);
+void update_startpoint_case_five(case_five_index &I, ai_t i, const anchor_t &a_j, const ai_t j_cost);
+void  update_endpoint_case_five (case_five_index &I, ai_t i, const anchor_t &a_j, const ai_t j_cost);
 
 /*
  * helper function that considers all recursive cases considered by case five
@@ -337,6 +353,9 @@ void solve_linearithmic(
 	const ai_t n = anchors.size();
 	costs_out = vector<ai_t>(n, 0);
 
+	const auto [ max_diag_rank, diag_ranks ] = compute_diagonal_ranks(anchors);
+	const auto [ max_cd_rank, c_ranks, d_ranks ] = compute_cd_ranks(anchors);
+
 	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
 	points.reserve(2 * n - 3);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
@@ -351,11 +370,11 @@ void solve_linearithmic(
 					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
 			});
 
-	case_one_index   I_one   = init_case_one(Tlength, Qlength);
+	case_one_index   I_one   = init_case_one(max_diag_rank, diag_ranks);
 	case_two_index   I_two   = init_case_two(anchors);
-	case_three_index I_three = init_case_three(Tlength, Qlength);
-	case_four_index  I_four  = init_case_four(Tlength, Qlength);
-	case_five_index  I_five  = init_case_five(Tlength, Qlength);
+	case_three_index I_three = init_case_three(max_diag_rank, diag_ranks);
+	case_four_index  I_four  = init_case_four(max_diag_rank, diag_ranks);
+	case_five_index  I_five  = init_case_five(max_cd_rank, c_ranks, d_ranks);
 
 	for (ai_t point : points) {
 		if (point >= 0) { // startpoint
@@ -373,25 +392,25 @@ void solve_linearithmic(
 				cost = connect_Qgap(anchors[0], i_c);
 			}
 
-			cost = std::min(cost, compute_case_one  (I_one,   anchors[i]));
-			cost = std::min(cost, compute_case_two  (I_two,   anchors[i]));
-			cost = std::min(cost, compute_case_three(I_three, anchors[i]));
-			cost = std::min(cost, compute_case_four (I_four,  anchors[i]));
-			cost = std::min(cost, compute_case_five (I_five,  anchors[i]));
+			cost = std::min(cost, compute_case_one  (I_one,   i, anchors[i]));
+			cost = std::min(cost, compute_case_two  (I_two,      anchors[i]));
+			cost = std::min(cost, compute_case_three(I_three, i, anchors[i]));
+			cost = std::min(cost, compute_case_four (I_four,  i, anchors[i]));
+			cost = std::min(cost, compute_case_five (I_five, i, anchors[i]));
 			costs_out[i] = cost;
 
-			update_startpoint_case_one  (I_one,   anchors[i], costs_out[i]);
+			update_startpoint_case_one  (I_one,   i, anchors[i], costs_out[i]);
 			update_startpoint_case_two  (I_two,   anchors[i], costs_out[i]);
-			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
-			update_startpoint_case_four (I_four,  anchors[i], costs_out[i]);
-			update_startpoint_case_five (I_five,  anchors[i], costs_out[i]);
+			update_startpoint_case_three(I_three, i, anchors[i], costs_out[i]);
+			update_startpoint_case_four (I_four,  i, anchors[i], costs_out[i]);
+			update_startpoint_case_five (I_five,  i, anchors[i], costs_out[i]);
 		} else { // endpoint
 			ai_t i = -point;
-			update_endpoint_case_one  (I_one,    anchors[i], costs_out[i]);
-			update_endpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
-			update_endpoint_case_three(I_three,  anchors[i], costs_out[i]);
-			update_endpoint_case_four (I_four,   anchors[i], costs_out[i]);
-			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
+			update_endpoint_case_one  (I_one,   i, anchors[i], costs_out[i]);
+			update_endpoint_case_two  (I_two,   i, anchors[i], costs_out[i]);
+			update_endpoint_case_three(I_three, i, anchors[i], costs_out[i]);
+			update_endpoint_case_four (I_four,  i, anchors[i], costs_out[i]);
+			update_endpoint_case_five (I_five,  i, anchors[i], costs_out[i]);
 		}
 	}
 	if (m == semiglobal) {
@@ -421,6 +440,9 @@ void solve_linearithmic_debug(
 	ai_t n = anchors.size();
 	costs_out = vector<ai_t>(n, 0);
 
+	const auto [ max_diag_rank, diag_ranks ] = compute_diagonal_ranks(anchors);
+	const auto [ max_cd_rank, c_ranks, d_ranks ] = compute_cd_ranks(anchors);
+
 	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
 	points.reserve(2 * n - 2);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
@@ -435,12 +457,12 @@ void solve_linearithmic_debug(
 					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
 			});
 
-	case_one_index   I_one   = init_case_one(Tlength, Qlength);
+	case_one_index   I_one   = init_case_one(max_diag_rank, diag_ranks);
 	case_two_index   I_two   = init_case_two(anchors);
 	case_two_index_naive   I_two_naive   = init_case_two_naive(anchors);
-	case_three_index I_three = init_case_three(Tlength, Qlength);
-	case_four_index  I_four  = init_case_four(Tlength, Qlength);
-	case_five_index  I_five  = init_case_five(Tlength, Qlength);
+	case_three_index I_three = init_case_three(max_diag_rank, diag_ranks);
+	case_four_index  I_four  = init_case_four(max_diag_rank, diag_ranks);
+	case_five_index  I_five  = init_case_five(max_cd_rank, c_ranks, d_ranks);
 
 	for (ai_t point : points) {
 		if (point >= 0) { // startpoint
@@ -457,35 +479,35 @@ void solve_linearithmic_debug(
 			} else {
 				cost = connect_Qgap(anchors[0], i_c);
 			}
-			assert(compute_case_one  (I_one,   anchors[i]) == compute_case_one_debug (anchors, i, costs_out));
+			assert(compute_case_one  (I_one, i,  anchors[i]) == compute_case_one_debug (anchors, i, costs_out));
 			assert(compute_case_two  (I_two,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
 			assert(compute_case_two_naive  (I_two_naive,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
-			assert(compute_case_three(I_three, anchors[i]) == compute_case_three_debug(anchors, i, costs_out));
-			assert(compute_case_four (I_four,  anchors[i]) == compute_case_four_debug (anchors, i, costs_out));
-			assert(compute_case_five (I_five,  anchors[i]) == compute_case_five_debug (anchors, i, costs_out));
+			assert(compute_case_three(I_three, i, anchors[i]) == compute_case_three_debug(anchors, i, costs_out));
+			assert(compute_case_four (I_four, i, anchors[i]) == compute_case_four_debug (anchors, i, costs_out));
+			assert(compute_case_five (I_five, i,  anchors[i]) == compute_case_five_debug (anchors, i, costs_out));
 
-			cost = std::min(cost, compute_case_one  (I_one,   anchors[i]));
-			cost = std::min(cost, compute_case_two  (I_two,   anchors[i]));
-			cost = std::min(cost, compute_case_three(I_three, anchors[i]));
-			cost = std::min(cost, compute_case_four (I_four,  anchors[i]));
-			cost = std::min(cost, compute_case_five (I_five,  anchors[i]));
+			cost = std::min(cost, compute_case_one  (I_one, i, anchors[i]));
+			cost = std::min(cost, compute_case_two  (I_two,    anchors[i]));
+			cost = std::min(cost, compute_case_three(I_three, i, anchors[i]));
+			cost = std::min(cost, compute_case_four (I_four, i,  anchors[i]));
+			cost = std::min(cost, compute_case_five (I_five, i,  anchors[i]));
 			costs_out[i] = cost;
 			assert(costs_out[i] <= correct_costs[i]);
 
-			update_startpoint_case_one  (I_one,   anchors[i], costs_out[i]);
+			update_startpoint_case_one  (I_one, i, anchors[i], costs_out[i]);
 			update_startpoint_case_two  (I_two,   anchors[i], costs_out[i]);
 			update_startpoint_case_two_naive  (I_two_naive,   anchors[i], costs_out[i]);
-			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
-			update_startpoint_case_four (I_four,  anchors[i], costs_out[i]);
-			update_startpoint_case_five (I_five,  anchors[i], costs_out[i]);
+			update_startpoint_case_three(I_three, i, anchors[i], costs_out[i]);
+			update_startpoint_case_four (I_four, i, anchors[i], costs_out[i]);
+			update_startpoint_case_five (I_five, i, anchors[i], costs_out[i]);
 		} else { // endpoint
 			ai_t i = -point;
-			update_endpoint_case_one  (I_one,    anchors[i], costs_out[i]);
+			update_endpoint_case_one  (I_one, i, anchors[i], costs_out[i]);
 			update_endpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
 			update_endpoint_case_two_naive  (I_two_naive, i, anchors[i], costs_out[i]);
-			update_endpoint_case_three(I_three,  anchors[i], costs_out[i]);
-			update_endpoint_case_four (I_four,   anchors[i], costs_out[i]);
-			update_endpoint_case_five (I_five,   anchors[i], costs_out[i]);
+			update_endpoint_case_three(I_three, i, anchors[i], costs_out[i]);
+			update_endpoint_case_four (I_four, i, anchors[i], costs_out[i]);
+			update_endpoint_case_five (I_five, i, anchors[i], costs_out[i]);
 		}
 	}
 	if (m == semiglobal) {
@@ -546,18 +568,18 @@ void update_endpoint_case_one_naive(case_one_index_naive &I, const anchor_t &a_j
 	}
 }
 
-struct case_one_index init_case_one(ai_t Tlength, ai_t Qlength)
+struct case_one_index init_case_one(ai_t max_rank, const vector<ai_t> &ranks)
 {
-	return case_one_index({ MinSegmentTree<ai_t>(-Qlength, Tlength) });
+	return { ranks, MinSegmentTree<ai_t>(0, max_rank) };
 }
 
-ai_t compute_case_one(const case_one_index &I, const anchor_t &a_i)
+ai_t compute_case_one(const case_one_index &I, ai_t i, const anchor_t &a_i)
 {
 	const ai_t i_a = get<0>(a_i);
 	const ai_t i_c = get<1>(a_i);
 	const ai_t i_diag = i_a - i_c;
 
-	const ai_t rec_min = I.recursive_values.query(i_diag + 1, I.recursive_values.maxquery);
+	const ai_t rec_min = I.recursive_values.query(I.ranks[i] + 1, I.recursive_values.maxquery);
 
 	if (rec_min < std::numeric_limits<ai_t>::max()) {
 		return i_c + rec_min;
@@ -566,20 +588,18 @@ ai_t compute_case_one(const case_one_index &I, const anchor_t &a_i)
 	}
 }
 
-void update_startpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_one(case_one_index &I, ai_t j, const anchor_t &a_j, ai_t j_cost)
 {
 	// do nothing
 }
 
-void update_endpoint_case_one(case_one_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_endpoint_case_one(case_one_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
-	const ai_t j_a = get<0>(a_j);
-	const ai_t j_c = get<1>(a_j);
 	const ai_t j_d = get<1>(a_j) + get<2>(a_j);
-	const ai_t j_diag = j_a - j_c;
 	const ai_t rec_value = j_cost - j_d;
+	const ai_t j_rank = I.ranks[j];
 
-	I.recursive_values.update(j_diag, rec_value);
+	I.recursive_values.update(j_rank, rec_value);
 }
 
 ai_t compute_case_one_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
@@ -856,18 +876,18 @@ ai_t compute_case_three_debug(const vector<anchor_t> &anchors, const ai_t i, con
 	return cost;
 }
 
-struct case_three_index init_case_three(ai_t Tlength, ai_t Qlength)
+struct case_three_index init_case_three(ai_t max_rank, const vector<ai_t>& ranks)
 {
-	return case_three_index({ MinSegmentTree<ai_t>(-Qlength, Tlength) });
+	return { ranks, MinSegmentTree<ai_t>(0, max_rank) };
 }
 
-ai_t compute_case_three(const case_three_index &I, const anchor_t &a_i)
+ai_t compute_case_three(const case_three_index &I, ai_t i, const anchor_t &a_i)
 {
 	const ai_t i_a = get<0>(a_i);
 	const ai_t i_c = get<1>(a_i);
 	const ai_t i_diag = i_a - i_c;
 
-	const ai_t rec_min = I.recursive_values.query(i_diag + 1, I.recursive_values.maxquery);
+	const ai_t rec_min = I.recursive_values.query(I.ranks[i] + 1, I.recursive_values.maxquery);
 
 	if (rec_min < std::numeric_limits<ai_t>::max()) {
 		return rec_min - i_diag;
@@ -876,24 +896,26 @@ ai_t compute_case_three(const case_three_index &I, const anchor_t &a_i)
 	}
 }
 
-void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_three(case_three_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
 	const ai_t j_a = get<0>(a_j);
 	const ai_t j_c = get<1>(a_j);
 	const ai_t j_diag = j_a - j_c;
+	const ai_t j_rank = I.ranks[j];
 
-	assert(I.recursive_values.query(j_diag, j_diag) == std::numeric_limits<ai_t>::max());
-	I.recursive_values.update(j_diag, j_cost + j_diag);
+	assert(I.recursive_values.query(j_rank, j_rank) == std::numeric_limits<ai_t>::max());
+	I.recursive_values.update(j_rank, j_cost + j_diag);
 }
 
-void  update_endpoint_case_three (case_three_index &I, const anchor_t &a_j, const ai_t j_cost)
+void  update_endpoint_case_three (case_three_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
 	const ai_t j_a = get<0>(a_j);
 	const ai_t j_c = get<1>(a_j);
 	const ai_t j_diag = j_a - j_c;
+	const ai_t j_rank = I.ranks[j];
 
-	assert(I.recursive_values.query(j_diag, j_diag) == j_cost + j_diag);
-	I.recursive_values.remove(j_diag);
+	assert(I.recursive_values.query(j_rank, j_rank) == j_cost + j_diag);
+	I.recursive_values.remove(j_rank);
 }
 
 struct case_four_index_naive init_case_four_naive()
@@ -974,18 +996,18 @@ ai_t compute_case_four_debug(const vector<anchor_t> &anchors, const ai_t i, cons
 	return cost;
 }
 
-struct case_four_index init_case_four(ai_t Tlength, ai_t Qlength)
+struct case_four_index init_case_four(ai_t max_rank, const vector<ai_t>& ranks)
 {
-	return case_four_index({ MinSegmentTree<ai_t>(-Qlength, Tlength) });
+	return { ranks, MinSegmentTree<ai_t>(0, max_rank) };
 }
 
-ai_t compute_case_four(const case_four_index &I, const anchor_t &a_i)
+ai_t compute_case_four(const case_four_index &I, ai_t i, const anchor_t &a_i)
 {
 	const ai_t i_a = get<0>(a_i);
 	const ai_t i_c = get<1>(a_i);
 	const ai_t i_diag = i_a - i_c;
 
-	const ai_t rec_min = I.recursive_values.query(I.recursive_values.minquery, i_diag - 1);
+	const ai_t rec_min = I.recursive_values.query(I.recursive_values.minquery, I.ranks[i] - 1);
 
 	if (rec_min < std::numeric_limits<ai_t>::max()) {
 		return rec_min + i_diag;
@@ -994,24 +1016,26 @@ ai_t compute_case_four(const case_four_index &I, const anchor_t &a_i)
 	}
 }
 
-void update_startpoint_case_four(case_four_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_four(case_four_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
 	const ai_t j_a = get<0>(a_j);
 	const ai_t j_c = get<1>(a_j);
 	const ai_t j_diag = j_a - j_c;
+	const ai_t j_rank = I.ranks[j];
 
-	assert(I.recursive_values.query(j_diag, j_diag) == std::numeric_limits<ai_t>::max());
-	I.recursive_values.update(j_diag, j_cost - j_diag);
+	assert(I.recursive_values.query(j_rank, j_rank) == std::numeric_limits<ai_t>::max());
+	I.recursive_values.update(j_rank, j_cost - j_diag);
 }
 
-void  update_endpoint_case_four (case_four_index &I, const anchor_t &a_j, const ai_t j_cost)
+void  update_endpoint_case_four (case_four_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
 	const ai_t j_a = get<0>(a_j);
 	const ai_t j_c = get<1>(a_j);
 	const ai_t j_diag = j_a - j_c;
+	const ai_t j_rank = I.ranks[j];
 
-	assert(I.recursive_values.query(j_diag, j_diag) == j_cost - j_diag);
-	I.recursive_values.remove(j_diag);
+	assert(I.recursive_values.query(j_rank, j_rank) == j_cost - j_diag);
+	I.recursive_values.remove(j_rank);
 }
 
 struct case_five_index_naive init_case_five_naive()
@@ -1084,19 +1108,18 @@ ai_t compute_case_five_debug(const vector<anchor_t> &anchors, const ai_t i, cons
 	return cost;
 }
 
-struct case_five_index init_case_five(ai_t Tlength, ai_t Qlength)
+struct case_five_index init_case_five(ai_t max_rank, const vector<ai_t>& c_ranks, const vector<ai_t>& d_ranks)
 {
-	return case_five_index({ MinSegmentTree<ai_t>(0, Qlength) });
+	return { c_ranks, d_ranks, MinSegmentTree<ai_t>(0, max_rank) };
 }
 
-ai_t compute_case_five(const case_five_index &I, const anchor_t &a_i)
+ai_t compute_case_five(const case_five_index &I, ai_t i, const anchor_t &a_i)
 {
 	const ai_t i_a = get<0>(a_i);
 	const ai_t i_c = get<1>(a_i);
-	const ai_t i_d = get<1>(a_i) + get<2>(a_i);
 	const ai_t i_diag = i_a - i_c;
 
-	const ai_t rec_min = I.recursive_values.query(i_c, i_d - 1);
+	const ai_t rec_min = I.recursive_values.query(I.c_ranks[i], I.d_ranks[i] - 1);
 
 	if (rec_min < std::numeric_limits<ai_t>::max()) {
 		return rec_min + i_diag;
@@ -1105,19 +1128,18 @@ ai_t compute_case_five(const case_five_index &I, const anchor_t &a_i)
 	}
 }
 
-void update_startpoint_case_five(case_five_index &I, const anchor_t &a_j, const ai_t j_cost)
+void update_startpoint_case_five(case_five_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
 	// do nothing
 }
 
-void  update_endpoint_case_five (case_five_index &I, const anchor_t &a_j, const ai_t j_cost)
+void  update_endpoint_case_five (case_five_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
 {
 	const ai_t j_a = get<0>(a_j);
 	const ai_t j_c = get<1>(a_j);
-	const ai_t j_d = get<1>(a_j) + get<2>(a_j);
 	const ai_t j_diag = j_a - j_c;
 
-	I.recursive_values.update(j_d - 1, j_cost - j_diag);
+	I.recursive_values.update(I.d_ranks[j] - 1, j_cost - j_diag);
 }
 
 struct case_two_index init_case_two(const vector<anchor_t> &anchors)
@@ -1435,6 +1457,71 @@ ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mode m)
 	}
 
 	return cost;
+}
+
+pair<ai_t,vector<ai_t>> compute_diagonal_ranks(const vector<anchor_t> &anchors)
+{
+	const ai_t n = anchors.size();
+	if (n == 0) return {0, vector<ai_t>()};
+
+	vector<ai_t> anchors_diag(n);
+	iota(anchors_diag.begin(), anchors_diag.end(), 0);
+	std::sort(anchors_diag.begin(), anchors_diag.end(),
+		[&anchors](ai_t i, ai_t j) -> bool {
+			return get<0>(anchors[i]) - get<1>(anchors[i]) <
+			       get<0>(anchors[j]) - get<1>(anchors[j]);
+		});
+
+	vector<ai_t> ranks(n);
+	ranks[0] = 0;
+	ai_t last_rank = 0, last_diag = get<0>(anchors[anchors_diag[0]]) - get<1>(anchors[anchors_diag[0]]);
+	for (ai_t i = 1; i < n; i++) {
+		const ai_t i_diag = get<0>(anchors[anchors_diag[i]]) - get<1>(anchors[anchors_diag[i]]);
+		if (i_diag == last_diag) {
+			ranks[anchors_diag[i]] = last_rank;
+		} else {
+			ranks[anchors_diag[i]] = ++last_rank;
+			last_diag = i_diag;
+		}
+	}
+	return { last_rank, ranks };
+}
+
+tuple<ai_t,vector<ai_t>,vector<ai_t>> compute_cd_ranks(const vector<anchor_t> &anchors)
+{
+	const ai_t n = anchors.size();
+	if (n == 0) return {0, vector<ai_t>(), vector<ai_t>()};
+
+	vector<ai_t> anchors_cd(2 * n);
+	iota(anchors_cd.begin(), anchors_cd.begin() + n, 0);
+	iota(anchors_cd.begin() + n, anchors_cd.end(), -(n-1));
+	std::sort(anchors_cd.begin(), anchors_cd.end(),
+		[&anchors](ai_t i, ai_t j) -> bool {
+			return ((i >= 0) ? get<1>(anchors[i]) : get<1>(anchors[-i]) + get<2>(anchors[-i])) <
+			       ((j >= 0) ? get<1>(anchors[j]) : get<1>(anchors[-j]) + get<2>(anchors[-j]));
+		});
+
+	vector<ai_t> c_ranks(n), d_ranks(n);
+	c_ranks[0] = 0;
+	d_ranks[0] = 0;
+	ai_t last_rank = 0, last_cd = ((anchors_cd[0] >= 0) ? get<1>(anchors[anchors_cd[0]]) : get<1>(anchors[-anchors_cd[0]]) + get<2>(anchors[-anchors_cd[0]]));
+	for (ai_t i = 1; i < anchors_cd.size(); i++) {
+		const ai_t i_cd = ((anchors_cd[i] >= 0) ? get<1>(anchors[anchors_cd[i]]) : get<1>(anchors[-anchors_cd[i]]) + get<2>(anchors[-anchors_cd[i]]));
+		if (i_cd == last_cd) {
+			if (anchors_cd[i] >= 0)
+				c_ranks[anchors_cd[i]] = last_rank;
+			else
+				d_ranks[-anchors_cd[i]] = last_rank;
+		} else {
+			last_rank += 1;
+			if (anchors_cd[i] >= 0)
+				c_ranks[anchors_cd[i]] = last_rank;
+			else
+				d_ranks[-anchors_cd[i]] = last_rank;
+			last_cd = i_cd;
+		}
+	}
+	return { last_rank, c_ranks, d_ranks };
 }
 
 } // namespace algo

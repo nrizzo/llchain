@@ -13,7 +13,7 @@ import mummer_essaMEM_wrapper;
 using std::cerr, std::endl;
 using std::string;
 using std::vector;
-using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::filter_perfect_chains, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains;
+using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains;
 
 enum anchor_type { MUM, MEM };
 
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 
 		// anchor generation
 		vector<anchor_t> anchors = random_anchors(width, height, argsinfo.random_anchors_arg, argsinfo.random_seed_arg);
-		anchors = filter_perfect_chains(anchors); // only maximal anchors!
+		merge_perfect_chains(anchors); // only maximal anchors!
 		place_dummy_anchors(width, height, anchors);
 		sort_anchors(anchors);
 

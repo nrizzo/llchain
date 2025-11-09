@@ -386,8 +386,8 @@ export void merge_perfect_chains(vector<anchor_t> &anchors)
 			processed_a = i_b;
 		} else {
 			assert(connect(anchors[prev], anchors[i]) == 0);
-			const anchor_index_t new_i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
-			const anchor_index_t new_i_length = new_i_b - i_a;
+			const anchor_index_t new_i_b = max(processed_a, get<0>(anchors[i]) + get<2>(anchors[i]));
+			const anchor_index_t new_i_length = new_i_b - get<0>(anchors[prev]);
 			get<2>(anchors[prev]) = new_i_length;
 			anchors[i] = { -1, -1, -1 };
 			processed_a = new_i_b;
