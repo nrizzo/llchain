@@ -47,8 +47,8 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
-echo "MUMs" > stats_mums
-grep "count of anchors" time_global_chainx | cut -d' ' -f9 | tr -d "," | tac >> stats_mums
+echo "MUMs" > stats_time_global_mums
+grep "count of anchors" time_global_chainx | cut -d' ' -f9 | tr -d "," | tac >> stats_time_global_mums
 
 # time, memory, iterations
 for t in time_global_chainx time_global_chainx_opt
@@ -63,7 +63,7 @@ grep "anchored edit distance" time_global_clc-viz | cut -d' ' -f26 | tr -d "s" |
 echo "space (kb)" > stats_space_time_global_clc-viz
 grep "maxresident" time_global_clc-viz | cut -d' ' -f1 | tac >> stats_space_time_global_clc-viz
 
-paste -d'$' stats_mums \
+paste -d'$' stats_time_global_mums \
 	stats_time_time_global_chainx             stats_space_time_global_chainx \
 	stats_time_time_global_chainx_opt         stats_space_time_global_chainx_opt  \
 	stats_time_time_global_clc-viz            stats_space_time_global_clc-viz \
@@ -106,8 +106,8 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
-echo "MUMs" > stats_mums
-grep "count of anchors" time_semiglobal_chainx | cut -d' ' -f9 | tr -d "," | tac >> stats_mums
+echo "MUMs" > stats_time_semiglobal_mums
+grep "count of anchors" time_semiglobal_chainx | cut -d' ' -f9 | tr -d "," | tac >> stats_time_semiglobal_mums
 
 # time, memory, iterations
 for t in time_semiglobal_chainx time_semiglobal_chainx_opt
@@ -122,7 +122,7 @@ grep "anchored edit distance" time_semiglobal_clc-viz | cut -d' ' -f26 | tr -d "
 echo "space (kb)" > stats_space_time_semiglobal_clc-viz
 grep "maxresident" time_semiglobal_clc-viz | cut -d' ' -f1 | tac >> stats_space_time_semiglobal_clc-viz
 
-paste -d'$' stats_mums \
+paste -d'$' stats_time_semiglobal_mums \
 	stats_time_time_semiglobal_chainx             stats_space_time_semiglobal_chainx \
 	stats_time_time_semiglobal_chainx_opt         stats_space_time_semiglobal_chainx_opt  \
 	stats_time_time_semiglobal_clc-viz            stats_space_time_semiglobal_clc-viz \
