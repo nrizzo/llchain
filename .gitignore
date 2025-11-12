@@ -6,3 +6,4 @@ makefile.cache
 *.o
 
 experiments/ChainX/output
+experiments/ChainX-human/output

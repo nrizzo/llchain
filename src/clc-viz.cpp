@@ -61,9 +61,10 @@ int main(int argc, char **argv)
 		cerr << endl;
 
 		for (int t = 0; t < texts.size(); t++) {
-			auto const index = mummer_essaMEM_wrapper::index(texts[t], anchorlength);
-			std::chrono::duration<double> timespan;
 			auto start = std::chrono::steady_clock::now(), querystart = std::chrono::steady_clock::now();
+			auto const index = mummer_essaMEM_wrapper::index(texts[t], anchorlength);
+			const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
+			cerr << "DEBUG: indexed " << text_ids[t] << " in " << index_time << endl;
 
 			kseq::FastaGzInput fgz(string(argsinfo.query_arg));
 			string query_id, query;
@@ -71,7 +72,7 @@ int main(int argc, char **argv)
 				cerr << "DEBUG: querying " << query_id << " in " << text_ids[t] << " (" << ((anchortype == MUM) ? "MUM" : "MEM") << " seeds of length >= " << anchorlength << ")...";
 
 				querystart = std::chrono::steady_clock::now();
-				start = std::chrono::steady_clock::now();
+				start = querystart;
 				vector<anchor_t> matches;
 				if (anchortype == MUM)
 					mummer_essaMEM_wrapper::find_MUMs(index, query, anchorlength, matches);

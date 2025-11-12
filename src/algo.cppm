@@ -417,7 +417,7 @@ void solve_linearithmic(
 		ai_t final_cost = std::numeric_limits<ai_t>::max();
 		ai_t backtrack = -1;
 		const ai_t final_c = get<1>(anchors[n-1]);
-		for (ai_t j = 1; j < n - 1; j++) {
+		for (ai_t j = 0; j < n - 1; j++) {
 			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
 				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
 				if (c < final_cost) backtrack = j;
@@ -513,7 +513,7 @@ void solve_linearithmic_debug(
 	if (m == semiglobal) {
 		ai_t final_cost = std::numeric_limits<ai_t>::max();
 		const ai_t final_c = get<1>(anchors[n-1]);
-		for (ai_t j = 1; j < n - 1; j++) {
+		for (ai_t j = 0; j < n - 1; j++) {
 			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
 				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
 				final_cost = min(final_cost, c);
@@ -1333,6 +1333,10 @@ void chainx_backtrack(
 
 	if (costs[n-1] == std::numeric_limits<ai_t>::max())
 		return;
+	if (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1]))
+		return;
+	if (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1]))
+		return;
 
 	ai_t i = n - 1;
 	chain_out.push_back(anchors[n-1]);
@@ -1388,6 +1392,10 @@ void weak_backtrack(
 	chain_out.clear();
 
 	if (costs[n-1] == std::numeric_limits<ai_t>::max())
+		return;
+	if (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1]))
+		return;
+	if (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1]))
 		return;
 
 	ai_t i = n - 1;
