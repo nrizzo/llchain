@@ -68,7 +68,7 @@ do
 		<(grep "querying" $t | cut -d' ' -f26) \
 		> times_$t
 done
-gnuplot -persist -e "set term pngcairo; set output '$outputpng'; plot 'times_human_mum_chainx', 'times_human_mum_chainx-opt', 'times_human_mum_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding+chaining time\"; set output '$outputpng'; plot 'times_human_mum_chainx', 'times_human_mum_chainx-opt', 'times_human_mum_clc-viz'"
 echo "done."
 
 echo "# MEMs (l >= 75)"
@@ -125,5 +125,5 @@ do
 		<(grep "querying" $t | cut -d' ' -f26) \
 		> times_$t
 done
-gnuplot -persist -e "set term pngcairo; set output '$outputpng'; plot 'times_human_mem_chainx', 'times_human_mem_chainx-opt', 'times_human_mem_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding+chaining time\"; set output '$outputpng'; plot 'times_human_mem_chainx', 'times_human_mem_chainx-opt', 'times_human_mem_clc-viz'"
 echo "done."
