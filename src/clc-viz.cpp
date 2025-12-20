@@ -1,8 +1,10 @@
+module;
+#include <chrono> // fix for GCC 15.2.1
+
 import <iostream>;
 import <string>;
 import <vector>;
 import <cassert>;
-import <chrono>;
 import utils;
 import algo;
 import kseq;

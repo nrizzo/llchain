@@ -48,5 +48,4 @@ cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view m
 
 ## TODOs
 - MEM tests from at-cg/ChainX, filtering invalid MEMs
-- investigate GCC -O0 compilation issues
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)
