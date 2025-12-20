@@ -31,7 +31,7 @@ extern "C" {
 
 #ifndef CMDLINE_PARSER_VERSION
 /** @brief the program version */
-#define CMDLINE_PARSER_VERSION "0.0.3"
+#define CMDLINE_PARSER_VERSION "0.0.4"
 #endif
 
 /** @brief Where the command line options are stored */
@@ -54,6 +54,8 @@ struct gengetopt_args_info
   int anchor_length_arg;	/**< @brief Minimum anchor length (default='20').  */
   char * anchor_length_orig;	/**< @brief Minimum anchor length original value given at command line.  */
   const char *anchor_length_help; /**< @brief Minimum anchor length help description.  */
+  int all_to_all_flag;	/**< @brief Pairwise comparisons (queries) (default=off).  */
+  const char *all_to_all_help; /**< @brief Pairwise comparisons (queries) help description.  */
   long random_anchors_arg;	/**< @brief Number of random anchors to generate (default='-1').  */
   char * random_anchors_orig;	/**< @brief Number of random anchors to generate original value given at command line.  */
   const char *random_anchors_help; /**< @brief Number of random anchors to generate help description.  */
@@ -71,6 +73,7 @@ struct gengetopt_args_info
   unsigned int mode_given ;	/**< @brief Whether mode was given.  */
   unsigned int anchor_type_given ;	/**< @brief Whether anchor-type was given.  */
   unsigned int anchor_length_given ;	/**< @brief Whether anchor-length was given.  */
+  unsigned int all_to_all_given ;	/**< @brief Whether all-to-all was given.  */
   unsigned int random_anchors_given ;	/**< @brief Whether random-anchors was given.  */
   unsigned int debug_case_two_output_file_given ;	/**< @brief Whether debug-case-two-output-file was given.  */
   unsigned int random_seed_given ;	/**< @brief Whether random-seed was given.  */

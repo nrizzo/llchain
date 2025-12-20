@@ -27,7 +27,7 @@
 
 const char *gengetopt_args_info_purpose = "Verification, WIP implementation, and visualization of linearithmic-time\ncolinear chaining";
 
-const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)]\n[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
+const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)]\n[--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
 
 const char *gengetopt_args_info_versiontext = "";
 
@@ -41,6 +41,7 @@ const char *gengetopt_args_info_help[] = {
   "  -m, --mode=MODE               Chaining mode (global/semiglobal)\n                                  (default=`global')",
   "  -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')",
   "  -l, --anchor-length=LENGTH    Minimum anchor length  (default=`20')",
+  "      --all-to-all              Pairwise comparisons (queries)  (default=off)",
   "      --random-anchors=ANCHORNUM\n                                Number of random anchors to generate\n                                  (default=`-1')",
   "  -g, --debug-case-two-output-file=BMPFILE\n                                Visualize case 2 in this file (BMP format)\n                                  (default=`')",
   "  -r, --random-seed=INT         Seed for the PRNG (-1 is different at every\n                                  invocation)  (default=`-1')",
@@ -48,6 +49,7 @@ const char *gengetopt_args_info_help[] = {
 };
 
 typedef enum {ARG_NO
+  , ARG_FLAG
   , ARG_STRING
   , ARG_INT
   , ARG_LONG
@@ -76,6 +78,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->mode_given = 0 ;
   args_info->anchor_type_given = 0 ;
   args_info->anchor_length_given = 0 ;
+  args_info->all_to_all_given = 0 ;
   args_info->random_anchors_given = 0 ;
   args_info->debug_case_two_output_file_given = 0 ;
   args_info->random_seed_given = 0 ;
@@ -95,6 +98,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->anchor_type_orig = NULL;
   args_info->anchor_length_arg = 20;
   args_info->anchor_length_orig = NULL;
+  args_info->all_to_all_flag = 0;
   args_info->random_anchors_arg = -1;
   args_info->random_anchors_orig = NULL;
   args_info->debug_case_two_output_file_arg = gengetopt_strdup ("");
@@ -116,9 +120,10 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->mode_help = gengetopt_args_info_help[4] ;
   args_info->anchor_type_help = gengetopt_args_info_help[5] ;
   args_info->anchor_length_help = gengetopt_args_info_help[6] ;
-  args_info->random_anchors_help = gengetopt_args_info_help[7] ;
-  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[8] ;
-  args_info->random_seed_help = gengetopt_args_info_help[9] ;
+  args_info->all_to_all_help = gengetopt_args_info_help[7] ;
+  args_info->random_anchors_help = gengetopt_args_info_help[8] ;
+  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[9] ;
+  args_info->random_seed_help = gengetopt_args_info_help[10] ;
   
 }
 
@@ -273,6 +278,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "anchor-type", args_info->anchor_type_orig, 0);
   if (args_info->anchor_length_given)
     write_into_file(outfile, "anchor-length", args_info->anchor_length_orig, 0);
+  if (args_info->all_to_all_given)
+    write_into_file(outfile, "all-to-all", 0, 0 );
   if (args_info->random_anchors_given)
     write_into_file(outfile, "random-anchors", args_info->random_anchors_orig, 0);
   if (args_info->debug_case_two_output_file_given)
@@ -445,6 +452,9 @@ int update_arg(void *field, char **orig_field,
     val = possible_values[found];
 
   switch(arg_type) {
+  case ARG_FLAG:
+    *((int *)field) = !*((int *)field);
+    break;
   case ARG_INT:
     if (val) *((int *)field) = strtol (val, &stop_char, 0);
     break;
@@ -479,6 +489,7 @@ int update_arg(void *field, char **orig_field,
   /* store the original value */
   switch(arg_type) {
   case ARG_NO:
+  case ARG_FLAG:
     break;
   default:
     if (value && orig_field) {
@@ -546,6 +557,7 @@ cmdline_parser_internal (
         { "mode",	1, NULL, 'm' },
         { "anchor-type",	1, NULL, 'a' },
         { "anchor-length",	1, NULL, 'l' },
+        { "all-to-all",	0, NULL, 0 },
         { "random-anchors",	1, NULL, 0 },
         { "debug-case-two-output-file",	1, NULL, 'g' },
         { "random-seed",	1, NULL, 'r' },
@@ -654,8 +666,20 @@ cmdline_parser_internal (
           break;
 
         case 0:	/* Long option with no short option */
+          /* Pairwise comparisons (queries).  */
+          if (strcmp (long_options[option_index].name, "all-to-all") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->all_to_all_flag), 0, &(args_info->all_to_all_given),
+                &(local_args_info.all_to_all_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "all-to-all", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* Number of random anchors to generate.  */
-          if (strcmp (long_options[option_index].name, "random-anchors") == 0)
+          else if (strcmp (long_options[option_index].name, "random-anchors") == 0)
           {
           
           

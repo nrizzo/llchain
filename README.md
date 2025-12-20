@@ -7,7 +7,7 @@ make -j
 
 ```
 Usage: clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)]
-[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]
+[--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]
 Verification, WIP implementation, and visualization of linearithmic-time
 colinear chaining
 
@@ -19,6 +19,7 @@ colinear chaining
                                   (default=`global')
   -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')
   -l, --anchor-length=LENGTH    Minimum anchor length  (default=`20')
+      --all-to-all              Pairwise comparisons (queries)  (default=off)
       --random-anchors=ANCHORNUM
                                 Number of random anchors to generate
                                   (default=`-1')
@@ -37,8 +38,15 @@ colinear chaining
 ## Dependencies
 `gengetopt` for development
 
+## Visualizations
+Debug mode (`-g file.bmp`) creates an image file showing the anchors (black), an optimal chain (red), and the recursions for case 2 projected forward (colored).
+The result of `--all-to-all` mode is a distance matrix in phylip format, that on Linux could be visualized as follows with `gnuplot`:
+```
+./clc-viz --all-to-all -a MEM -l 10 --query test/queries.fa > test/matrix.phylip
+cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view map; set size square; set yrange reverse; splot '-' matrix with image"
+```
+
 ## TODOs
-- PacBio HiFi long read test from algbio/ChainX
-- implement all-to-all comparison
 - MEM tests from at-cg/ChainX, filtering invalid MEMs
+- investigate GCC -O0 compilation issues
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)

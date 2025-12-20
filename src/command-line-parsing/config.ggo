@@ -1,13 +1,14 @@
-version	"0.0.3"
+version	"0.0.4"
 package	"clc-viz"
 purpose	"Verification, WIP implementation, and visualization of linearithmic-time colinear chaining"
-usage	"clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
+usage	"clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
 
 option	"text"		t	"Text sequences file"			string	typestr = "PATH"	optional
 option	"query"		q	"Query sequences file"			string	typestr = "PATH"	optional
 option	"mode"		m	"Chaining mode (global/semiglobal)"	string	typestr = "MODE"	default = "global"	optional
 option	"anchor-type"	a	"(MUM/MEM)"				string	typestr = "ANCHOR"	default = "MUM"		optional
 option	"anchor-length"	l	"Minimum anchor length"			int	typestr = "LENGTH"	default = "20"		optional
+option	"all-to-all"	-	"Pairwise comparisons (queries)"	flag	off
 
 option	"random-anchors"		-	"Number of random anchors to generate"	long	typestr = "ANCHORNUM"	default = "-1"	optional
 option	"debug-case-two-output-file"	g	"Visualize case 2 in this file (BMP format)"	string	typestr = "BMPFILE"	default=""	optional
