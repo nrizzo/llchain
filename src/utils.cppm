@@ -5,6 +5,9 @@ import <tuple>;
 import <random>;
 import <algorithm>; // std::sort
 import <iostream>;
+import <fstream>;
+import <string>;
+import <sstream>;
 import <cassert>;
 import grid_to_bmp;
 
@@ -13,6 +16,9 @@ using std::tuple;
 using std::uniform_int_distribution, std::random_device, std::mt19937; // random
 using std::max; // algorithm
 using std::cerr, std::endl;
+using std::ifstream;
+using std::getline;
+using std::string, std::istringstream;
 using grid_to_bmp::Color, grid_to_bmp::BmpImage; // grid_to_bmp
 
 namespace utils {
@@ -402,6 +408,27 @@ export void merge_perfect_chains(vector<anchor_t> &anchors)
 		}
 	}
 	anchors.resize(anchors.size() - merged);
+}
+
+/*
+ * collect mummer-formatted anchors (TAB-separated 1-indexed integer triples
+ *   {tstart,qstart,length}) from open file f, until EOF or a FASTA header
+ *   is found
+ * NB: the FASTA header is consumed
+ * NB: file f's formatting is not checked for errors
+ */
+export
+vector<anchor_t> read_mummer_anchors_single(ifstream &f) {
+	anchor_index_t tstart, qstart, length;
+	string line;
+	vector<anchor_t> anchors;
+	while (getline(f, line)) {
+		if (line.length() == 0 or line[0] == '>')
+			break;
+		istringstream(line) >> tstart >> qstart >> length;
+		anchors.push_back({ tstart-1, qstart-1, length });
+	}
+	return anchors;
 }
 
 } // namespace utils

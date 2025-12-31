@@ -15,6 +15,11 @@ namespace mummer_essaMEM_wrapper {
 
 	export typedef mummer::mummer::sparseSA sparseSA;
 
+	export sparseSA dummy_index()
+	{
+		return mummer::mummer::sparseSA(mummer::mummer::sparseSA::create_auto(string("").data(), 0, 0, true));
+	}
+
 	export sparseSA index(const string &s, int seed_min_length)
 	{
 		return mummer::mummer::sparseSA(mummer::mummer::sparseSA::create_auto(s.data(), s.length(), seed_min_length, true));

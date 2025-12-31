@@ -4,6 +4,7 @@ module;
 import <iostream>;
 import <string>;
 import <vector>;
+import <fstream>;
 import <cassert>;
 import utils;
 import algo;
@@ -15,7 +16,8 @@ import mummer_essaMEM_wrapper;
 using std::cout, std::cerr, std::endl;
 using std::string;
 using std::vector;
-using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains;
+using std::ifstream;
+using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains, utils::read_mummer_anchors_single;
 typedef std::size_t size_type;
 
 enum anchor_type { MUM, MEM };
@@ -41,6 +43,10 @@ int main(int argc, char **argv)
 	}
 	if (argsinfo.all_to_all_flag and ((argsinfo.text_arg != NULL) or (argsinfo.query_arg == NULL) or (argsinfo.random_anchors_arg > 0))) {
 		cerr << "Error: pairwise comparison mode (--all-to-all) accepts option --query only!" << endl;
+		exit(1);
+	}
+	if (argsinfo.all_to_all_flag and argsinfo.custom_anchors_arg != NULL) {
+		cerr << "Error: --custom-anchors is not compatible with --all-to-all!" << endl;
 		exit(1);
 	}
 
@@ -69,9 +75,17 @@ int main(int argc, char **argv)
 
 		for (size_type t = 0; t < texts.size(); t++) {
 			auto start = std::chrono::steady_clock::now(), querystart = std::chrono::steady_clock::now();
-			auto const index = mummer_essaMEM_wrapper::index(texts[t], anchorlength);
+			auto index = ((argsinfo.custom_anchors_arg == NULL) ? mummer_essaMEM_wrapper::index(texts[t], anchorlength) : mummer_essaMEM_wrapper::dummy_index());
 			const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
-			cerr << "DEBUG: indexed " << text_ids[t] << " in " << index_time << endl;
+			if (argsinfo.custom_anchors_arg == NULL) {
+				cerr << "DEBUG: indexed " << text_ids[t] << " in " << index_time << endl;
+			}
+			ifstream custom_anchors_fs;
+			if (argsinfo.custom_anchors_arg != NULL) {
+				custom_anchors_fs = ifstream(string(argsinfo.custom_anchors_arg));
+				auto a = read_mummer_anchors_single(custom_anchors_fs);
+				assert(a.size() == 0);
+			}
 
 			kseq::FastaGzInput fgz(string(argsinfo.query_arg));
 			string query_id, query;
@@ -81,10 +95,14 @@ int main(int argc, char **argv)
 				querystart = std::chrono::steady_clock::now();
 				start = querystart;
 				vector<anchor_t> matches;
-				if (anchortype == MUM)
-					mummer_essaMEM_wrapper::find_MUMs(index, query, anchorlength, matches);
-				else if (anchortype == MEM)
-					mummer_essaMEM_wrapper::find_MEMs(index, query, anchorlength, matches);
+				if (argsinfo.custom_anchors_arg == NULL) {
+					if (anchortype == MUM)
+						mummer_essaMEM_wrapper::find_MUMs(index, query, anchorlength, matches);
+					else if (anchortype == MEM)
+						mummer_essaMEM_wrapper::find_MEMs(index, query, anchorlength, matches);
+				} else {
+					matches = read_mummer_anchors_single(custom_anchors_fs);
+				}
 				const std::chrono::duration<double> seeding_time = std::chrono::steady_clock::now() - start;
 				const long long found_anchors = matches.size();
 

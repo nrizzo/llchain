@@ -6,7 +6,8 @@ make -j
 ```
 
 ```
-Usage: clc-viz [-m global/semiglobal] [-t text.fasta(.gz)] [-q query.fasta(.gz)]
+Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l anchorlength] [-t
+text.fasta(.gz)] [-q query.fasta(.gz)] [--custom-anchors anchors.mummer]
 [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]
 Verification, WIP implementation, and visualization of linearithmic-time
 colinear chaining
@@ -20,6 +21,9 @@ colinear chaining
   -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')
   -l, --anchor-length=LENGTH    Minimum anchor length  (default=`20')
       --all-to-all              Pairwise comparisons (queries)  (default=off)
+      --custom-anchors=PATH     Do not index/query but read the anchors from
+                                  this file (NB respect the same order as query
+                                  file)
       --random-anchors=ANCHORNUM
                                 Number of random anchors to generate
                                   (default=`-1')
@@ -39,13 +43,14 @@ colinear chaining
 `gengetopt` for development
 
 ## Visualizations
-Debug mode (`-g file.bmp`) creates an image file showing the anchors (black), an optimal chain (red), and the recursions for case 2 projected forward (colored).
-The result of `--all-to-all` mode is a distance matrix in phylip format, that on Linux could be visualized as follows with `gnuplot`:
+- debug mode (`-g file.bmp`) creates an image file showing the randomly generated anchors (black), an optimal chain (red), and the recursions for case 2 projected forward (colored).
+- the result of `--all-to-all` mode is a distance matrix in phylip format, that on Linux could be visualized as follows with `gnuplot`:
 ```
 ./clc-viz --all-to-all -a MEM -l 10 --query test/queries.fa > test/matrix.phylip
 cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view map; set size square; set yrange reverse; splot '-' matrix with image"
 ```
 
 ## TODOs
-- MEM tests from at-cg/ChainX, filtering invalid MEMs
+- maybe integrate ChainX-opt and ChainX into this project
+- investigate edge case in ChainX-human tests (MEM anchors, l >= 50, read m64004_210224_230828/53675585/ccs) where clc-viz < ChainX-opt (8580 vs 8585)
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)
