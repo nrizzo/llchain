@@ -10,11 +10,12 @@ import utils;
 import algo;
 import kseq;
 import mummer_essaMEM_wrapper;
+import chainx;
 
 #include "command-line-parsing/cmdline.h" // cmdline_parser (gengetopt)
 
 using std::cout, std::cerr, std::endl;
-using std::string;
+using std::string, std::to_string;
 using std::vector;
 using std::ifstream;
 using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains, utils::read_mummer_anchors_single;
@@ -22,7 +23,7 @@ typedef std::size_t size_type;
 
 enum anchor_type { MUM, MEM };
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
 	// setup
 	gengetopt_args_info argsinfo;
@@ -49,21 +50,39 @@ int main(int argc, char **argv)
 		cerr << "Error: --custom-anchors is not compatible with --all-to-all!" << endl;
 		exit(1);
 	}
+	if (argsinfo.chainx_flag and argsinfo.chainx_opt_flag) {
+		cerr << "Error: select only one ChainX version!" << endl;
+		exit(1);
+	}
+	if (argsinfo.chainx_original_magic_numbers_flag and not (argsinfo.chainx_flag or argsinfo.chainx_opt_flag)) {
+		cerr << "Error: --chainx-original-numbers requires --chainx or --chainx-opt!" << endl;
+		exit(1);
+	}
 
 	const int anchorlength = argsinfo.anchor_length_arg;
 	if (anchorlength <= 0) { cerr << "Error: pick an anchor length >= 1." << endl; exit(1); };
 
+	algo::chaining_mode mode;
+	chainx::mode chainx_mode;
+	if (string(argsinfo.mode_arg) == "global") {
+		mode = algo::chaining_mode::global;
+		chainx_mode = chainx::mode::global;
+	} else if (string(argsinfo.mode_arg) == "semiglobal") {
+		mode = algo::chaining_mode::semiglobal;
+		chainx_mode = chainx::mode::semiglobal;
+	} else {
+		cerr << "Error: pick a correct chaining mode (global/semiglobal)." << endl;
+		exit(1);
+	}
+	cerr << "DEBUG: " << ((mode == algo::chaining_mode::global) ? "global" : "semiglobal") << " mode" << endl;
+
+	anchor_type anchortype;
+	if      (string(argsinfo.anchor_type_arg) == "MUM") anchortype = MUM;
+	else if (string(argsinfo.anchor_type_arg) == "MEM") anchortype = MEM;
+	else { cerr << "Error: pick a correct anchor type (MUM/MEM)." << endl; exit(1); }
+	cerr << "DEBUG: " << ((anchortype == MUM) ? "MUM" : "MEM") << " anchors of length >= " << anchorlength << endl;
+
 	if ((argsinfo.text_arg != NULL) and (argsinfo.query_arg != NULL)) {
-		algo::chaining_mode mode;
-		if      (string(argsinfo.mode_arg) == "global")     mode = algo::chaining_mode::global;
-		else if (string(argsinfo.mode_arg) == "semiglobal") mode = algo::chaining_mode::semiglobal;
-		else { cerr << "Error: pick a correct chaining mode (global/semiglobal)." << endl; exit(1); }
-
-		anchor_type anchortype;
-		if      (string(argsinfo.anchor_type_arg) == "MUM") anchortype = MUM;
-		else if (string(argsinfo.anchor_type_arg) == "MEM") anchortype = MEM;
-		else { cerr << "Error: pick a correct anchor type (MUM/MEM)." << endl; exit(1); }
-
 		vector<string> texts, text_ids; // queries, query_ids;
 		kseq::read_sequences(string(argsinfo.text_arg),  texts,   text_ids);
 
@@ -114,13 +133,25 @@ int main(int argc, char **argv)
 
 				start = std::chrono::steady_clock::now();
 				vector<utils::anchor_index_t> costs;
-				algo::solve_linearithmic(matches, texts[t].size(), query.size(), mode, costs);
+				int chainx_revisions = -1;
+				if (argsinfo.chainx_flag) {
+					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode, false);
+				} else if (argsinfo.chainx_opt_flag) {
+					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode);
+				} else {
+					algo::solve_linearithmic(matches, texts[t].size(), query.size(), mode, costs);
+				}
+
 				vector<anchor_t> chain;
-				algo::weak_backtrack(matches, costs, mode, chain);
+				if (argsinfo.chainx_flag or argsinfo.chainx_opt_flag) {
+					algo::chainx_backtrack(matches, costs, mode, chain);
+				} else {
+					algo::weak_backtrack(matches, costs, mode, chain);
+				}
 				const std::chrono::duration<double> chaining_time = std::chrono::steady_clock::now() - start;
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
 
-				cerr << "done (" << found_anchors << " anchors, " << matches.size() - 2 << " merged, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << chaining_time << " chaining, " << query_time << " total query time)" << endl;
+				cerr << "done (" << found_anchors << " anchors, " << matches.size() - 2 << " merged, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << chaining_time << " chaining, " << query_time << " total query time" << ((argsinfo.chainx_flag or argsinfo.chainx_opt_flag) ? (", " + to_string(chainx_revisions) + " revisions") : "") << ")" << endl;
 			}
 		}
 
@@ -128,16 +159,6 @@ int main(int argc, char **argv)
 	}
 
 	if (argsinfo.all_to_all_flag) {
-		algo::chaining_mode mode;
-		if      (string(argsinfo.mode_arg) == "global")     mode = algo::chaining_mode::global;
-		else if (string(argsinfo.mode_arg) == "semiglobal") mode = algo::chaining_mode::semiglobal;
-		else { cerr << "Error: pick a correct chaining mode (global/semiglobal)." << endl; exit(1); }
-
-		anchor_type anchortype;
-		if      (string(argsinfo.anchor_type_arg) == "MUM") anchortype = MUM;
-		else if (string(argsinfo.anchor_type_arg) == "MEM") anchortype = MEM;
-		else { cerr << "Error: pick a correct anchor type (MUM/MEM)." << endl; exit(1); }
-
 		vector<string> queries, query_ids;
 		kseq::read_sequences(string(argsinfo.query_arg), queries, query_ids);
 
@@ -171,7 +192,14 @@ int main(int argc, char **argv)
 
 				start = std::chrono::steady_clock::now();
 				vector<utils::anchor_index_t> costs;
-				algo::solve_linearithmic(matches, queries[i].size(), queries[j].size(), mode, costs);
+				int chainx_revisions = -1;
+				if (argsinfo.chainx_flag) {
+					chainx::chainx(matches, queries[j].size(), costs, chainx_revisions, chainx_mode, false);
+				} else if (argsinfo.chainx_opt_flag) {
+					chainx::chainx(matches, queries[j].size(), costs, chainx_revisions, chainx_mode);
+				} else {
+					algo::solve_linearithmic(matches, queries[i].size(), queries[j].size(), mode, costs);
+				}
 				const std::chrono::duration<double> chaining_time = std::chrono::steady_clock::now() - start;
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
 				distances[i][j] = costs.back();
@@ -226,8 +254,8 @@ int main(int argc, char **argv)
 
 		vector<anchor_t> checking_chain;
 		algo::weak_backtrack(anchors, costs, algo::chaining_mode::semiglobal, checking_chain);
-		cerr << "Optimal ChainX chain has cost     " << compute_chain_cost(optimal_chain, algo::chaining_mode::semiglobal) << endl;
-		cerr << "Backtracked ChainX chain has cost " << compute_chain_cost(checking_chain, algo::chaining_mode::semiglobal) << endl;
+		cerr << "Optimal chain has cost     " << compute_chain_cost(optimal_chain, algo::chaining_mode::semiglobal) << endl;
+		cerr << "Backtracked chain has cost " << compute_chain_cost(checking_chain, algo::chaining_mode::semiglobal) << endl;
 		assert(compute_chain_cost(checking_chain, algo::chaining_mode::semiglobal) == compute_chain_cost(optimal_chain, algo::chaining_mode::semiglobal));
 		return 0;
 	}

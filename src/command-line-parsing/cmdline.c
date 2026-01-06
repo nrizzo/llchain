@@ -27,7 +27,7 @@
 
 const char *gengetopt_args_info_purpose = "Verification, WIP implementation, and visualization of linearithmic-time\ncolinear chaining";
 
-const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l anchorlength] [-t\ntext.fasta(.gz)] [-q query.fasta(.gz)] [--custom-anchors anchors.mummer]\n[--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
+const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t\ntext.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt]\n[--chainx-original-magic-numbers] [--custom-anchors anchors.mummer]\n[--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
 
 const char *gengetopt_args_info_versiontext = "";
 
@@ -42,6 +42,9 @@ const char *gengetopt_args_info_help[] = {
   "  -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')",
   "  -l, --anchor-length=LENGTH    Minimum anchor length  (default=`20')",
   "      --all-to-all              Pairwise comparisons (queries)  (default=off)",
+  "      --chainx                  Chain with at-cg/ChainX original algorithm\n                                  (default=off)",
+  "      --chainx-opt              Chain with algbio/ChainX optimal algorithm\n                                  (default=off)",
+  "      --chainx-original-magic-numbers\n                                In ChainX mode, use original magic numbers B =\n                                  100, alpha = 4 instead of variable B >= 100,\n                                  alpha = 4  (default=off)",
   "      --custom-anchors=PATH     Do not index/query but read the anchors from\n                                  this file (NB it should respect the same\n                                  order as query file)",
   "      --random-anchors=ANCHORNUM\n                                Number of random anchors to generate\n                                  (default=`-1')",
   "  -g, --debug-case-two-output-file=BMPFILE\n                                Visualize case 2 in this file (BMP format)\n                                  (default=`')",
@@ -80,6 +83,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->anchor_type_given = 0 ;
   args_info->anchor_length_given = 0 ;
   args_info->all_to_all_given = 0 ;
+  args_info->chainx_given = 0 ;
+  args_info->chainx_opt_given = 0 ;
+  args_info->chainx_original_magic_numbers_given = 0 ;
   args_info->custom_anchors_given = 0 ;
   args_info->random_anchors_given = 0 ;
   args_info->debug_case_two_output_file_given = 0 ;
@@ -101,6 +107,9 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->anchor_length_arg = 20;
   args_info->anchor_length_orig = NULL;
   args_info->all_to_all_flag = 0;
+  args_info->chainx_flag = 0;
+  args_info->chainx_opt_flag = 0;
+  args_info->chainx_original_magic_numbers_flag = 0;
   args_info->custom_anchors_arg = NULL;
   args_info->custom_anchors_orig = NULL;
   args_info->random_anchors_arg = -1;
@@ -125,10 +134,13 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->anchor_type_help = gengetopt_args_info_help[5] ;
   args_info->anchor_length_help = gengetopt_args_info_help[6] ;
   args_info->all_to_all_help = gengetopt_args_info_help[7] ;
-  args_info->custom_anchors_help = gengetopt_args_info_help[8] ;
-  args_info->random_anchors_help = gengetopt_args_info_help[9] ;
-  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[10] ;
-  args_info->random_seed_help = gengetopt_args_info_help[11] ;
+  args_info->chainx_help = gengetopt_args_info_help[8] ;
+  args_info->chainx_opt_help = gengetopt_args_info_help[9] ;
+  args_info->chainx_original_magic_numbers_help = gengetopt_args_info_help[10] ;
+  args_info->custom_anchors_help = gengetopt_args_info_help[11] ;
+  args_info->random_anchors_help = gengetopt_args_info_help[12] ;
+  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[13] ;
+  args_info->random_seed_help = gengetopt_args_info_help[14] ;
   
 }
 
@@ -287,6 +299,12 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "anchor-length", args_info->anchor_length_orig, 0);
   if (args_info->all_to_all_given)
     write_into_file(outfile, "all-to-all", 0, 0 );
+  if (args_info->chainx_given)
+    write_into_file(outfile, "chainx", 0, 0 );
+  if (args_info->chainx_opt_given)
+    write_into_file(outfile, "chainx-opt", 0, 0 );
+  if (args_info->chainx_original_magic_numbers_given)
+    write_into_file(outfile, "chainx-original-magic-numbers", 0, 0 );
   if (args_info->custom_anchors_given)
     write_into_file(outfile, "custom-anchors", args_info->custom_anchors_orig, 0);
   if (args_info->random_anchors_given)
@@ -567,6 +585,9 @@ cmdline_parser_internal (
         { "anchor-type",	1, NULL, 'a' },
         { "anchor-length",	1, NULL, 'l' },
         { "all-to-all",	0, NULL, 0 },
+        { "chainx",	0, NULL, 0 },
+        { "chainx-opt",	0, NULL, 0 },
+        { "chainx-original-magic-numbers",	0, NULL, 0 },
         { "custom-anchors",	1, NULL, 0 },
         { "random-anchors",	1, NULL, 0 },
         { "debug-case-two-output-file",	1, NULL, 'g' },
@@ -684,6 +705,42 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->all_to_all_flag), 0, &(args_info->all_to_all_given),
                 &(local_args_info.all_to_all_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "all-to-all", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Chain with at-cg/ChainX original algorithm.  */
+          else if (strcmp (long_options[option_index].name, "chainx") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->chainx_flag), 0, &(args_info->chainx_given),
+                &(local_args_info.chainx_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "chainx", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Chain with algbio/ChainX optimal algorithm.  */
+          else if (strcmp (long_options[option_index].name, "chainx-opt") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->chainx_opt_flag), 0, &(args_info->chainx_opt_given),
+                &(local_args_info.chainx_opt_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "chainx-opt", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4.  */
+          else if (strcmp (long_options[option_index].name, "chainx-original-magic-numbers") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->chainx_original_magic_numbers_flag), 0, &(args_info->chainx_original_magic_numbers_given),
+                &(local_args_info.chainx_original_magic_numbers_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "chainx-original-magic-numbers", '-',
                 additional_error))
               goto failure;
           

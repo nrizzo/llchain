@@ -1,7 +1,7 @@
 version	"0.0.5"
 package	"clc-viz"
 purpose	"Verification, WIP implementation, and visualization of linearithmic-time colinear chaining"
-usage	"clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l anchorlength] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--custom-anchors anchors.mummer] [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
+usage	"clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt] [--chainx-original-magic-numbers] [--custom-anchors anchors.mummer] [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
 
 option	"text"		t	"Text sequences file"			string	typestr = "PATH"	optional
 option	"query"		q	"Query sequences file"			string	typestr = "PATH"	optional
@@ -9,8 +9,11 @@ option	"mode"		m	"Chaining mode (global/semiglobal)"	string	typestr = "MODE"	def
 option	"anchor-type"	a	"(MUM/MEM)"				string	typestr = "ANCHOR"	default = "MUM"		optional
 option	"anchor-length"	l	"Minimum anchor length"			int	typestr = "LENGTH"	default = "20"		optional
 option	"all-to-all"	-	"Pairwise comparisons (queries)"	flag	off
-
+option	"chainx"	-	"Chain with at-cg/ChainX original algorithm"	flag	off
+option	"chainx-opt"	-	"Chain with algbio/ChainX optimal algorithm"	flag	off
+option	"chainx-original-magic-numbers"	-	"In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4"	flag	off
 option	"custom-anchors"	-	"Do not index/query but read the anchors from this file (NB it should respect the same order as query file)"	string	typestr = "PATH"	optional
+
 option	"random-anchors"		-	"Number of random anchors to generate"	long	typestr = "ANCHORNUM"	default = "-1"	optional
 option	"debug-case-two-output-file"	g	"Visualize case 2 in this file (BMP format)"	string	typestr = "BMPFILE"	default=""	optional
 option	"random-seed"	r	"Seed for the PRNG (-1 is different at every invocation)"	int	typestr = "INT"	default="-1"	optional

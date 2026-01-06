@@ -56,6 +56,12 @@ struct gengetopt_args_info
   const char *anchor_length_help; /**< @brief Minimum anchor length help description.  */
   int all_to_all_flag;	/**< @brief Pairwise comparisons (queries) (default=off).  */
   const char *all_to_all_help; /**< @brief Pairwise comparisons (queries) help description.  */
+  int chainx_flag;	/**< @brief Chain with at-cg/ChainX original algorithm (default=off).  */
+  const char *chainx_help; /**< @brief Chain with at-cg/ChainX original algorithm help description.  */
+  int chainx_opt_flag;	/**< @brief Chain with algbio/ChainX optimal algorithm (default=off).  */
+  const char *chainx_opt_help; /**< @brief Chain with algbio/ChainX optimal algorithm help description.  */
+  int chainx_original_magic_numbers_flag;	/**< @brief In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4 (default=off).  */
+  const char *chainx_original_magic_numbers_help; /**< @brief In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4 help description.  */
   char * custom_anchors_arg;	/**< @brief Do not index/query but read the anchors from this file (NB it should respect the same order as query file).  */
   char * custom_anchors_orig;	/**< @brief Do not index/query but read the anchors from this file (NB it should respect the same order as query file) original value given at command line.  */
   const char *custom_anchors_help; /**< @brief Do not index/query but read the anchors from this file (NB it should respect the same order as query file) help description.  */
@@ -77,6 +83,9 @@ struct gengetopt_args_info
   unsigned int anchor_type_given ;	/**< @brief Whether anchor-type was given.  */
   unsigned int anchor_length_given ;	/**< @brief Whether anchor-length was given.  */
   unsigned int all_to_all_given ;	/**< @brief Whether all-to-all was given.  */
+  unsigned int chainx_given ;	/**< @brief Whether chainx was given.  */
+  unsigned int chainx_opt_given ;	/**< @brief Whether chainx-opt was given.  */
+  unsigned int chainx_original_magic_numbers_given ;	/**< @brief Whether chainx-original-magic-numbers was given.  */
   unsigned int custom_anchors_given ;	/**< @brief Whether custom-anchors was given.  */
   unsigned int random_anchors_given ;	/**< @brief Whether random-anchors was given.  */
   unsigned int debug_case_two_output_file_given ;	/**< @brief Whether debug-case-two-output-file was given.  */
