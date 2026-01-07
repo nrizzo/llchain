@@ -260,7 +260,8 @@ void compute_global_optimal(
 			} else { // start_endpoints[j] < 0
 				 // if endpoint
 				const ai_t anchorj = -start_endpoints[j];
-				active_anchor[diagonal[anchorj]] = -1;
+				if (active_anchor[diagonal[anchorj]] == anchorj)
+					active_anchor[diagonal[anchorj]] = -1;
 			}
 		}
 
@@ -387,12 +388,12 @@ void compute_semiglobal_optimal(
 		start_endpoints.push_back(j);
 		start_endpoints.push_back(-j); // negative index means endpoint
 	}
-	// TODO stable_sort here? check with compute_global_optimal
-	sort(start_endpoints.begin(), start_endpoints.end(),
-			[&](const ai_t i, const ai_t j) -> bool {
+	stable_sort(start_endpoints.begin(), start_endpoints.end(),
+			[&](const ai_t i, const ai_t j) -> bool
+			{
 				return (((i >= 0) ? get<0>(anchors[i]) : get<0>(anchors[-i]) + get<2>(anchors[-i]) - 1) <
 				        ((j >= 0) ? get<0>(anchors[j]) : get<0>(anchors[-j]) + get<2>(anchors[-j]) - 1));
-	});
+			});
 
 	// sort anchors by diagonal to figure out each anchor's diagonal index
 	{
@@ -510,7 +511,8 @@ void compute_semiglobal_optimal(
 				costs[anchorj] = min(costs[anchorj], find_min_cost); // edge cases
 			} else { // if endpoint start_endpoints[j] < 0
 				const ai_t anchorj = -start_endpoints[j];
-				active_anchor[diagonal[anchorj]] = -1;
+				if (active_anchor[diagonal[anchorj]] == anchorj)
+					active_anchor[diagonal[anchorj]] = -1;
 			}
 		}
 

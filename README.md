@@ -61,6 +61,6 @@ cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view m
 ```
 
 ## TODOs
-- investigate edge case in ChainX-human tests (MEM anchors, l >= 50, read m64004_210224_230828/53675585/ccs) where clc-viz < ChainX-opt (8580 vs 8585)
 - split chaining time and backtracking time
+- add minimizer anchors
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)
