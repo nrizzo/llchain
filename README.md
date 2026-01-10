@@ -62,5 +62,5 @@ cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view m
 
 ## TODOs
 - split chaining time and backtracking time
-- add minimizer anchors
+- output optimal chain
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)

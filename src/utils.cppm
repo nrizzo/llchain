@@ -347,7 +347,7 @@ bool chainx_precedes(const anchor_t &anc1, const anchor_t &anc2)
 	const anchor_index_t anc2_c = get<1>(anc2);
 	const anchor_index_t anc2_d = get<1>(anc2) + get<2>(anc2);
 
-	return (anc1_a < anc2_a and anc1_b < anc2_b and anc1_c < anc2_c and anc1_d < anc2_d);
+	return (anc1_a < anc2_a and anc1_b <= anc2_b and anc1_c < anc2_c and anc1_d <= anc2_d);
 }
 
 export
