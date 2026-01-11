@@ -237,9 +237,18 @@ void compute_global_optimal(
 					const ai_t diagonal_distance = abs(curr_diagonal - diagonal_bucket_value[dd]);
 					if (diagonal_distance > bound_redit)
 						break;
-					if (active_anchor[dd] != -1) {
-						if (costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
-							find_min_cost_overlap = min(find_min_cost_overlap, costs[active_anchor[dd]] + diagonal_distance);
+					if (active_anchor[dd] != -1 and costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
+						// TODO make this check optional?
+						const ai_t i = active_anchor[dd];
+						const ai_t i_cost = costs[i] + diagonal_distance;
+						if (i_cost < find_min_cost_overlap) {
+							ai_t i_a = get<0>(anchors[i]);
+							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+							ai_t i_c = get<1>(anchors[i]);
+							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+								find_min_cost_overlap = i_cost;
+							}
 						}
 					}
 				}
@@ -247,9 +256,17 @@ void compute_global_optimal(
 					const ai_t diagonal_distance = abs(curr_diagonal - diagonal_bucket_value[dd]);
 					if (diagonal_distance > bound_redit)
 						break;
-					if (active_anchor[dd] != -1) {
-						if (costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
-							find_min_cost_overlap = min(find_min_cost_overlap, costs[active_anchor[dd]] + diagonal_distance);
+					if (active_anchor[dd] != -1 and costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
+						const ai_t i = active_anchor[dd];
+						const ai_t i_cost = costs[i] + diagonal_distance;
+						if (i_cost < find_min_cost_overlap) {
+							ai_t i_a = get<0>(anchors[i]);
+							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+							ai_t i_c = get<1>(anchors[i]);
+							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+								find_min_cost_overlap = i_cost;
+							}
 						}
 					}
 				}
@@ -494,7 +511,18 @@ void compute_semiglobal_optimal(
 					if (diagonal_distance > bound_redit)
 						break;
 					if (active_anchor[dd] != -1 and costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
-						find_min_cost_overlap = min(find_min_cost_overlap, costs[active_anchor[dd]] + diagonal_distance);
+						// TODO make this check optional?
+						const ai_t i = active_anchor[dd];
+						const ai_t i_cost = costs[i] + diagonal_distance;
+						if (i_cost < find_min_cost_overlap) {
+							ai_t i_a = get<0>(anchors[i]);
+							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+							ai_t i_c = get<1>(anchors[i]);
+							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+								find_min_cost_overlap = i_cost;
+							}
+						}
 					}
 				}
 				for (ai_t dd = diagonal[anchorj] - 1; dd >= 0; dd--) {
@@ -502,7 +530,17 @@ void compute_semiglobal_optimal(
 					if (diagonal_distance > bound_redit)
 						break;
 					if (active_anchor[dd] != -1 and costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
-						find_min_cost_overlap = min(find_min_cost_overlap, costs[active_anchor[dd]] + diagonal_distance);
+						const ai_t i = active_anchor[dd];
+						const ai_t i_cost = costs[i] + diagonal_distance;
+						if (i_cost < find_min_cost_overlap) {
+							ai_t i_a = get<0>(anchors[i]);
+							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+							ai_t i_c = get<1>(anchors[i]);
+							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+								find_min_cost_overlap = i_cost;
+							}
+						}
 					}
 				}
 
