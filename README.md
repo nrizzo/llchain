@@ -8,14 +8,15 @@ make -j
 ```
 Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t
 text.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt]
-[--chainx-original-magic-numbers] [--custom-anchors anchors.mummer]
-[--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]
+[--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam]
+[--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all]
+[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]
 Verification, WIP implementation, and visualization of linearithmic-time
 colinear chaining
 
   -h, --help                    Print help and exit
   -V, --version                 Print version and exit
-  -t, --text=PATH               Text sequences file
+  -t, --text=PATH               Reference(s) file
   -q, --query=PATH              Query sequences file
   -m, --mode=MODE               Chaining mode (global/semiglobal)
                                   (default=`global')
@@ -25,6 +26,12 @@ colinear chaining
       --chainx                  Chain with at-cg/ChainX original algorithm
                                   (default=off)
       --chainx-opt              Chain with algbio/ChainX optimal algorithm
+                                  (default=off)
+  -o, --output=PATH             Output each optimal chain in MUMmer-like format
+                                  {ref start, query start, length} (1-based)
+      --sam=PATH                Output approximate alignment based on the
+                                  optimal chain (SAM format)
+      --store-SAM-sequence      Store the query sequence in the SAM output
                                   (default=off)
       --chainx-original-magic-numbers
                                 In ChainX mode, use original magic numbers B =
@@ -61,7 +68,8 @@ cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view m
 ```
 
 ## TODOs
-- split chaining time and backtracking time
-- output optimal chain
+- update ChainX-human experiments
+- new global experiments
+- check -Wall warnings
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)
 - see if the ChainX-opt "bug fix" about strict ChainX precedence affects performance

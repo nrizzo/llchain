@@ -29,8 +29,9 @@ ext/kseq.o : ext/kseq.cppm $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -c $< -o $@
 MUMMER_CPPS=ext/mummer/src/essaMEM/
 MUMMER_INCL=ext/mummer/include/
+MUMMER_CPP_FLAGS=-DNDEBUG
 ext/mummer_essaMEM_wrapper.o : ext/mummer_essaMEM_wrapper.cppm $(STDMODULES_FAKEFILES)
-	g++ $(FLAGS) -I $(MUMMER_INCL) -I $(MUMMER_CPPS) -c $< -o $@
+	g++ $(FLAGS) $(MUMMER_CPP_FLAGS) -I $(MUMMER_INCL) -I $(MUMMER_CPPS) -c $< -o $@
 ext/chainx.o : ext/chainx.cppm $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -I $(MUMMER_INCL) -I $(MUMMER_CPPS) -c $< -o $@
 $(STDMODULES_FAKEFILES) :

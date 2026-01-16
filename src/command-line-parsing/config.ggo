@@ -1,9 +1,9 @@
-version	"0.0.5"
+version	"0.0.6"
 package	"clc-viz"
 purpose	"Verification, WIP implementation, and visualization of linearithmic-time colinear chaining"
-usage	"clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt] [--chainx-original-magic-numbers] [--custom-anchors anchors.mummer] [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
+usage	"clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt] [--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam] [--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
 
-option	"text"		t	"Text sequences file"			string	typestr = "PATH"	optional
+option	"text"		t	"Reference(s) file"			string	typestr = "PATH"	optional
 option	"query"		q	"Query sequences file"			string	typestr = "PATH"	optional
 option	"mode"		m	"Chaining mode (global/semiglobal)"	string	typestr = "MODE"	default = "global"	optional
 option	"anchor-type"	a	"(MUM/MEM)"				string	typestr = "ANCHOR"	default = "MUM"		optional
@@ -11,6 +11,10 @@ option	"anchor-length"	l	"Minimum anchor length"			int	typestr = "LENGTH"	defaul
 option	"all-to-all"	-	"Pairwise comparisons (queries)"	flag	off
 option	"chainx"	-	"Chain with at-cg/ChainX original algorithm"	flag	off
 option	"chainx-opt"	-	"Chain with algbio/ChainX optimal algorithm"	flag	off
+option	"output"	o	"Output each optimal chain in MUMmer-like format {ref start, query start, length} (1-based)"	string	typestr = "PATH"	optional
+option	"sam"		-	"Output approximate alignment based on the optimal chain (SAM format)"	string	typestr = "PATH"	optional
+option	"store-SAM-sequence"	-	"Store the query sequence in the SAM output"	flag	off
+
 option	"chainx-original-magic-numbers"	-	"In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4"	flag	off
 option	"custom-anchors"	-	"Do not index/query but read the anchors from this file (NB it should respect the same order as query file)"	string	typestr = "PATH"	optional
 

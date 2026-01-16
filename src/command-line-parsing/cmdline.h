@@ -31,7 +31,7 @@ extern "C" {
 
 #ifndef CMDLINE_PARSER_VERSION
 /** @brief the program version */
-#define CMDLINE_PARSER_VERSION "0.0.5"
+#define CMDLINE_PARSER_VERSION "0.0.6"
 #endif
 
 /** @brief Where the command line options are stored */
@@ -39,9 +39,9 @@ struct gengetopt_args_info
 {
   const char *help_help; /**< @brief Print help and exit help description.  */
   const char *version_help; /**< @brief Print version and exit help description.  */
-  char * text_arg;	/**< @brief Text sequences file.  */
-  char * text_orig;	/**< @brief Text sequences file original value given at command line.  */
-  const char *text_help; /**< @brief Text sequences file help description.  */
+  char * text_arg;	/**< @brief Reference(s) file.  */
+  char * text_orig;	/**< @brief Reference(s) file original value given at command line.  */
+  const char *text_help; /**< @brief Reference(s) file help description.  */
   char * query_arg;	/**< @brief Query sequences file.  */
   char * query_orig;	/**< @brief Query sequences file original value given at command line.  */
   const char *query_help; /**< @brief Query sequences file help description.  */
@@ -60,6 +60,14 @@ struct gengetopt_args_info
   const char *chainx_help; /**< @brief Chain with at-cg/ChainX original algorithm help description.  */
   int chainx_opt_flag;	/**< @brief Chain with algbio/ChainX optimal algorithm (default=off).  */
   const char *chainx_opt_help; /**< @brief Chain with algbio/ChainX optimal algorithm help description.  */
+  char * output_arg;	/**< @brief Output each optimal chain in MUMmer-like format {ref start, query start, length} (1-based).  */
+  char * output_orig;	/**< @brief Output each optimal chain in MUMmer-like format {ref start, query start, length} (1-based) original value given at command line.  */
+  const char *output_help; /**< @brief Output each optimal chain in MUMmer-like format {ref start, query start, length} (1-based) help description.  */
+  char * sam_arg;	/**< @brief Output approximate alignment based on the optimal chain (SAM format).  */
+  char * sam_orig;	/**< @brief Output approximate alignment based on the optimal chain (SAM format) original value given at command line.  */
+  const char *sam_help; /**< @brief Output approximate alignment based on the optimal chain (SAM format) help description.  */
+  int store_SAM_sequence_flag;	/**< @brief Store the query sequence in the SAM output (default=off).  */
+  const char *store_SAM_sequence_help; /**< @brief Store the query sequence in the SAM output help description.  */
   int chainx_original_magic_numbers_flag;	/**< @brief In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4 (default=off).  */
   const char *chainx_original_magic_numbers_help; /**< @brief In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4 help description.  */
   char * custom_anchors_arg;	/**< @brief Do not index/query but read the anchors from this file (NB it should respect the same order as query file).  */
@@ -85,6 +93,9 @@ struct gengetopt_args_info
   unsigned int all_to_all_given ;	/**< @brief Whether all-to-all was given.  */
   unsigned int chainx_given ;	/**< @brief Whether chainx was given.  */
   unsigned int chainx_opt_given ;	/**< @brief Whether chainx-opt was given.  */
+  unsigned int output_given ;	/**< @brief Whether output was given.  */
+  unsigned int sam_given ;	/**< @brief Whether sam was given.  */
+  unsigned int store_SAM_sequence_given ;	/**< @brief Whether store-SAM-sequence was given.  */
   unsigned int chainx_original_magic_numbers_given ;	/**< @brief Whether chainx-original-magic-numbers was given.  */
   unsigned int custom_anchors_given ;	/**< @brief Whether custom-anchors was given.  */
   unsigned int random_anchors_given ;	/**< @brief Whether random-anchors was given.  */

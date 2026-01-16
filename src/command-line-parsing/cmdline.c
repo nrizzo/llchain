@@ -27,7 +27,7 @@
 
 const char *gengetopt_args_info_purpose = "Verification, WIP implementation, and visualization of linearithmic-time\ncolinear chaining";
 
-const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t\ntext.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt]\n[--chainx-original-magic-numbers] [--custom-anchors anchors.mummer]\n[--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
+const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t\ntext.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt]\n[--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam]\n[--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all]\n[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
 
 const char *gengetopt_args_info_versiontext = "";
 
@@ -36,7 +36,7 @@ const char *gengetopt_args_info_description = "";
 const char *gengetopt_args_info_help[] = {
   "  -h, --help                    Print help and exit",
   "  -V, --version                 Print version and exit",
-  "  -t, --text=PATH               Text sequences file",
+  "  -t, --text=PATH               Reference(s) file",
   "  -q, --query=PATH              Query sequences file",
   "  -m, --mode=MODE               Chaining mode (global/semiglobal)\n                                  (default=`global')",
   "  -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')",
@@ -44,6 +44,9 @@ const char *gengetopt_args_info_help[] = {
   "      --all-to-all              Pairwise comparisons (queries)  (default=off)",
   "      --chainx                  Chain with at-cg/ChainX original algorithm\n                                  (default=off)",
   "      --chainx-opt              Chain with algbio/ChainX optimal algorithm\n                                  (default=off)",
+  "  -o, --output=PATH             Output each optimal chain in MUMmer-like format\n                                  {ref start, query start, length} (1-based)",
+  "      --sam=PATH                Output approximate alignment based on the\n                                  optimal chain (SAM format)",
+  "      --store-SAM-sequence      Store the query sequence in the SAM output\n                                  (default=off)",
   "      --chainx-original-magic-numbers\n                                In ChainX mode, use original magic numbers B =\n                                  100, alpha = 4 instead of variable B >= 100,\n                                  alpha = 4  (default=off)",
   "      --custom-anchors=PATH     Do not index/query but read the anchors from\n                                  this file (NB it should respect the same\n                                  order as query file)",
   "      --random-anchors=ANCHORNUM\n                                Number of random anchors to generate\n                                  (default=`-1')",
@@ -85,6 +88,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->all_to_all_given = 0 ;
   args_info->chainx_given = 0 ;
   args_info->chainx_opt_given = 0 ;
+  args_info->output_given = 0 ;
+  args_info->sam_given = 0 ;
+  args_info->store_SAM_sequence_given = 0 ;
   args_info->chainx_original_magic_numbers_given = 0 ;
   args_info->custom_anchors_given = 0 ;
   args_info->random_anchors_given = 0 ;
@@ -109,6 +115,11 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->all_to_all_flag = 0;
   args_info->chainx_flag = 0;
   args_info->chainx_opt_flag = 0;
+  args_info->output_arg = NULL;
+  args_info->output_orig = NULL;
+  args_info->sam_arg = NULL;
+  args_info->sam_orig = NULL;
+  args_info->store_SAM_sequence_flag = 0;
   args_info->chainx_original_magic_numbers_flag = 0;
   args_info->custom_anchors_arg = NULL;
   args_info->custom_anchors_orig = NULL;
@@ -136,11 +147,14 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->all_to_all_help = gengetopt_args_info_help[7] ;
   args_info->chainx_help = gengetopt_args_info_help[8] ;
   args_info->chainx_opt_help = gengetopt_args_info_help[9] ;
-  args_info->chainx_original_magic_numbers_help = gengetopt_args_info_help[10] ;
-  args_info->custom_anchors_help = gengetopt_args_info_help[11] ;
-  args_info->random_anchors_help = gengetopt_args_info_help[12] ;
-  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[13] ;
-  args_info->random_seed_help = gengetopt_args_info_help[14] ;
+  args_info->output_help = gengetopt_args_info_help[10] ;
+  args_info->sam_help = gengetopt_args_info_help[11] ;
+  args_info->store_SAM_sequence_help = gengetopt_args_info_help[12] ;
+  args_info->chainx_original_magic_numbers_help = gengetopt_args_info_help[13] ;
+  args_info->custom_anchors_help = gengetopt_args_info_help[14] ;
+  args_info->random_anchors_help = gengetopt_args_info_help[15] ;
+  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[16] ;
+  args_info->random_seed_help = gengetopt_args_info_help[17] ;
   
 }
 
@@ -242,6 +256,10 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->anchor_type_arg));
   free_string_field (&(args_info->anchor_type_orig));
   free_string_field (&(args_info->anchor_length_orig));
+  free_string_field (&(args_info->output_arg));
+  free_string_field (&(args_info->output_orig));
+  free_string_field (&(args_info->sam_arg));
+  free_string_field (&(args_info->sam_orig));
   free_string_field (&(args_info->custom_anchors_arg));
   free_string_field (&(args_info->custom_anchors_orig));
   free_string_field (&(args_info->random_anchors_orig));
@@ -303,6 +321,12 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "chainx", 0, 0 );
   if (args_info->chainx_opt_given)
     write_into_file(outfile, "chainx-opt", 0, 0 );
+  if (args_info->output_given)
+    write_into_file(outfile, "output", args_info->output_orig, 0);
+  if (args_info->sam_given)
+    write_into_file(outfile, "sam", args_info->sam_orig, 0);
+  if (args_info->store_SAM_sequence_given)
+    write_into_file(outfile, "store-SAM-sequence", 0, 0 );
   if (args_info->chainx_original_magic_numbers_given)
     write_into_file(outfile, "chainx-original-magic-numbers", 0, 0 );
   if (args_info->custom_anchors_given)
@@ -587,6 +611,9 @@ cmdline_parser_internal (
         { "all-to-all",	0, NULL, 0 },
         { "chainx",	0, NULL, 0 },
         { "chainx-opt",	0, NULL, 0 },
+        { "output",	1, NULL, 'o' },
+        { "sam",	1, NULL, 0 },
+        { "store-SAM-sequence",	0, NULL, 0 },
         { "chainx-original-magic-numbers",	0, NULL, 0 },
         { "custom-anchors",	1, NULL, 0 },
         { "random-anchors",	1, NULL, 0 },
@@ -595,7 +622,7 @@ cmdline_parser_internal (
         { 0,  0, 0, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVt:q:m:a:l:g:r:", long_options, &option_index);
+      c = getopt_long (argc, argv, "hVt:q:m:a:l:o:g:r:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
@@ -611,7 +638,7 @@ cmdline_parser_internal (
           cmdline_parser_free (&local_args_info);
           exit (EXIT_SUCCESS);
 
-        case 't':	/* Text sequences file.  */
+        case 't':	/* Reference(s) file.  */
         
         
           if (update_arg( (void *)&(args_info->text_arg), 
@@ -667,6 +694,18 @@ cmdline_parser_internal (
               &(local_args_info.anchor_length_given), optarg, 0, "20", ARG_INT,
               check_ambiguity, override, 0, 0,
               "anchor-length", 'l',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'o':	/* Output each optimal chain in MUMmer-like format {ref start, query start, length} (1-based).  */
+        
+        
+          if (update_arg( (void *)&(args_info->output_arg), 
+               &(args_info->output_orig), &(args_info->output_given),
+              &(local_args_info.output_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "output", 'o',
               additional_error))
             goto failure;
         
@@ -729,6 +768,32 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->chainx_opt_flag), 0, &(args_info->chainx_opt_given),
                 &(local_args_info.chainx_opt_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "chainx-opt", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Output approximate alignment based on the optimal chain (SAM format).  */
+          else if (strcmp (long_options[option_index].name, "sam") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->sam_arg), 
+                 &(args_info->sam_orig), &(args_info->sam_given),
+                &(local_args_info.sam_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "sam", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Store the query sequence in the SAM output.  */
+          else if (strcmp (long_options[option_index].name, "store-SAM-sequence") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->store_SAM_sequence_flag), 0, &(args_info->store_SAM_sequence_given),
+                &(local_args_info.store_SAM_sequence_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "store-SAM-sequence", '-',
                 additional_error))
               goto failure;
           

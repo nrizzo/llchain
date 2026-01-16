@@ -9,6 +9,8 @@ import <set>;
 import <list>;
 import <cassert>;
 import <numeric>; // std::iota
+import <sstream>;
+import <string>;
 import utils;
 import MinSegmentTree;
 
@@ -20,6 +22,8 @@ using std::map, std::multimap;
 using std::set, std::multiset;
 using std::list;
 using std::iota;
+using std::ostream;
+using std::string;
 using utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes;
 typedef utils::anchor_index_t ai_t;
 
@@ -1530,6 +1534,194 @@ tuple<ai_t,vector<ai_t>,vector<ai_t>> compute_cd_ranks(const vector<anchor_t> &a
 		}
 	}
 	return { last_rank, c_ranks, d_ranks };
+}
+
+/*
+ * export a given colinear chain to CIGAR format
+ * NB: the chain is expected to respect weak prec (see utils::weak_precedes)
+ * NB: the chain is assumed to start and end with dummy anchors (see utils::place_dummy_anchors)
+ * NB: we assume at least one non-dummy anchor
+ * NB: to output a well-formed CIGAR string, we assume the chain NOT to adjacent anchors with connect cost = 0
+ */
+export
+void write_cigar(
+	const string &text,
+	const string &query,
+	const vector<anchor_t> &chain,
+	const chaining_mode m,
+	ostream &out
+) {
+	assert(chain.size() > 1);
+	assert(chain.front() == anchor_t({-1, -1, 1}));
+	assert(chain.back() == anchor_t({text.length(), query.length(), 1}));
+	const ai_t n = chain.size();
+	//string debugT = text, debugQ = query;
+
+	if (m == global) {
+		const ai_t Tgap = get<0>(chain[1]);
+		const ai_t Qgap = get<1>(chain[1]);
+		if (min(Tgap, Qgap) > 0) {
+			out << min(Tgap, Qgap) << "X";
+			//debugT = debugT.substr(min(Tgap, Qgap));
+			//debugQ = debugQ.substr(min(Tgap, Qgap));
+		}
+		if (Tgap > Qgap) {
+			out << Tgap - Qgap <<  "D";
+			//debugT =  debugT.substr(Tgap - Qgap);
+		}
+		if (Tgap < Qgap) {
+			out << Qgap - Tgap <<  "I";
+			//debugQ = debugQ.substr(Qgap - Tgap);
+		}
+	} else { // semiglobal
+		const ai_t Qgap = get<1>(chain[1]);
+		if (Qgap > 0) {
+			out << Qgap << "I";
+			//debugQ = debugQ.substr(Qgap);
+		}
+	}
+
+	for (ai_t i = 1; i < chain.size() - 2; i++) {
+		assert(weak_precedes(chain[i], chain[i+1]));
+		const ai_t i_length = get<2>(chain[i]), j_length = get<2>(chain[i+1]);;
+		const ai_t i_a = get<0>(chain[i]),   i_b = get<0>(chain[i])   + i_length;
+		const ai_t i_c = get<1>(chain[i]),   i_d = get<1>(chain[i])   + i_length;
+		const ai_t j_a = get<0>(chain[i+1]), j_b = get<0>(chain[i+1]) + j_length;
+		const ai_t j_c = get<1>(chain[i+1]), j_d = get<1>(chain[i+1]) + j_length;
+		const ai_t Tgap = max((ai_t)0, j_a - i_b), Qgap = max((ai_t)0, j_c - i_d);
+		const ai_t Tovl = max((ai_t)0, i_b - j_a), Qovl = max((ai_t)0, i_d - j_c);
+
+		if (Tovl > 0 and Qovl > 0) {
+			out << min(j_a - i_a, j_c - i_c) << "M";
+			//assert(debugT.substr(0, min(j_a - i_a, j_c - i_c)) == debugQ.substr(0, min(j_a - i_a, j_c - i_c)));
+			//debugT = debugT.substr(min(j_a - i_a, j_c - i_c));
+			//debugQ = debugQ.substr(min(j_a - i_a, j_c - i_c));
+			if (Tovl > Qovl) {
+				out << Tovl - Qovl << "I";
+				//debugQ = debugQ.substr(Tovl - Qovl);
+			} else if (Tovl < Qovl) {
+				out << Qovl - Tovl << "D";
+				//debugT = debugT.substr(Qovl - Tovl);
+			}
+			// else perfect chain, do nothing
+		} else if (Tovl > 0 and Qgap > 0) {
+			out << j_a - i_a << "M";
+			//assert(debugT.substr(0, j_a - i_a) == debugQ.substr(0, j_a - i_a));
+			//debugT = debugT.substr(j_a - i_a);
+			//debugQ = debugQ.substr(j_a - i_a);
+			out << Tovl + Qgap << "I";
+			//debugQ = debugQ.substr(Tovl + Qgap);
+		} else if (Tgap > 0 and Qovl > 0) {
+			out << j_c - i_c << "M";
+			//assert(debugT.substr(0, j_c - i_c) == debugQ.substr(0, j_c - i_c));
+			//debugT = debugT.substr(j_c - i_c);
+			//debugQ = debugQ.substr(j_c - i_c);
+			out << Tgap + Qovl << "D";
+			//debugT = debugT.substr(Tgap + Qovl);
+		} else {
+			out << i_length - max(Tovl, Qovl) << "M";
+			//assert(debugT.substr(0, i_length) == debugQ.substr(0, i_length));
+			//debugT = debugT.substr(i_length - max(Tovl, Qovl));
+			//debugQ = debugQ.substr(i_length - max(Tovl, Qovl));
+			if (Tgap > 0 and Qgap > 0) {
+				out << min(Tgap, Qgap) << "X";
+				//debugT = debugT.substr(min(Tgap, Qgap));
+				//debugQ = debugQ.substr(min(Tgap, Qgap));
+			}
+			if (Tgap < Qgap) {
+				out << Qgap - Tgap << "I";
+				//debugQ = debugQ.substr(Qgap - Tgap);
+			}
+			if (Tgap > Qgap) {
+				out << Tgap - Qgap << "D";
+				//debugT = debugT.substr(Tgap - Qgap);
+			}
+			if (Tovl > 0) {
+				out << Tovl << "I";
+				//debugQ = debugQ.substr(Tovl);
+			}
+			if (Qovl > 0) {
+				out << Qovl << "D";
+				//debugT = debugT.substr(Qovl);
+			}
+		}
+	}
+
+	out << get<2>(chain[n-2]) << "M";
+	//assert(debugT.substr(0, get<2>(chain[n-2])) == debugQ.substr(0, get<2>(chain[n-2])));
+	//debugT = debugT.substr(get<2>(chain[n-2]));
+	//debugQ = debugQ.substr(get<2>(chain[n-2]));
+	if (m == global) {
+		const ai_t Tgap = get<0>(chain[n-1]) - (get<0>(chain[n-2]) + get<2>(chain[n-2]));
+		const ai_t Qgap = get<1>(chain[n-1]) - (get<1>(chain[n-2]) + get<2>(chain[n-2]));
+		if (min(Tgap, Qgap) > 0) {
+			out << min(Tgap, Qgap) << "X";
+			//debugT = debugT.substr(min(Tgap, Qgap));
+			//debugQ = debugQ.substr(min(Tgap, Qgap));
+		}
+		if (Tgap > Qgap) {
+			out << Tgap - Qgap <<  "D";
+			//debugT = debugT.substr(Tgap - Qgap);
+		}
+		if (Tgap < Qgap) {
+			out << Qgap - Tgap <<  "I";
+			//debugQ = debugQ.substr(Qgap - Tgap);
+		}
+	} else { // semiglobal
+		const ai_t Qgap = get<1>(chain[n-1]) - (get<1>(chain[n-2]) + get<2>(chain[n-2]));
+		if (Qgap > 0) {
+			out << Qgap << "I";
+			//debugQ = debugQ.substr(Qgap);
+		}
+	}
+	//assert(debugQ.size() == 0 and debugT.size() == 0);
+}
+
+/*
+ * see https://samtools.github.io/hts-specs/SAMv1.pdf
+ */
+export
+void write_SAM_header(ostream &out)
+{
+	out << "@HD\tVN:1.6\n";
+}
+
+export
+void write_SAM_text(const string &text, const string &text_id, ostream &out)
+{
+	out << "@SQ\tSN:" << text_id << "\tLN:" << text.length() << "\n";
+}
+
+/*
+ * NB: see write_cigar
+ */
+export
+void write_SAM_entry(
+	const string &text,
+	const string &text_id,
+	const string &query,
+	const string &query_id,
+	const bool store_SAM_sequence,
+	const vector<anchor_t> &chain,
+	const chaining_mode m,
+	const ai_t anchored_ed,
+	ostream &out
+) {
+	assert(chain.size() > 2);
+	out << query_id << '\t'; // QNAME
+	out << "2\t"; // FLAG
+	out << text_id << '\t'; // RNAME
+	out << ((m == global) ? 1 : get<0>(chain[1])+1) << '\t'; // POS
+	out << "30\t"; // MAPQ
+	write_cigar(text, query, chain, m, out); // CIGAR
+	out << '\t';
+	out << "*\t"; // RNEXT
+	out << "0\t"; // PNEXT
+	out << "0\t"; // TLEN
+	out << ((store_SAM_sequence) ? query : "*") << '\t'; // SEQ
+	out << "*\t"; // QUAL
+	out << "NM:i:" << anchored_ed; // NM TAG
+	out << '\n';
 }
 
 } // namespace algo
