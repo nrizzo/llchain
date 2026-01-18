@@ -10,8 +10,8 @@ chainxseed="-a MUM -l 20"
 
 echo -n "Checking if the optimal chaining cost differs..."
 check=$(diff \
-	<(grep "distance =" human_mum_chainx-opt | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" human_mum_clc-viz | cut -d' ' -f16) ; exit 0)
+	<(grep "anchored edit distance" human_mum_chainx-opt | cut -d' ' -f16) \
+	<(grep "anchored edit distance" human_mum_clc-viz    | cut -d' ' -f16) ; exit 0)
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
@@ -34,31 +34,25 @@ paste -d'$' stats_human_mum_headers \
 # time per input anchor
 outputpng="times_human_mum.png"
 echo -n "Plotting individual times in output/$outputpng ..."
-for t in "human_mum_chainx" "human_mum_chainx-opt"
+for t in "human_mum_chainx" "human_mum_chainx-opt" "human_mum_clc-viz"
 do
-	paste \
-		<(grep "count of anchors" $t | cut -d' ' -f9 | tr -d ",") \
-		<(grep "distance computation finished" $t | cut -d' ' -f6 | tr -d "(") \
-		> times_$t
-done
-for t in "human_mum_clc-viz"
-do
+	# anchor, total time
 	paste \
 		<(grep "querying" $t | cut -d' ' -f14) \
-		<(grep "querying" $t | cut -d' ' -f26) \
+		<(grep "querying" $t | cut -d' ' -f28) \
 		> times_$t
 done
 gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding+chaining time\"; set output '$outputpng'; plot 'times_human_mum_chainx', 'times_human_mum_chainx-opt', 'times_human_mum_clc-viz'"
 echo "done."
 
-echo "# MEMs (l >= 75)"
-clcvizseed="-a MEM -l 75"
-chainxseed="-a MEM -l 75"
+echo "# MEMs (l >= 50)"
+clcvizseed="-a MEM -l 50"
+chainxseed="-a MEM -l 50"
 
 echo -n "Checking if the optimal chaining cost differs..."
 check=$(diff \
-	<(grep "distance =" human_mem_chainx-opt | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" human_mem_clc-viz | cut -d' ' -f16) ; exit 0)
+	<(grep "anchored edit distance" human_mem_chainx-opt | cut -d' ' -f16) \
+	<(grep "anchored edit distance" human_mem_clc-viz    | cut -d' ' -f16) ; exit 0)
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
@@ -80,21 +74,12 @@ paste -d'$' stats_human_mem_headers \
 
 # time per input anchor
 outputpng="times_human_mem.png"
-echo -n "Plotting individual times in output/$outputpng ..."
-for t in "human_mem_chainx" "human_mem_chainx-opt"
-do
-	paste \
-		<(grep "count of anchors" $t | cut -d' ' -f9 | tr -d ",") \
-		<(grep "distance computation finished" $t | cut -d' ' -f6 | tr -d "(") \
-		> times_$t
-done
-for t in "human_mem_clc-viz"
+for t in "human_mem_clc-viz" "human_mem_chainx" "human_mem_chainx-opt"
 do
 	paste \
 		<(grep "querying" $t | cut -d' ' -f14) \
-		<(grep "querying" $t | cut -d' ' -f26) \
+		<(grep "querying" $t | cut -d' ' -f28) \
 		> times_$t
 done
 gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding+chaining time\"; set output '$outputpng'; plot 'times_human_mem_chainx', 'times_human_mem_chainx-opt', 'times_human_mem_clc-viz'"
 echo "done."
-

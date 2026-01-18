@@ -59,7 +59,7 @@ do
 	grep "maxresident" $t | cut -d' ' -f1 | tac >> stats_space_$t
 done
 echo "time (s)" > stats_time_time_global_clc-viz
-grep "anchored edit distance" time_global_clc-viz | cut -d' ' -f26 | tr -d "s" | tac >> stats_time_time_global_clc-viz
+grep "anchored edit distance" time_global_clc-viz | cut -d' ' -f28 | tr -d "s" | tac >> stats_time_time_global_clc-viz
 echo "space (kb)" > stats_space_time_global_clc-viz
 grep "maxresident" time_global_clc-viz | cut -d' ' -f1 | tac >> stats_space_time_global_clc-viz
 
@@ -118,7 +118,7 @@ do
 	grep "maxresident" $t | cut -d' ' -f1 | tac >> stats_space_$t
 done
 echo "time (s)" > stats_time_time_semiglobal_clc-viz
-grep "anchored edit distance" time_semiglobal_clc-viz | cut -d' ' -f26 | tr -d "s" | tac >> stats_time_time_semiglobal_clc-viz
+grep "anchored edit distance" time_semiglobal_clc-viz | cut -d' ' -f28 | tr -d "s" | tac >> stats_time_time_semiglobal_clc-viz
 echo "space (kb)" > stats_space_time_semiglobal_clc-viz
 grep "maxresident" time_semiglobal_clc-viz | cut -d' ' -f1 | tac >> stats_space_time_semiglobal_clc-viz
 
