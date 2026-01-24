@@ -5,7 +5,7 @@ Then get the datasets (~2GB of disk space) with script
 ./get_datasets.sh
 ```
 
-Finally, run the experiment with commands
+Then, make sure you have (`seqtk`)[https://github.com/lh3/seqtk] installed and visible by your `PATH` environment variable. Finally, run the experiment with commands
 ```console
 git submodule update --init ../../ext/mummer && make -j4 -C ../../
 ./run_experiment.sh

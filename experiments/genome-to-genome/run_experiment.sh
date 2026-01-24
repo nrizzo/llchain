@@ -2,6 +2,12 @@
 set -euo pipefail
 thisfolder=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd ) # https://stackoverflow.com/questions/59895/how-do-i-get-the-directory-where-a-bash-script-is-located-from-within-the-script
 cd $thisfolder
+
+if ! command -v seqtk >/dev/null 2>&1
+then
+        echo "ERROR: seqtk not found!"; exit 1
+fi
+
 mkdir output
 cd output
 
@@ -9,19 +15,27 @@ clcviz=$thisfolder/../../clc-viz
 usrbintime="/usr/bin/time -f"
 usrbintimeoptions="%e total time elapsed (s)\n%M maxresident k"
 
-echo "# human vs chimp"
-refs=$thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz
-queries=$thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz
+echo "# human vs chimp (chr1 only)"
+mkfifo human.fa.gz
+refs=$thisfolder/output/human.fa.gz
+mkfifo chimp.fa.gz
+queries=$thisfolder/output/chimp.fa.gz
 clcvizmode="--mode global"
 clcvizseed="-a MUM -l 20"
 
 # run ChainX* (via clc-viz)
+seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
+seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
 $usrbintime "$usrbintimeoptions" $clcviz --chainx $clcvizmode $clcvizseed -t $refs -q $queries \
         >> human_mum_chainx 2>> human_mum_chainx
 # run ChainX*-opt (via clc-viz)
+seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
+seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
 $usrbintime "$usrbintimeoptions" $clcviz --chainx-opt $clcvizmode $clcvizseed -t $refs -q $queries \
         >> human_mum_chainx-opt 2>> human_mum_chainx-opt
 # run clc-viz
+seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
+seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
 $usrbintime "$usrbintimeoptions" $clcviz $clcvizmode $clcvizseed -t $refs -q $queries \
         >> human_mum_clc-viz 2>> human_mum_clc-viz
 

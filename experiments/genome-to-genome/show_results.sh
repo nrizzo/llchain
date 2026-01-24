@@ -4,7 +4,7 @@ thisfolder=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd ) 
 cd $thisfolder
 cd output
 
-echo "# human vs chimp"
+echo "# human vs chimp (chr1 only)"
 clcvizmode="--mode global"
 clcvizseed="-a MUM -l 20"
 
