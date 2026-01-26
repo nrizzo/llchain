@@ -207,13 +207,14 @@ int main(int argc, char **argv)
 				vector<utils::anchor_index_t>(queries.size(),
 					std::numeric_limits<utils::anchor_index_t>::max())
 				);
-		for (size_type i = 0; i < queries.size(); i++) {
+		for (size_type i = 1; i < queries.size(); i++) {
 			auto start = std::chrono::steady_clock::now(), querystart = std::chrono::steady_clock::now();
 			auto const index = mummer_essaMEM_wrapper::index(queries[i], anchorlength);
 			const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
 			cerr << "DEBUG: indexed " << query_ids[i] << " in " << index_time << endl;
 
 			for (size_type j = 0; j < i; j++) {
+				cerr << "DEBUG: querying " << query_ids[j] << " in " << query_ids[i] << " (" << ((anchortype == MUM) ? "MUM" : "MEM") << " seeds of length >= " << anchorlength << ")...";
 				querystart = std::chrono::steady_clock::now();
 				start = querystart;
 				vector<anchor_t> matches;
@@ -240,9 +241,11 @@ int main(int argc, char **argv)
 				} else {
 					algo::solve_linearithmic(matches, queries[i].size(), queries[j].size(), mode, costs);
 				}
-				const std::chrono::duration<double> chaining_time = std::chrono::steady_clock::now() - start;
+				const std::chrono::duration<double> main_chaining_time = std::chrono::steady_clock::now() - start;
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
 				distances[i][j] = costs.back();
+
+				cerr << "done (" << found_anchors << " anchors, " << matches.size() - 2 << " merged, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << main_chaining_time << " chaining, " << query_time << " total query time" << ((argsinfo.chainx_flag or argsinfo.chainx_opt_flag) ? (", " + to_string(chainx_revisions) + " revisions") : "") << ")" << endl;
 			}
 		}
 
