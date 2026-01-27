@@ -25,3 +25,22 @@ do
 		rm ncbi_dataset.zip
 	fi
 done
+
+hprc_assemblies=(
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00097/assemblies/freeze_2/HG00097_hap2_hprc_r2_v1.0.1.fa.gz"
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00097/assemblies/freeze_2/HG00097_hap1_hprc_r2_v1.0.1.fa.gz"
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00272/assemblies/freeze_2/HG00272_hap2_hprc_r2_v1.0.1.fa.gz"
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00272/assemblies/freeze_2/HG00272_hap1_hprc_r2_v1.0.1.fa.gz"
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00280/assemblies/freeze_2/HG00280_hap2_hprc_r2_v1.0.1.fa.gz"
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00280/assemblies/freeze_2/HG00280_hap1_hprc_r2_v1.0.1.fa.gz"
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00408/assemblies/freeze_2/HG00408_mat_hprc_r2_v1.0.1.fa.gz"
+	"https://human-pangenomics.s3.amazonaws.com/submissions/DC27718F-5F38-43B0-9A78-270F395F13E8--INT_ASM_PRODUCTION/HG00408/assemblies/freeze_2/HG00408_pat_hprc_r2_v1.0.1.fa.gz"
+	)
+
+for link in ${hprc_assemblies[@]}
+do
+	if [ ! -f "input/${link##*/}" ]
+	then
+		wget "$link" -O "input/${link##*/}"
+	fi
+done
