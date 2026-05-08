@@ -15,16 +15,27 @@ namespace mummer_essaMEM_wrapper {
 
 	export typedef mummer::mummer::sparseSA sparseSA;
 
-	export sparseSA dummy_index()
-	{
-		return mummer::mummer::sparseSA(mummer::mummer::sparseSA::create_auto(string("").data(), 0, 0, true));
-	}
-
+	/*
+	 * index for MUM/MEM finding
+	 * NB: the uppercase chars of s are all considered lowercase
+	 */
 	export sparseSA index(const string &s, int seed_min_length)
 	{
 		return mummer::mummer::sparseSA(mummer::mummer::sparseSA::create_auto(s.data(), s.length(), seed_min_length, true));
 	}
 
+
+	/*
+	 * valid empty index
+	 */
+	export sparseSA dummy_index()
+	{
+		return mummer::mummer::sparseSA(mummer::mummer::sparseSA::create_auto(string("").data(), 0, 0, true));
+	}
+
+	/*
+	 * NB: the uppercase chars of q are all considered lowercase
+	 */
 	export void find_MEMs(const mummer::mummer::sparseSA &sa, const string &q, int seed_min_length, vector<tuple<long long, long long, long long>> &matches_out)
 	{
 		auto append_matches = [&](const mummer::mummer::match_t& m) { matches_out.emplace_back(m.ref, m.query, m.len); }; //0-based coordinates
@@ -32,6 +43,9 @@ namespace mummer_essaMEM_wrapper {
 		sa.findMEM_each(q.data(), q.length(), seed_min_length, false, append_matches);
 	}
 
+	/*
+	 * NB: the uppercase chars of q are all considered lowercase
+	 */
 	export void find_MUMs(const mummer::mummer::sparseSA &sa, const string &q, int seed_min_length, vector<tuple<long long, long long, long long>> &matches_out)
 	{
 		auto append_matches = [&](const mummer::mummer::match_t& m) { matches_out.emplace_back(m.ref, m.query, m.len); }; //0-based coordinates

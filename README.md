@@ -70,4 +70,6 @@ cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view m
 ## TODOs
 - check -Wall warnings
 - investigate edge case for case 2 (--random-anchors 100 -r 49929335 semi-global mode)
+- investigate edge case for case 2 (--random-anchors=100 -r 696403780)
 - see if the ChainX-opt "bug fix" about strict ChainX precedence affects performance
+- use [CLI11](https://github.com/CLIUtils/CLI11) instead of gengetopt
