@@ -50,7 +50,14 @@ export void chainx_naive(
  * NB: assumes sorted anchors (see sort_anchors)
  * NB: assumes there are no perfect chains between the anchors
  */
-export void solve_linearithmic(
+export void solve_linearithmic_old(
+		const vector<anchor_t> &anchors,
+		const ai_t Tlength,
+		const ai_t Qlength,
+		const chaining_mode m,
+		vector<ai_t> &costs_out
+	);
+export void solve_linearithmic_new(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
@@ -61,7 +68,15 @@ export void solve_linearithmic(
  * debug version that checks that all partial costs are correct
  * NB: O(n^2) time or worse
  */
-export void solve_linearithmic_debug(
+export void solve_linearithmic_debug_old(
+		const vector<anchor_t> &anchors,
+		const ai_t Tlength,
+		const ai_t Qlength,
+		const chaining_mode m,
+		vector<ai_t> &costs_out,
+		const vector<ai_t> &correct_costs
+	);
+export void solve_linearithmic_debug_new(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
@@ -346,8 +361,14 @@ ai_t compute_case_five_naive(const case_five_index_naive &I, const anchor_t &a_i
 void update_startpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 void update_endpoint_case_five_naive(case_five_index_naive &I, const anchor_t &a_j, const ai_t j_cost);
 
+/*
+ * preprocess anchor to find the closest overlaps to their startpoints
+ */
+vector<ai_t> compute_closest_overlap_T(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks);
+vector<ai_t> compute_closest_overlap_Q(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks);
+
 export
-void solve_linearithmic(
+void solve_linearithmic_old(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
@@ -433,7 +454,182 @@ void solve_linearithmic(
 }
 
 export
-void solve_linearithmic_debug(
+void solve_linearithmic_new(
+		const vector<anchor_t> &anchors,
+		const ai_t Tlength,
+		const ai_t Qlength,
+		const chaining_mode m,
+		vector<ai_t> &costs_out
+) {
+	const ai_t n = anchors.size();
+	costs_out = vector<ai_t>(n, 0);
+
+	const auto [ max_diag_rank, diag_ranks ] = compute_diagonal_ranks(anchors);
+	const auto closest_overlap_T = compute_closest_overlap_T(anchors, max_diag_rank, diag_ranks);
+	const auto closest_overlap_Q = compute_closest_overlap_Q(anchors, max_diag_rank, diag_ranks);
+
+	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
+	points.reserve(2 * n - 3);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
+		points.push_back(-i);
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
+		points.push_back(i);
+	std::stable_sort(points.begin(), points.end(),
+			[&anchors](const ai_t i,
+				const ai_t j) -> bool
+			{
+			return (((i >= 0) ? std::get<0>(anchors[i]) : std::get<0>(anchors[-i]) + std::get<2>(anchors[-i])) <
+					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
+			});
+
+	case_one_index   I_one   = init_case_one(max_diag_rank, diag_ranks);
+	case_two_index   I_two   = init_case_two(anchors);
+
+	for (ai_t point : points) {
+		if (point >= 0) { // startpoint
+			const ai_t i = point;
+			const ai_t i_a = get<0>(anchors[i]);
+			const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+			const ai_t i_c = get<1>(anchors[i]);
+			const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+			const ai_t closest_T = closest_overlap_T[i];
+			const ai_t closest_Q = closest_overlap_Q[i];
+
+			// compute cost[i]
+			ai_t cost = std::numeric_limits<ai_t>::max();
+			if (m == global) {
+				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
+			} else {
+				cost = connect_Qgap(anchors[0], i_c);
+			}
+
+			cost = std::min(cost, compute_case_one  (I_one,   i, anchors[i]));
+			cost = std::min(cost, compute_case_two  (I_two,      anchors[i]));
+			if (closest_T != -1) {
+				assert(weak_precedes(anchors[closest_T], anchors[i]));
+				cost = std::min(cost, costs_out[closest_T] + connect(anchors[closest_T], anchors[i]));
+			}
+			if (closest_Q != -1) {
+				assert(weak_precedes(anchors[closest_Q], anchors[i]));
+				cost = std::min(cost, costs_out[closest_Q] + connect(anchors[closest_Q], anchors[i]));
+			}
+			costs_out[i] = cost;
+
+			update_startpoint_case_one  (I_one,   i, anchors[i], costs_out[i]);
+			update_startpoint_case_two  (I_two,   anchors[i], costs_out[i]);
+		} else { // endpoint
+			ai_t i = -point;
+			update_endpoint_case_one  (I_one,   i, anchors[i], costs_out[i]);
+			update_endpoint_case_two  (I_two,   i, anchors[i], costs_out[i]);
+		}
+	}
+	if (m == semiglobal) {
+		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		ai_t backtrack = -1;
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = 0; j < n - 1; j++) {
+			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				if (c < final_cost) backtrack = j;
+				final_cost = min(final_cost, c);
+			}
+		}
+		costs_out[n-1] = final_cost;
+	}
+}
+
+vector<ai_t> compute_closest_overlap_Q(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks)
+{
+	const ai_t n = anchors.size();
+	vector<ai_t> closest_overlap(anchors.size(), -1);
+	vector<ai_t> points_Q; // horizontal line sweep moving down (+i means Q-startpoint of i-th anchor, -i means Q-endpoint)
+	points_Q.reserve(2 * n - 2);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
+		points_Q.push_back(-i);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
+		points_Q.push_back(i);
+	std::stable_sort(points_Q.begin(), points_Q.end(),
+			[&](const ai_t i,
+				const ai_t j) -> bool
+			{
+			return (((i >= 0) ? std::get<1>(anchors[i]) : std::get<1>(anchors[-i]) + std::get<2>(anchors[-i])) <
+					((j >= 0) ? std::get<1>(anchors[j]) : std::get<1>(anchors[-j]) + std::get<2>(anchors[-j])));
+			});
+
+	//typedef unsigned long long uai_t;
+	//ordered::range_marking::Map<uai_t,ai_t> active(max_rank);
+	map<ai_t,ai_t> active; // diag rank -> anchor index
+	for (const ai_t point : points_Q) {
+		if (point > 0) { // startpoint
+			const ai_t i = point;
+			const auto split = active.lower_bound(ranks[i]);
+			if (split != active.begin()) {
+				const auto predecessor = std::prev(split);
+				closest_overlap[i] = predecessor->second;
+			}
+			//auto const r = active.predecessor(ranks[i]);
+			//if (r.exists) {
+			//	closest_overlap[i] = r.value;
+			//}
+
+			//active.insert(static_cast<uai_t>(ranks[i]), i);
+			active.insert({ ranks[i], i });
+		} else { // endpoint
+			const ai_t i = -point;
+			//bool res = active.erase(static_cast<uai_t>(ranks[i]));
+			//assert(res);
+			active.erase(ranks[i]);
+		}
+	}
+	return closest_overlap;
+}
+
+vector<ai_t> compute_closest_overlap_T(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks)
+{
+	const ai_t n = anchors.size();
+	vector<ai_t> closest_overlap(anchors.size(), -1);
+	vector<ai_t> points_T; // horizontal line sweep moving down (+i means T-startpoint of i-th anchor, -i means T-endpoint)
+	points_T.reserve(2 * n - 2);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
+		points_T.push_back(-i);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
+		points_T.push_back(i);
+	std::stable_sort(points_T.begin(), points_T.end(),
+			[&](const ai_t i,
+				const ai_t j) -> bool
+			{
+			return (((i >= 0) ? std::get<0>(anchors[i]) : std::get<0>(anchors[-i]) + std::get<2>(anchors[-i])) <
+					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
+			});
+
+	//typedef unsigned long long uai_t;
+	//ordered::range_marking::Map<uai_t,ai_t> active(max_rank);
+	map<ai_t,ai_t> active; // diag rank -> anchor index
+	for (const ai_t point : points_T) {
+		if (point > 0) { // startpoint
+			const ai_t i = point;
+			const auto successor = active.upper_bound(ranks[i]);
+			if (successor != active.end()) {
+				closest_overlap[i] = successor->second;
+			}
+			//auto const r = active.successor(ranks[i]);
+			//if (r.exists) {
+			//	closest_overlap[i] = r.value;
+			//}
+
+			//active.insert(static_cast<uai_t>(ranks[i]), i);
+			active.insert({ ranks[i], i });
+		} else { // endpoint
+			const ai_t i = -point;
+			//active.erase(static_cast<uai_t>(ranks[i]));
+			active.erase(ranks[i]);
+		}
+	}
+	return closest_overlap;
+}
+
+export
+void solve_linearithmic_debug_old(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
@@ -448,7 +644,7 @@ void solve_linearithmic_debug(
 	const auto [ max_cd_rank, c_ranks, d_ranks ] = compute_cd_ranks(anchors);
 
 	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
-	points.reserve(2 * n - 2);
+	points.reserve(2 * n - 1);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points.push_back(-i);
 	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
@@ -512,6 +708,118 @@ void solve_linearithmic_debug(
 			update_endpoint_case_three(I_three, i, anchors[i], costs_out[i]);
 			update_endpoint_case_four (I_four, i, anchors[i], costs_out[i]);
 			update_endpoint_case_five (I_five, i, anchors[i], costs_out[i]);
+		}
+	}
+	if (m == semiglobal) {
+		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = 0; j < n - 1; j++) {
+			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				final_cost = min(final_cost, c);
+			}
+		}
+		costs_out[n-1] = final_cost;
+	}
+}
+
+export
+void solve_linearithmic_debug_new(
+		const vector<anchor_t> &anchors,
+		const ai_t Tlength,
+		const ai_t Qlength,
+		const chaining_mode m,
+		vector<ai_t> &costs_out,
+		const vector<ai_t> &correct_costs
+) {
+	ai_t n = anchors.size();
+	costs_out = vector<ai_t>(n, 0);
+
+	const auto [ max_diag_rank, diag_ranks ] = compute_diagonal_ranks(anchors);
+	//const auto [ max_cd_rank, c_ranks, d_ranks ] = compute_cd_ranks(anchors);
+	const auto closest_overlap_T = compute_closest_overlap_T(anchors, max_diag_rank, diag_ranks);
+	const auto closest_overlap_Q = compute_closest_overlap_Q(anchors, max_diag_rank, diag_ranks);
+
+	//cerr << "DEBUG: closest overlaps are defined as follows:\n";
+	//for (ai_t i = 1; i < n - 1; i++) {
+	//	cerr << i << "-th anchor (" << std::get<0>(anchors[i]) << "," << std::get<1>(anchors[i]) << "," << std::get<2>(anchors[i]) << ") has " << closest_overlap_Q[i] << "-th anchor as closest Q overlap\n";
+	//}
+
+	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
+	points.reserve(2 * n - 1);
+	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
+		points.push_back(-i);
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
+		points.push_back(i);
+	std::stable_sort(points.begin(), points.end(),
+			[&](const ai_t i,
+				const ai_t j) -> bool
+			{
+			return (((i >= 0) ? std::get<0>(anchors[i]) : std::get<0>(anchors[-i]) + std::get<2>(anchors[-i])) <
+					((j >= 0) ? std::get<0>(anchors[j]) : std::get<0>(anchors[-j]) + std::get<2>(anchors[-j])));
+			});
+
+	case_one_index   I_one   = init_case_one(max_diag_rank, diag_ranks);
+	case_two_index   I_two   = init_case_two(anchors);
+	case_two_index_naive   I_two_naive   = init_case_two_naive(anchors);
+	//case_three_index I_three = init_case_three(max_diag_rank, diag_ranks);
+	//case_four_index  I_four  = init_case_four(max_diag_rank, diag_ranks);
+	//case_five_index  I_five  = init_case_five(max_cd_rank, c_ranks, d_ranks);
+
+	for (ai_t point : points) {
+		if (point >= 0) { // startpoint
+			const ai_t i = point;
+			const ai_t i_a = get<0>(anchors[i]);
+			const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+			const ai_t i_c = get<1>(anchors[i]);
+			const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+			const ai_t closest_T = closest_overlap_T[i];
+			const ai_t closest_Q = closest_overlap_Q[i];
+
+			// compute cost[i]
+			ai_t cost = std::numeric_limits<ai_t>::max();
+			if (m == global) {
+				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
+			} else {
+				cost = connect_Qgap(anchors[0], i_c);
+			}
+			assert(compute_case_one  (I_one, i,  anchors[i]) == compute_case_one_debug (anchors, i, costs_out));
+			assert(compute_case_two  (I_two,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
+			assert(compute_case_two_naive  (I_two_naive,   anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
+			//assert(compute_case_three(I_three, i, anchors[i]) == compute_case_three_debug(anchors, i, costs_out));
+			//assert(compute_case_four (I_four, i, anchors[i]) == compute_case_four_debug (anchors, i, costs_out));
+			//assert(compute_case_five (I_five, i,  anchors[i]) == compute_case_five_debug (anchors, i, costs_out));
+
+			cost = std::min(cost, compute_case_one  (I_one, i, anchors[i]));
+			cost = std::min(cost, compute_case_two  (I_two,    anchors[i]));
+			//cost = std::min(cost, compute_case_three(I_three, i, anchors[i]));
+			if (closest_T != -1) {
+				assert(weak_precedes(anchors[closest_T], anchors[i]));
+				cost = std::min(cost, costs_out[closest_T] + connect(anchors[closest_T], anchors[i]));
+			}
+			//cost = std::min(cost, compute_case_four (I_four, i,  anchors[i]));
+			//cost = std::min(cost, compute_case_five (I_five, i,  anchors[i]));
+			if (closest_Q != -1) {
+				assert(weak_precedes(anchors[closest_Q], anchors[i]));
+				cost = std::min(cost, costs_out[closest_Q] + connect(anchors[closest_Q], anchors[i]));
+			}
+			costs_out[i] = cost;
+			assert(costs_out[i] <= correct_costs[i]);
+
+			update_startpoint_case_one  (I_one, i, anchors[i], costs_out[i]);
+			update_startpoint_case_two  (I_two,   anchors[i], costs_out[i]);
+			update_startpoint_case_two_naive  (I_two_naive,   anchors[i], costs_out[i]);
+			//update_startpoint_case_three(I_three, i, anchors[i], costs_out[i]);
+			//update_startpoint_case_four (I_four, i, anchors[i], costs_out[i]);
+			//update_startpoint_case_five (I_five, i, anchors[i], costs_out[i]);
+		} else { // endpoint
+			ai_t i = -point;
+			update_endpoint_case_one  (I_one, i, anchors[i], costs_out[i]);
+			update_endpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
+			update_endpoint_case_two_naive  (I_two_naive, i, anchors[i], costs_out[i]);
+			//update_endpoint_case_three(I_three, i, anchors[i], costs_out[i]);
+			//update_endpoint_case_four (I_four, i, anchors[i], costs_out[i]);
+			//update_endpoint_case_five (I_five, i, anchors[i], costs_out[i]);
 		}
 	}
 	if (m == semiglobal) {

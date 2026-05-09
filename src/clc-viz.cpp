@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 				} else if (argsinfo.chainx_opt_flag) {
 					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode);
 				} else {
-					algo::solve_linearithmic(matches, texts[t].size(), query.size(), mode, costs);
+					algo::solve_linearithmic_new(matches, texts[t].size(), query.size(), mode, costs);
 				}
 				const std::chrono::duration<double> main_chaining_time = std::chrono::steady_clock::now() - start;
 
@@ -239,7 +239,7 @@ int main(int argc, char **argv)
 				} else if (argsinfo.chainx_opt_flag) {
 					chainx::chainx(matches, queries[j].size(), costs, chainx_revisions, chainx_mode);
 				} else {
-					algo::solve_linearithmic(matches, queries[i].size(), queries[j].size(), mode, costs);
+					algo::solve_linearithmic_new(matches, queries[i].size(), queries[j].size(), mode, costs);
 				}
 				const std::chrono::duration<double> main_chaining_time = std::chrono::steady_clock::now() - start;
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
@@ -292,7 +292,7 @@ int main(int argc, char **argv)
 
 		// solve via the would-be linearithmic solution and compare
 		vector<long long> new_costs;
-		algo::solve_linearithmic_debug(anchors, width, height, mode, new_costs, costs);
+		algo::solve_linearithmic_debug_new(anchors, width, height, mode, new_costs, costs);
 		assert(new_costs.size() == costs.size() and new_costs.back() == costs.back());
 
 		vector<anchor_t> chain;

@@ -360,7 +360,7 @@ bool weak_precedes(const anchor_t &anc1, const anchor_t &anc2)
 	const anchor_index_t anc2_a = get<0>(anc2);
 	const anchor_index_t anc2_c = get<1>(anc2);
 
-	return (anc1_a < anc2_a and anc1_c < anc2_c);
+	return (anc1_a <= anc2_a and anc1_c <= anc2_c and (anc1_a != anc2_a or anc1_c != anc2_c));
 }
 
 export void merge_perfect_chains(vector<anchor_t> &anchors)

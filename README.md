@@ -1,53 +1,8 @@
 # clc-viz-experiments
-Tested on GCC version 15.2.1. Compile with
+Tested on GCC version >= 15.2.1. Build with
 ```console
 git submodule update --init ext/mummer
-make -j
-```
-
-```
-Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t
-text.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt]
-[--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam]
-[--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all]
-[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]
-Verification, WIP implementation, and visualization of linearithmic-time
-colinear chaining
-
-  -h, --help                    Print help and exit
-  -V, --version                 Print version and exit
-  -t, --text=PATH               Reference(s) file
-  -q, --query=PATH              Query sequences file
-  -m, --mode=MODE               Chaining mode (global/semiglobal)
-                                  (default=`global')
-  -a, --anchor-type=ANCHOR      (MUM/MEM)  (default=`MUM')
-  -l, --anchor-length=LENGTH    Minimum anchor length  (default=`20')
-      --all-to-all              Pairwise comparisons (queries)  (default=off)
-      --chainx                  Chain with at-cg/ChainX original algorithm
-                                  (default=off)
-      --chainx-opt              Chain with algbio/ChainX optimal algorithm
-                                  (default=off)
-  -o, --output=PATH             Output each optimal chain in MUMmer-like format
-                                  {ref start, query start, length} (1-based)
-      --sam=PATH                Output approximate alignment based on the
-                                  optimal chain (SAM format)
-      --store-SAM-sequence      Store the query sequence in the SAM output
-                                  (default=off)
-      --chainx-original-magic-numbers
-                                In ChainX mode, use original magic numbers B =
-                                  100, alpha = 4 instead of variable B >= 100,
-                                  alpha = 4  (default=off)
-      --custom-anchors=PATH     Do not index/query but read the anchors from
-                                  this file (NB it should respect the same
-                                  order as query file)
-      --random-anchors=ANCHORNUM
-                                Number of random anchors to generate
-                                  (default=`-1')
-  -g, --debug-case-two-output-file=BMPFILE
-                                Visualize case 2 in this file (BMP format)
-                                  (default=`')
-  -r, --random-seed=INT         Seed for the PRNG (-1 is different at every
-                                  invocation)  (default=`-1')
+make -j $(nproc)
 ```
 
 ## External libraries
@@ -73,3 +28,4 @@ cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view m
 - investigate edge case for case 2 (--random-anchors=100 -r 696403780)
 - see if the ChainX-opt "bug fix" about strict ChainX precedence affects performance
 - use [CLI11](https://github.com/CLIUtils/CLI11) instead of gengetopt
+- avoid using a list in case 2
