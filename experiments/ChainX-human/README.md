@@ -16,3 +16,29 @@ Afterwards, the experiment results (in folder `output`) can be recalculated and 
 ```console
 ./show_results.sh
 ```
+
+## Plot
+Input: files
+```
+./data/chaining_times_human_mem_chainx
+./data/chaining_times_human_mem_chainx-opt
+./data/chaining_times_human_mem_llchain
+./data/seeding_times_human_mem_chainx
+./data/seeding_times_human_mem_chainx-opt
+./data/seeding_times_human_mem_llchain
+```
+containing tab separated anchor-count and seeding/chaining time, like:
+```
+20922	0.0185096
+36	1.1607e-05
+8980	0.00180272
+90932	0.0387818
+34319	0.00626129
+754	0.000107567
+20657	0.00337901
+6660	0.00807215
+28253	0.00524187
+166	3.774e-05
+```
+
+Then run `./plot.py` to generate `plot.pdf`.
