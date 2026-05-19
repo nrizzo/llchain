@@ -32,17 +32,39 @@ paste -d'$' stats_human_mum_headers \
 	| cat <(echo -e "\$ChainX*\$\$ChainX-opt*\$\$clc-viz") - | column -t -s'$'
 
 # time per input anchor
-outputpng="times_human_mum.png"
-echo -n "Plotting individual times in output/$outputpng ..."
+echo -n "Plotting the times per anchor..."
 for t in "human_mum_chainx" "human_mum_chainx-opt" "human_mum_clc-viz"
 do
 	# anchor, total time
 	paste \
 		<(grep "querying" $t | cut -d' ' -f14) \
 		<(grep "querying" $t | cut -d' ' -f28) \
-		> times_$t
+		> total_times_$t
+
+	# anchor, seeding time
+	paste \
+		<(grep "querying" $t | cut -d' ' -f14) \
+		<(grep "querying" $t | cut -d' ' -f20) \
+		> seeding_times_$t
+
+	# anchor, preprocess + chain + postprocess time
+	paste \
+		<(grep "querying" $t | cut -d' ' -f14) \
+		<(grep "querying" $t | cut -d' ' -f22) \
+		<(grep "querying" $t | cut -d' ' -f24) \
+		<(grep "querying" $t | cut -d' ' -f26) \
+		| awk 'BEGIN {OFS="\t"} {print $1,$2+$3+$4}' \
+		> chaining_times_$t
 done
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding+chaining time\"; set output '$outputpng'; plot 'times_human_mum_chainx', 'times_human_mum_chainx-opt', 'times_human_mum_clc-viz'"
+
+outputpng="total_times_human_mum.png"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Total time\"; set output '$outputpng'; plot 'total_times_human_mum_chainx', 'total_times_human_mum_chainx-opt', 'total_times_human_mum_clc-viz'"
+
+outputpng="seeding_times_human_mum.png"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding time\"; set output '$outputpng'; plot 'seeding_times_human_mum_chainx', 'seeding_times_human_mum_chainx-opt', 'seeding_times_human_mum_clc-viz'"
+
+outputpng="chaining_times_human_mum.png"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Preprocess+chaining+postprocess time\"; set output '$outputpng'; plot 'chaining_times_human_mum_chainx', 'chaining_times_human_mum_chainx-opt', 'chaining_times_human_mum_clc-viz'"
 echo "done."
 
 echo "# MEMs (l >= 50)"
@@ -72,14 +94,37 @@ paste -d'$' stats_human_mem_headers \
 	stats_time_human_mem_clc-viz    stats_space_human_mem_clc-viz \
 	| cat <(echo -e "\$ChainX*\$\$ChainX-opt*\$\$clc-viz") - | column -t -s'$'
 
-# time per input anchor
-outputpng="times_human_mem.png"
-for t in "human_mem_clc-viz" "human_mem_chainx" "human_mem_chainx-opt"
+echo -n "Plotting the times per anchor..."
+for t in "human_mem_chainx" "human_mem_chainx-opt" "human_mem_clc-viz"
 do
+	# anchor, total time
 	paste \
 		<(grep "querying" $t | cut -d' ' -f14) \
 		<(grep "querying" $t | cut -d' ' -f28) \
-		> times_$t
+		> total_times_$t
+
+	# anchor, seeding time
+	paste \
+		<(grep "querying" $t | cut -d' ' -f14) \
+		<(grep "querying" $t | cut -d' ' -f20) \
+		> seeding_times_$t
+
+	# anchor, preprocess + chain + postprocess time
+	paste \
+		<(grep "querying" $t | cut -d' ' -f14) \
+		<(grep "querying" $t | cut -d' ' -f22) \
+		<(grep "querying" $t | cut -d' ' -f24) \
+		<(grep "querying" $t | cut -d' ' -f26) \
+		| awk 'BEGIN {OFS="\t"} {print $1,$2+$3+$4}' \
+		> chaining_times_$t
 done
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding+chaining time\"; set output '$outputpng'; plot 'times_human_mem_chainx', 'times_human_mem_chainx-opt', 'times_human_mem_clc-viz'"
+
+outputpng="total_times_human_mem.png"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Total time\"; set output '$outputpng'; plot 'total_times_human_mem_chainx', 'total_times_human_mem_chainx-opt', 'total_times_human_mem_clc-viz'"
+
+outputpng="seeding_times_human_mem.png"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding time\"; set output '$outputpng'; plot 'seeding_times_human_mem_chainx', 'seeding_times_human_mem_chainx-opt', 'seeding_times_human_mem_clc-viz'"
+
+outputpng="chaining_times_human_mem.png"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Preprocess+chaining+postprocess time\"; set output '$outputpng'; plot 'chaining_times_human_mem_chainx', 'chaining_times_human_mem_chainx-opt', 'chaining_times_human_mem_clc-viz'"
 echo "done."
