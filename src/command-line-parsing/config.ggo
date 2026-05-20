@@ -1,7 +1,7 @@
-version	"0.0.6"
-package	"clc-viz"
+version	"0.0.7"
+package	"llchain"
 purpose	"Verification, WIP implementation, and visualization of linearithmic-time colinear chaining"
-usage	"clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt] [--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam] [--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
+usage	"llchain [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t text.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt] [--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam] [--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all] [--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]"
 
 option	"text"		t	"Reference(s) file"			string	typestr = "PATH"	optional
 option	"query"		q	"Query sequences file"			string	typestr = "PATH"	optional

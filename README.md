@@ -1,4 +1,4 @@
-# clc-viz-experiments
+# llchain
 Tested on GCC version >= 15.2.1. Build with
 ```console
 git submodule update --init ext/mummer
@@ -18,7 +18,7 @@ make -j $(nproc)
 - debug mode (`-g file.bmp`) creates an image file showing the randomly generated anchors (black), an optimal chain (red), and the recursions for case 2 projected forward (colored).
 - the result of `--all-to-all` mode is a distance matrix in phylip format, that on Linux could be visualized as follows with `gnuplot`:
 ```
-./clc-viz --all-to-all -a MEM -l 10 --query test/queries.fa > test/matrix.phylip
+./llchain --all-to-all -a MEM -l 10 --query test/queries.fa > test/matrix.phylip
 cat test/matrix.phylip | tail -n +2 | cut -d' ' -f2- | gnuplot -p -e "set view map; set size square; set yrange reverse; splot '-' matrix with image"
 ```
 

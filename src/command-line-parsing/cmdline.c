@@ -27,7 +27,7 @@
 
 const char *gengetopt_args_info_purpose = "Verification, WIP implementation, and visualization of linearithmic-time\ncolinear chaining";
 
-const char *gengetopt_args_info_usage = "Usage: clc-viz [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t\ntext.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt]\n[--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam]\n[--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all]\n[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
+const char *gengetopt_args_info_usage = "Usage: llchain [-m global/semiglobal] [-a MUM/MEM] [-l minanchorlength] [-t\ntext.fasta(.gz)] [-q query.fasta(.gz)] [--chainx|--chainx-opt]\n[--chainx-original-magic-numbers] [-o out.mummer] [--sam out.sam]\n[--store-SAM-sequence] [--custom-anchors anchors.mummer] [--all-to-all]\n[--random-anchors ANCHORNUM] [-g gap-gap-ld.bmp] [-r INT]";
 
 const char *gengetopt_args_info_versiontext = "";
 

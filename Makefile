@@ -6,8 +6,8 @@ STDMODULES_FAKEFILES=$(foreach s,$(STDMODULES),makefile.cache/$(s))
 .PHONY : clean
 
 CLC_VIZ_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o src/command-line-parsing/cmdline.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o
-clc-viz : src/clc-viz.cpp $(CLC_VIZ_OBJS) $(STDMODULES_FAKEFILES)
-	g++ -I src -I ext $(FLAGS) $< $(CLC_VIZ_OBJS) -o clc-viz $(LDFLAGS) -Wno-global-module
+llchain : src/llchain.cpp $(CLC_VIZ_OBJS) $(STDMODULES_FAKEFILES)
+	g++ -I src -I ext $(FLAGS) $< $(CLC_VIZ_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
 
 src/command-line-parsing/cmdline.o : src/command-line-parsing/cmdline.h src/command-line-parsing/cmdline.c
 	g++ $(CFLAGS) -c $^ -o $@

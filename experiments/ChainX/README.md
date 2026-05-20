@@ -1,8 +1,8 @@
 # ChainX experiments
-First, compile [`algbio/ChainX`](https://github.com/algbio/ChainX), `clc-viz`, and obtain the test datasets with commands
+First, compile [`algbio/ChainX`](https://github.com/algbio/ChainX), `llchain`, and obtain the test datasets with commands
 ```console
 git submodule update --init ../../ext/mummer
-make -j4 -C ../../ clc-viz
+make -j4 -C ../../ llchain
 git submodule update --init ../../ext/ChainX
 make -C ../../ext/ChainX chainX
 ```

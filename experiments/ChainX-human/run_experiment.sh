@@ -5,37 +5,37 @@ cd $thisfolder
 mkdir output
 cd output
 
-clcviz=$thisfolder/../../clc-viz
+llchain=$thisfolder/../../llchain
 usrbintime="/usr/bin/time -f"
 usrbintimeoptions="%e total time elapsed (s)\n%M maxresident k"
 
 echo "# MUMs (l >= 20)"
 ref=$thisfolder/../../ext/ChainX/data/human/chm13v2.0_concat.fa.gz
 queries=$thisfolder/../../ext/ChainX/data/human/sample_100k.fa.gz
-clcvizmode="--mode semiglobal"
-clcvizseed="-a MUM -l 20"
+llchainmode="--mode semiglobal"
+llchainseed="-a MUM -l 20"
 
-# run ChainX* (via clc-viz)
-$usrbintime "$usrbintimeoptions" $clcviz --chainx $clcvizmode $clcvizseed -t $ref -q $queries \
+# run ChainX* (via llchain)
+$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $ref -q $queries \
         >> human_mum_chainx 2>> human_mum_chainx
-# run ChainX*-opt (via clc-viz)
-$usrbintime "$usrbintimeoptions" $clcviz --chainx-opt $clcvizmode $clcvizseed -t $ref -q $queries \
+# run ChainX*-opt (via llchain)
+$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $ref -q $queries \
         >> human_mum_chainx-opt 2>> human_mum_chainx-opt
-# run clc-viz
-$usrbintime "$usrbintimeoptions" $clcviz $clcvizmode $clcvizseed -t $ref -q $queries \
-        >> human_mum_clc-viz 2>> human_mum_clc-viz
+# run llchain
+$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $ref -q $queries \
+        >> human_mum_llchain 2>> human_mum_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."
 check=$(diff \
 	<(grep "anchored edit distance" human_mum_chainx-opt | cut -d' ' -f16) \
-	<(grep "anchored edit distance" human_mum_clc-viz    | cut -d' ' -f16) ; exit 0)
+	<(grep "anchored edit distance" human_mum_llchain    | cut -d' ' -f16) ; exit 0)
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
 # total time, memory
 echo "seeds" > stats_human_mum_headers
-echo "$clcvizseed" >> stats_human_mum_headers
-for t in "human_mum_chainx" "human_mum_chainx-opt" "human_mum_clc-viz"
+echo "$llchainseed" >> stats_human_mum_headers
+for t in "human_mum_chainx" "human_mum_chainx-opt" "human_mum_llchain"
 do
 	echo "time (s)" > stats_time_$t
 	echo "space (kb)" > stats_space_$t
@@ -45,12 +45,12 @@ done
 paste -d'$' stats_human_mum_headers \
 	stats_time_human_mum_chainx     stats_space_human_mum_chainx \
 	stats_time_human_mum_chainx-opt stats_space_human_mum_chainx-opt \
-	stats_time_human_mum_clc-viz    stats_space_human_mum_clc-viz \
-	| cat <(echo -e "\$ChainX*\$\$ChainX-opt*\$\$clc-viz") - | column -t -s'$'
+	stats_time_human_mum_llchain    stats_space_human_mum_llchain \
+	| cat <(echo -e "\$ChainX*\$\$ChainX-opt*\$\$llchain") - | column -t -s'$'
 
 # time per input anchor
 echo -n "Plotting the times per anchor..."
-for t in "human_mum_chainx" "human_mum_chainx-opt" "human_mum_clc-viz"
+for t in "human_mum_chainx" "human_mum_chainx-opt" "human_mum_llchain"
 do
 	# anchor, total time
 	paste \
@@ -75,40 +75,40 @@ do
 done
 
 outputpng="total_times_human_mum.png"
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Total time\"; set output '$outputpng'; plot 'total_times_human_mum_chainx', 'total_times_human_mum_chainx-opt', 'total_times_human_mum_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Total time\"; set output '$outputpng'; plot 'total_times_human_mum_chainx', 'total_times_human_mum_chainx-opt', 'total_times_human_mum_llchain'"
 
 outputpng="seeding_times_human_mum.png"
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding time\"; set output '$outputpng'; plot 'seeding_times_human_mum_chainx', 'seeding_times_human_mum_chainx-opt', 'seeding_times_human_mum_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding time\"; set output '$outputpng'; plot 'seeding_times_human_mum_chainx', 'seeding_times_human_mum_chainx-opt', 'seeding_times_human_mum_llchain'"
 
 outputpng="chaining_times_human_mum.png"
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Preprocess+chaining+postprocess time\"; set output '$outputpng'; plot 'chaining_times_human_mum_chainx', 'chaining_times_human_mum_chainx-opt', 'chaining_times_human_mum_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Preprocess+chaining+postprocess time\"; set output '$outputpng'; plot 'chaining_times_human_mum_chainx', 'chaining_times_human_mum_chainx-opt', 'chaining_times_human_mum_llchain'"
 echo "done."
 
 echo "# MEMs (l >= 50)"
-clcvizseed="-a MEM -l 50"
+llchainseed="-a MEM -l 50"
 chainxseed="-a MEM -l 50"
 
 # run ChainX*
-$usrbintime "$usrbintimeoptions" $clcviz --chainx $clcvizmode $clcvizseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $ref -q $queries \
 	>> human_mem_chainx 2>> human_mem_chainx
 # run ChainX*-opt
-$usrbintime "$usrbintimeoptions" $clcviz --chainx-opt $clcvizmode $clcvizseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $ref -q $queries \
 	>> human_mem_chainx-opt 2>> human_mem_chainx-opt
-# run clc-viz
-$usrbintime "$usrbintimeoptions" $clcviz $clcvizmode $clcvizseed -t $ref -q $queries \
-	>> human_mem_clc-viz 2>> human_mem_clc-viz
+# run llchain
+$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $ref -q $queries \
+	>> human_mem_llchain 2>> human_mem_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."
 check=$(diff \
 	<(grep "anchored edit distance" human_mem_chainx-opt | cut -d' ' -f16) \
-	<(grep "anchored edit distance" human_mem_clc-viz    | cut -d' ' -f16) ; exit 0)
+	<(grep "anchored edit distance" human_mem_llchain    | cut -d' ' -f16) ; exit 0)
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
 # total time, memory
 echo "seeds" > stats_human_mem_headers
-echo "$clcvizseed" >> stats_human_mem_headers
-for t in "human_mem_chainx" "human_mem_chainx-opt" "human_mem_clc-viz"
+echo "$llchainseed" >> stats_human_mem_headers
+for t in "human_mem_chainx" "human_mem_chainx-opt" "human_mem_llchain"
 do
 	echo "time (s)" > stats_time_$t
 	echo "space (kb)" > stats_space_$t
@@ -118,11 +118,11 @@ done
 paste -d'$' stats_human_mem_headers \
 	stats_time_human_mem_chainx     stats_space_human_mem_chainx \
 	stats_time_human_mem_chainx-opt stats_space_human_mem_chainx-opt \
-	stats_time_human_mem_clc-viz    stats_space_human_mem_clc-viz \
-	| cat <(echo -e "\$ChainX*\$\$ChainX-opt*\$\$clc-viz") - | column -t -s'$'
+	stats_time_human_mem_llchain    stats_space_human_mem_llchain \
+	| cat <(echo -e "\$ChainX*\$\$ChainX-opt*\$\$llchain") - | column -t -s'$'
 
 echo -n "Plotting the times per anchor..."
-for t in "human_mem_chainx" "human_mem_chainx-opt" "human_mem_clc-viz"
+for t in "human_mem_chainx" "human_mem_chainx-opt" "human_mem_llchain"
 do
 	# anchor, total time
 	paste \
@@ -147,11 +147,11 @@ do
 done
 
 outputpng="total_times_human_mem.png"
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Total time\"; set output '$outputpng'; plot 'total_times_human_mem_chainx', 'total_times_human_mem_chainx-opt', 'total_times_human_mem_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Total time\"; set output '$outputpng'; plot 'total_times_human_mem_chainx', 'total_times_human_mem_chainx-opt', 'total_times_human_mem_llchain'"
 
 outputpng="seeding_times_human_mem.png"
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding time\"; set output '$outputpng'; plot 'seeding_times_human_mem_chainx', 'seeding_times_human_mem_chainx-opt', 'seeding_times_human_mem_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Seeding time\"; set output '$outputpng'; plot 'seeding_times_human_mem_chainx', 'seeding_times_human_mem_chainx-opt', 'seeding_times_human_mem_llchain'"
 
 outputpng="chaining_times_human_mem.png"
-gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Preprocess+chaining+postprocess time\"; set output '$outputpng'; plot 'chaining_times_human_mem_chainx', 'chaining_times_human_mem_chainx-opt', 'chaining_times_human_mem_clc-viz'"
+gnuplot -persist -e "set term pngcairo; set xlabel \"anchors\"; set ylabel \"seconds\"; set title \"Preprocess+chaining+postprocess time\"; set output '$outputpng'; plot 'chaining_times_human_mem_chainx', 'chaining_times_human_mem_chainx-opt', 'chaining_times_human_mem_llchain'"
 echo "done."
