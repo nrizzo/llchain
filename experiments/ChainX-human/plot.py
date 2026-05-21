@@ -29,16 +29,7 @@ chaining = {a: load_file("chaining_times_human_mem", a, strip_s=False) for a in 
 
 
 def avg_seeding(data):
-    """Average seeding times across algorithms; use all 3 where available, else 2."""
-    min_len = min(len(data[a][0]) for a in ALGOS)
-    anchors_full = data["chainx"][0]
-    avg_all = np.stack([data[a][1][:min_len] for a in ALGOS], axis=1).mean(axis=1)
-    if len(anchors_full) > min_len:
-        avg_partial = np.stack(
-            [data[a][1][min_len:] for a in ["chainx", "chainx-opt"]], axis=1
-        ).mean(axis=1)
-        return anchors_full, np.concatenate([avg_all, avg_partial])
-    return anchors_full[:min_len], avg_all
+    return data["chainx"][0], np.stack([data[a][1] for a in ALGOS], axis=1).mean(axis=1)
 
 
 def filter_positive(anchors, times):
