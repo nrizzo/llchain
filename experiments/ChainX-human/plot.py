@@ -92,7 +92,7 @@ ax.grid(True, which="major", linestyle="-", linewidth=0.5, alpha=0.7)
 # ax.grid(True, which="minor", linestyle=":", linewidth=0.3, alpha=0.5)
 
 plt.tight_layout()
-out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plot.pdf")
+out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plot.svg")
 plt.savefig(out_path, dpi=150, bbox_inches="tight")
 print(f"Saved to {out_path}")
 
