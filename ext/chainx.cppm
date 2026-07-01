@@ -32,8 +32,8 @@ ai_t asymmetric_coverage(const vector<anchor_t> &anchors)
   // we assume anchors is sorted by starting position in the query
   // we assume the first and last are dummy anchors
   ai_t cov = 0;
-  for (ai_t i = 1, consumed = 0; i < anchors.size() - 1; i++) {
-    const ai_t qstart = std::get<0>(anchors[i]);
+  ai_t consumed = 0;
+  for (vector<anchor_t>::size_type i = 1; i < anchors.size() - 1; i++) {
     const ai_t qend = std::get<0>(anchors[i]) + std::get<2>(anchors[i]) - 1;
 
     if (consumed - 1 >= qend)

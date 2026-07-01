@@ -1,5 +1,5 @@
-FLAGS=-std=c++20 -O3 -fmodules
-CFLAGS=-std=c++20 -O3
+FLAGS=-std=c++20 -O3 -Wall -fmodules
+CFLAGS=-std=c++20 -O3 -Wall
 LDFLAGS=-lz
 STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set list string numeric sstream cmath
 STDMODULES_FAKEFILES=$(foreach s,$(STDMODULES),makefile.cache/$(s))

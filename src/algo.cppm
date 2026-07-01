@@ -430,12 +430,10 @@ void weak_solve_loglinear(
 
 	if (m == semiglobal) {
 		ai_t final_cost = std::numeric_limits<ai_t>::max();
-		ai_t backtrack = -1;
 		const ai_t final_c = get<1>(anchors[n-1]);
 		for (ai_t j = 0; j < n - 1; j++) {
 			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
 				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
-				if (c < final_cost) backtrack = j;
 				final_cost = min(final_cost, c);
 			}
 		}
@@ -676,10 +674,7 @@ struct case_two_index init_case_two(ai_t max_rank, const vector<ai_t> &ranks)
 
 ai_t compute_case_two(const case_two_index &I, ai_t i, const anchor_t &a_i)
 {
-	const ai_t i_a = get<0>(a_i);
 	const ai_t i_c = get<1>(a_i);
-	const ai_t i_diag = i_a - i_c;
-
 	const ai_t rec_min = I.recursive_values.query(I.ranks[i] + 1, I.recursive_values.maxquery);
 
 	if (rec_min < std::numeric_limits<ai_t>::max()) {
@@ -1279,7 +1274,6 @@ void prune_shadowed_delimiting_lines(case_three_index &I, const ai_t sweeping_li
 		const auto [_j, j_line, j_val] = *line_it;
 		const auto [k,  k_line, k_val] = *next_it;
 		const ai_t k_d = get<1>(I.anchors[k]) + get<2>(I.anchors[k]);
-		const ai_t k_diag = get<0>(I.anchors[k]) - get<1>(I.anchors[k]);
 		assert(j == _j);
 
 		// check if update is still valid for this exact diagonal/horizontal position
@@ -1359,7 +1353,7 @@ void  update_endpoint_case_three(case_three_index &I, ai_t j, const anchor_t &a_
 	prune_shadowed_delimiting_lines(I, j_b);
 
 	// value of the two lines to (potentially?) insert
-	ai_t recursion_value = j_cost - j_b;
+	const ai_t j_rec_value = j_cost - j_b;
 
 	// find position in delimiting_lines
 	list<l_t>::iterator pos;
@@ -1382,7 +1376,7 @@ void  update_endpoint_case_three(case_three_index &I, ai_t j, const anchor_t &a_
 		const auto j_diag_pos = I.delimiting_lines.insert(std::next(pos), { j, diagonal, p_val });
 		I.anchor_diag_to_list[j] = j_diag_pos;
 		I.active_diagonal_lines[j_diag] = j;
-		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_cost - j_b });
+		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_rec_value });
 		I.anchor_hor_to_list[j] = j_hor_pos;
 		I.active_horizontal_lines[j_d] = j;
 		if (p_line == diagonal) {
@@ -1395,14 +1389,14 @@ void  update_endpoint_case_three(case_three_index &I, ai_t j, const anchor_t &a_
 		}
 	} else {
 		// case 2: some line intersects with the two new ones
-		assert(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_cost - j_b <= p_val);
-		//if (!(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_cost - j_b <= p_val)) {
+		assert(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_rec_value <= p_val);
+		//if (!(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_rec_value <= p_val)) {
 		//	cerr << "WARNING: a rare edge case has been found involving case 2 and anchors " << p << ":[" << get<0>(I.anchors[p]) << ".." << get<0>(I.anchors[p]) + get<2>(I.anchors[p]) << "),[" << get<1>(I.anchors[p]) << ".." << get<1>(I.anchors[p]) + get<2>(I.anchors[p]) << ") and " << j << ":["  << get<0>(a_j) << ".." << get<0>(a_j) + get<2>(a_j) << "),[" << get<1>(a_j) << ".." << get<1>(a_j) + get<2>(a_j) << ")" << endl;
 		//}
 		const auto j_diag_pos = I.delimiting_lines.insert(std::next(pos), { j, diagonal, p_val });
 		I.anchor_diag_to_list[j] = j_diag_pos;
 		I.active_diagonal_lines[j_diag] = j;
-		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_cost - j_b });
+		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_rec_value });
 		I.anchor_hor_to_list[j] = j_hor_pos;
 		I.active_horizontal_lines[j_d] = j;
 
@@ -1615,7 +1609,7 @@ tuple<ai_t,vector<ai_t>,vector<ai_t>> compute_cd_ranks(const vector<anchor_t> &a
 	c_ranks[0] = 0;
 	d_ranks[0] = 0;
 	ai_t last_rank = 0, last_cd = ((anchors_cd[0] >= 0) ? get<1>(anchors[anchors_cd[0]]) : get<1>(anchors[-anchors_cd[0]]) + get<2>(anchors[-anchors_cd[0]]));
-	for (ai_t i = 1; i < anchors_cd.size(); i++) {
+	for (vector<ai_t>::size_type i = 1; i < anchors_cd.size(); i++) {
 		const ai_t i_cd = ((anchors_cd[i] >= 0) ? get<1>(anchors[anchors_cd[i]]) : get<1>(anchors[-anchors_cd[i]]) + get<2>(anchors[-anchors_cd[i]]));
 		if (i_cd == last_cd) {
 			if (anchors_cd[i] >= 0)
@@ -1679,13 +1673,13 @@ void write_cigar(
 		}
 	}
 
-	for (ai_t i = 1; i < chain.size() - 2; i++) {
+	for (vector<anchor_t>::size_type i = 1; i < chain.size() - 2; i++) {
 		assert(weak_precedes(chain[i], chain[i+1]));
-		const ai_t i_length = get<2>(chain[i]), j_length = get<2>(chain[i+1]);;
-		const ai_t i_a = get<0>(chain[i]),   i_b = get<0>(chain[i])   + i_length;
-		const ai_t i_c = get<1>(chain[i]),   i_d = get<1>(chain[i])   + i_length;
-		const ai_t j_a = get<0>(chain[i+1]), j_b = get<0>(chain[i+1]) + j_length;
-		const ai_t j_c = get<1>(chain[i+1]), j_d = get<1>(chain[i+1]) + j_length;
+		const ai_t i_length = get<2>(chain[i]);
+		const ai_t i_a = get<0>(chain[i]), i_b = get<0>(chain[i]) + i_length;
+		const ai_t i_c = get<1>(chain[i]), i_d = get<1>(chain[i]) + i_length;
+		const ai_t j_a = get<0>(chain[i+1]);
+		const ai_t j_c = get<1>(chain[i+1]);
 		const ai_t Tgap = max((ai_t)0, j_a - i_b), Qgap = max((ai_t)0, j_c - i_d);
 		const ai_t Tovl = max((ai_t)0, i_b - j_a), Qovl = max((ai_t)0, i_d - j_c);
 

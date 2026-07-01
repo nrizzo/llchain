@@ -244,7 +244,7 @@ export vector<anchor_t> filter_perfect_chains(vector<anchor_t> &anchors)
 			});
 
 	vector<anchor_t> solution;
-	for (anchor_index_t i = 0; i < anchors.size(); i++) {
+	for (vector<anchor_t>::size_type i = 0; i < anchors.size(); i++) {
 		if (solution.size() > 0) {
 			anchor_index_t i_diag = get<0>(anchors[i]) - get<1>(anchors[i]);
 			anchor_index_t i_a = get<0>(anchors[i]);
@@ -381,7 +381,7 @@ export void merge_perfect_chains(vector<anchor_t> &anchors)
 	anchor_index_t prev_diag = std::numeric_limits<anchor_index_t>::max();
 	anchor_index_t processed_a = 0;
 	anchor_index_t merged = 0;
-	for (anchor_index_t i = 0; i < anchors.size(); i++) {
+	for (vector<anchor_t>::size_type i = 0; i < anchors.size(); i++) {
 		const anchor_index_t i_a = get<0>(anchors[i]);
 		const anchor_index_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
 		const anchor_index_t i_diag = get<0>(anchors[i]) - get<1>(anchors[i]);
@@ -401,7 +401,7 @@ export void merge_perfect_chains(vector<anchor_t> &anchors)
 		}
 	}
 
-	for (anchor_index_t i = 0, j = 0; i < anchors.size(); i++) {
+	for (vector<anchor_t>::size_type i = 0, j = 0; i < anchors.size(); i++) {
 		if (anchors[i] != anchor_t({-1, -1, -1})) {
 			anchors[j] = anchors[i];
 			j += 1;
