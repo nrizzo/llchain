@@ -33,13 +33,19 @@ namespace llchain::algo {
 export enum chaining_mode { global, semiglobal };
 
 /*
- * solves chainx-precedence colinear chaining via DP, returns an optimal chain
- *   via backtracking; adapted from github.com/at-cg/ChainX
+ * solves colinear chaining via DP under chainx or weak precedence, returns an
+ *   optimal chain via backtracking; adapted from github.com/at-cg/ChainX
  * NB: O(n^2) time
  * NB: assumes anchors contains dummies (see place_dummy_anchors)
  * NB: assumes sorted anchors (see sort_anchors)
  */
 export void chainx_solve_naive(
+		const vector<anchor_t> &anchors,
+		const chaining_mode m,
+		vector<ai_t> &costs_out,
+		vector<anchor_t> &chain_out
+	);
+export void weak_solve_naive(
 		const vector<anchor_t> &anchors,
 		const chaining_mode m,
 		vector<ai_t> &costs_out,
@@ -141,6 +147,75 @@ void chainx_solve_naive(
 
 			if (costs_out[j] < std::numeric_limits<ai_t>::max() and
 			    j_a < i_a and j_b < i_b and j_c < i_c and j_d < i_d) { // chainx precedence
+				const ai_t c = costs_out[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d);
+				if (c < i_cost) backtrack = j;
+				i_cost = min(i_cost, c);
+			}
+		}
+		//save optimal cost at offset i
+		costs_out[i] = i_cost;
+		backtracks[i] = backtrack;
+	}
+	if (m == semiglobal) {
+		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		ai_t backtrack = -1;
+		const ai_t final_c = get<1>(anchors[n-1]);
+		for (ai_t j = 1; j < n - 1; j++) {
+			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				if (c < final_cost) backtrack = j;
+				final_cost = min(final_cost, c);
+			}
+		}
+		costs_out[n-1] = final_cost;
+		backtracks[n-1] = backtrack;
+	}
+
+	// trace back an optimal chain
+	for (ai_t i = n - 1; backtracks[i] >= 0; i = backtracks[i]) {
+		chain_out.push_back(anchors[i]);
+	}
+	chain_out.push_back(anchors[0]);
+	std::reverse(chain_out.begin(), chain_out.end());
+}
+
+export
+void weak_solve_naive(
+		const vector<anchor_t> &anchors,
+		const chaining_mode m,
+		vector<ai_t> &costs_out,
+		vector<anchor_t> &chain_out
+) {
+	const ai_t n = anchors.size();
+	costs_out = vector<ai_t>(n); // partial chainx-prec DP costs
+	vector<ai_t> backtracks(n, -1); // index of an optimal previous anchor
+	chain_out.clear();
+
+	costs_out[0] = 0; // first dummy anchor
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) {
+		ai_t i_cost = std::numeric_limits<ai_t>::max();
+		ai_t backtrack = -1;
+
+		const ai_t i_a = get<0>(anchors[i]);
+		const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+		const ai_t i_c = get<1>(anchors[i]);
+		const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+
+		if (m == global) {
+			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d);
+		} else {
+			i_cost = connect_Qgap(anchors[0], i_c);
+		}
+		backtrack = 0;
+
+		for (ai_t j = i - 1; j > 0; j--) { // anchor j < anchor i, first dummy anchor is treated separately
+			const ai_t j_a = get<0>(anchors[j]);
+			const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
+			const ai_t j_c = get<1>(anchors[j]);
+			const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
+
+			if (costs_out[j] < std::numeric_limits<ai_t>::max() and
+			    weak_precedes(anchors[j], anchors[i])) { // weak precedence
 				const ai_t c = costs_out[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d);
 				if (c < i_cost) backtrack = j;
 				i_cost = min(i_cost, c);
@@ -598,7 +673,7 @@ void weak_solve_loglinear_debug(
 			}
 
 			costs_out[i] = cost;
-			assert(costs_out[i] <= correct_costs[i]);
+			assert(costs_out[i] == correct_costs[i]);
 
 			update_startpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
 			update_startpoint_case_three(I_three,  anchors[i], costs_out[i]);

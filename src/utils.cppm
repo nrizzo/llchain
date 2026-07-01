@@ -117,7 +117,7 @@ export void place_dummy_anchors(
 		vector<anchor_t> &anchors);
 
 /*
- * sorts anchors according to starting position in T
+ * sorts anchors topologically for weak_precedes and chainx_precedes
  */
 export void sort_anchors(vector<anchor_t> &anchors);
 
@@ -266,11 +266,9 @@ export vector<anchor_t> filter_perfect_chains(vector<anchor_t> &anchors)
 export void sort_anchors(vector<anchor_t> &anchors)
 {
 	std::sort(anchors.begin(), anchors.end(),
-			[](const anchor_t& a,
-				const anchor_t& b) -> bool
-			{
-			return get<0>(a) < get<0>(b);
-			});
+		[](const anchor_t& a, const anchor_t& b) -> bool {
+			return get<0>(a) < get<0>(b) or (get<0>(a) == get<0>(b) and get<1>(a) < get<1>(b));
+	});
 }
 
 export void plot_anchors(BmpImage &image, const vector<anchor_t> &anchors, Color color)

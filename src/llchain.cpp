@@ -283,13 +283,13 @@ int main(int argc, char **argv)
 		// solve via ChainX precedence and plot case 2 recursions
 		Image image(width, height);
 		vector<long long> costs;
-		vector<anchor_t> chainx_chain;
-		algo::chainx_solve_naive(anchors, mode, costs, chainx_chain);
+		vector<anchor_t> weak_chain;
+		algo::weak_solve_naive(anchors, mode, costs, weak_chain);
 		plot_gap_gap_lower_diag(image, anchors, costs); // plot case 2 recursions
 		plot_anchors(image, anchors); // plot all anchors
-		plot_anchors(image, chainx_chain, utils::defaults::selected_anchor_color); // recolor the optimal chain
+		plot_anchors(image, weak_chain, utils::defaults::selected_anchor_color); // recolor the optimal chain
 		image.writeToFile(argsinfo.debug_case_two_output_file_arg);
-		assert(costs.back() == algo::compute_chain_cost(chainx_chain, mode));
+		assert(costs.back() == algo::compute_chain_cost(weak_chain, mode));
 
 		// solve via the would-be linearithmic solution and compare
 		vector<long long> new_costs;
@@ -300,7 +300,7 @@ int main(int argc, char **argv)
 		algo::weak_backtrack(anchors, costs, mode, chain);
 		cerr << "Optimal chain has cost     " << costs.back() << endl;
 		cerr << "Backtracked chain has cost " << algo::compute_chain_cost(chain, mode) << endl;
-		assert(algo::compute_chain_cost(chain, mode) == algo::compute_chain_cost(chainx_chain, mode));
+		assert(algo::compute_chain_cost(chain, mode) == algo::compute_chain_cost(weak_chain, mode));
 
 		// output chain
 		if (argsinfo.output_arg != NULL) {
