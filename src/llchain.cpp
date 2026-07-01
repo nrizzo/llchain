@@ -19,7 +19,7 @@ using std::string, std::to_string;
 using std::vector;
 using std::ifstream, std::ofstream;
 using namespace llchain;
-using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains, utils::read_mummer_anchors_single;
+using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::weak_sort_anchors, utils::chainx_sort_anchors, utils::merge_perfect_chains, utils::read_mummer_anchors_single;
 typedef std::size_t size_type;
 
 enum anchor_type { MUM, MEM };
@@ -150,7 +150,11 @@ int main(int argc, char **argv)
 				start = std::chrono::steady_clock::now();
 				merge_perfect_chains(matches);
 				place_dummy_anchors(texts[t].size(), query.size(), matches);
-				sort_anchors(matches);
+				if (argsinfo.chainx_flag or argsinfo.chainx_opt_flag) {
+					chainx_sort_anchors(matches);
+				} else {
+					weak_sort_anchors(matches);
+				}
 				const std::chrono::duration<double> preprocessing_time = std::chrono::steady_clock::now() - start;
 
 				start = std::chrono::steady_clock::now();
@@ -229,7 +233,11 @@ int main(int argc, char **argv)
 				start = std::chrono::steady_clock::now();
 				merge_perfect_chains(matches);
 				place_dummy_anchors(queries[i].size(), queries[j].size(), matches);
-				sort_anchors(matches);
+				if (argsinfo.chainx_flag or argsinfo.chainx_opt_flag) {
+					chainx_sort_anchors(matches);
+				} else {
+					weak_sort_anchors(matches);
+				}
 				const std::chrono::duration<double> preprocessing_time = std::chrono::steady_clock::now() - start;
 
 				start = std::chrono::steady_clock::now();
@@ -278,7 +286,7 @@ int main(int argc, char **argv)
 		vector<anchor_t> anchors = random_anchors(width, height, argsinfo.random_anchors_arg, argsinfo.random_seed_arg);
 		merge_perfect_chains(anchors); // only maximal anchors!
 		place_dummy_anchors(width, height, anchors);
-		sort_anchors(anchors);
+		weak_sort_anchors(anchors);
 
 		// solve via ChainX precedence and plot case 2 recursions
 		Image image(width, height);

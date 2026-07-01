@@ -117,9 +117,10 @@ export void place_dummy_anchors(
 		vector<anchor_t> &anchors);
 
 /*
- * sorts anchors topologically for weak_precedes and chainx_precedes
+ * sorts anchors topologically for chainx_precedes and weak_precedes
  */
-export void sort_anchors(vector<anchor_t> &anchors);
+export void chainx_sort_anchors(vector<anchor_t> &anchors);
+export void weak_sort_anchors(vector<anchor_t> &anchors);
 
 /*
  * draws the given anchors on top of the image
@@ -263,7 +264,14 @@ export vector<anchor_t> filter_perfect_chains(vector<anchor_t> &anchors)
 	return solution;
 }
 
-export void sort_anchors(vector<anchor_t> &anchors)
+export void chainx_sort_anchors(vector<anchor_t> &anchors)
+{
+	std::sort(anchors.begin(), anchors.end(),
+		[](const anchor_t& a, const anchor_t& b) -> bool {
+			return get<0>(a) < get<0>(b);
+	});
+}
+export void weak_sort_anchors(vector<anchor_t> &anchors)
 {
 	std::sort(anchors.begin(), anchors.end(),
 		[](const anchor_t& a, const anchor_t& b) -> bool {

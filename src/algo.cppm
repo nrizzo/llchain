@@ -454,12 +454,12 @@ void weak_solve_loglinear(
 	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
 		points.push_back(i);
 	std::sort(points.begin(), points.end(),
-			[&anchors](const ai_t i,
-				const ai_t j) -> bool
-			{
+		[&](const ai_t i, const ai_t j) -> bool {
 			return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
-			        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))));
-			});
+			        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))))
+			        or
+			        (i >= 0 and j >= 0 and get<0>(anchors[i]) == get<0>(anchors[j]) and get<1>(anchors[i]) < get<1>(anchors[j]));
+	});
 
 	case_two_index   I_two   = init_case_two(max_diag_rank, diag_ranks);
 	case_three_index I_three = init_case_three(anchors);
@@ -633,7 +633,9 @@ void weak_solve_loglinear_debug(
 	std::sort(points.begin(), points.end(),
 		[&](const ai_t i, const ai_t j) -> bool {
 			return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
-			        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))));
+			        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))))
+			        or
+			        (i >= 0 and j >= 0 and get<0>(anchors[i]) == get<0>(anchors[j]) and get<1>(anchors[i]) < get<1>(anchors[j]));
 	});
 
 	case_two_index   I_two   = init_case_two(max_diag_rank, diag_ranks);
