@@ -7,9 +7,9 @@ import <cassert>;
 import utils;
 
 using std::vector;
-using std::min; // algorithm
+using std::min;
 using std::numeric_limits;
-using q_t = utils::anchor_index_t;
+using q_t = llchain::utils::anchor_index_t;
 
 /*
  * segment tree with static topology over range [minquery..maxquery] and

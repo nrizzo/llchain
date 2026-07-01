@@ -18,6 +18,7 @@ using std::cout, std::cerr, std::endl;
 using std::string, std::to_string;
 using std::vector;
 using std::ifstream, std::ofstream;
+using namespace llchain;
 using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::sort_anchors, utils::merge_perfect_chains, utils::read_mummer_anchors_single;
 typedef std::size_t size_type;
 
@@ -160,7 +161,7 @@ int main(int argc, char **argv)
 				} else if (argsinfo.chainx_opt_flag) {
 					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode);
 				} else {
-					algo::solve_linearithmic_new(matches, texts[t].size(), query.size(), mode, costs);
+					algo::weak_solve_loglinear(matches, texts[t].size(), query.size(), mode, costs);
 				}
 				const std::chrono::duration<double> main_chaining_time = std::chrono::steady_clock::now() - start;
 
@@ -239,7 +240,7 @@ int main(int argc, char **argv)
 				} else if (argsinfo.chainx_opt_flag) {
 					chainx::chainx(matches, queries[j].size(), costs, chainx_revisions, chainx_mode);
 				} else {
-					algo::solve_linearithmic_new(matches, queries[i].size(), queries[j].size(), mode, costs);
+					algo::weak_solve_loglinear(matches, queries[i].size(), queries[j].size(), mode, costs);
 				}
 				const std::chrono::duration<double> main_chaining_time = std::chrono::steady_clock::now() - start;
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
@@ -283,7 +284,7 @@ int main(int argc, char **argv)
 		Image image(width, height);
 		vector<long long> costs;
 		vector<anchor_t> chainx_chain;
-		algo::chainx_naive(anchors, mode, costs, chainx_chain);
+		algo::chainx_solve_naive(anchors, mode, costs, chainx_chain);
 		plot_gap_gap_lower_diag(image, anchors, costs); // plot case 2 recursions
 		plot_anchors(image, anchors); // plot all anchors
 		plot_anchors(image, chainx_chain, utils::defaults::selected_anchor_color); // recolor the optimal chain
@@ -292,7 +293,7 @@ int main(int argc, char **argv)
 
 		// solve via the would-be linearithmic solution and compare
 		vector<long long> new_costs;
-		algo::solve_linearithmic_debug_new(anchors, width, height, mode, new_costs, costs);
+		algo::weak_solve_loglinear_debug(anchors, width, height, mode, new_costs, costs);
 		assert(new_costs.size() == costs.size() and new_costs.back() == costs.back());
 
 		vector<anchor_t> chain;

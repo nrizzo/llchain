@@ -21,7 +21,7 @@ using std::getline;
 using std::string, std::istringstream;
 using grid_to_bmp::Color, grid_to_bmp::BmpImage; // grid_to_bmp
 
-namespace utils {
+namespace llchain::utils {
 export typedef grid_to_bmp::BmpImage Image;
 
 export namespace defaults
