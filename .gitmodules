@@ -1,6 +1,6 @@
 [submodule "ext/mummer"]
 	path = ext/mummer
-	url = https://github.com/mummer4/mummer.git
+	url = https://github.com/nrizzo/mummer.git
 [submodule "ext/ChainX"]
 	path = ext/ChainX
 	url = https://github.com/algbio/ChainX.git
