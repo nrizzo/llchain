@@ -337,12 +337,17 @@ void weak_solve_loglinear(
 		points.push_back(-i);
 	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
 		points.push_back(i);
-	std::sort(points.begin(), points.end(),
-		[&](const ai_t i, const ai_t j) -> bool {
-			return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
-			        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))))
-			        or
-			        (i >= 0 and j >= 0 and get<0>(anchors[i]) == get<0>(anchors[j]) and get<1>(anchors[i]) < get<1>(anchors[j]));
+	//std::sort(points.begin(), points.end(),
+	//	[&](const ai_t i, const ai_t j) -> bool {
+	//		return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
+	//		        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))))
+	//		        or
+	//		        (i >= 0 and j >= 0 and get<0>(anchors[i]) == get<0>(anchors[j]) and get<1>(anchors[i]) < get<1>(anchors[j]));
+	//});
+	std::stable_sort(points.begin(), points.end(),
+		[&anchors](const ai_t i, const ai_t j) -> bool {
+			return (((i >= 0) ? get<0>(anchors[i]) : get<0>(anchors[-i]) + get<2>(anchors[-i])) <
+			        ((j >= 0) ? get<0>(anchors[j]) : get<0>(anchors[-j]) + get<2>(anchors[-j])));
 	});
 
 	case_two_index   I_two   = init_case_two(max_diag_rank, diag_ranks);
@@ -410,11 +415,15 @@ vector<ai_t> compute_closest_Q_overlap(const vector<anchor_t> &anchors, ai_t max
 		points_Q.push_back(-i);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points_Q.push_back(i);
-	std::sort(points_Q.begin(), points_Q.end(),
-		[&](const ai_t i, const ai_t j) -> bool
-			{
-			return (((i >= 0) ? 2*get<1>(anchors[i])+1 : 2*(get<1>(anchors[-i]) + get<2>(anchors[-i]))) <
-			        ((j >= 0) ? 2*get<1>(anchors[j])+1 : 2*(get<1>(anchors[-j]) + get<2>(anchors[-j]))));
+	//std::sort(points_Q.begin(), points_Q.end(),
+	//	[&](const ai_t i, const ai_t j) -> bool {
+	//		return (((i >= 0) ? 2*get<1>(anchors[i])+1 : 2*(get<1>(anchors[-i]) + get<2>(anchors[-i]))) <
+	//		        ((j >= 0) ? 2*get<1>(anchors[j])+1 : 2*(get<1>(anchors[-j]) + get<2>(anchors[-j]))));
+	//});
+	std::stable_sort(points_Q.begin(), points_Q.end(),
+		[&anchors](const ai_t i, const ai_t j) -> bool {
+		return (((i >= 0) ? get<1>(anchors[i]) : get<1>(anchors[-i]) + get<2>(anchors[-i])) <
+		        ((j >= 0) ? get<1>(anchors[j]) : get<1>(anchors[-j]) + get<2>(anchors[-j])));
 	});
 
 	//typedef unsigned long long uai_t;
@@ -455,10 +464,15 @@ vector<ai_t> compute_closest_T_overlap(const vector<anchor_t> &anchors, ai_t max
 		points_T.push_back(-i);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points_T.push_back(i);
-	std::sort(points_T.begin(), points_T.end(),
-		[&](const ai_t i, const ai_t j) -> bool {
-			return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
-			        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))));
+	//std::sort(points_T.begin(), points_T.end(),
+	//	[&](const ai_t i, const ai_t j) -> bool {
+	//		return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
+	//		        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))));
+	//});
+	std::stable_sort(points_T.begin(), points_T.end(),
+		[&anchors](const ai_t i, const ai_t j) -> bool {
+			return (((i >= 0) ? get<0>(anchors[i]) : get<0>(anchors[-i]) + get<2>(anchors[-i])) <
+			        ((j >= 0) ? get<0>(anchors[j]) : get<0>(anchors[-j]) + get<2>(anchors[-j])));
 	});
 
 	//typedef unsigned long long uai_t;

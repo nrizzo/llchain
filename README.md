@@ -33,4 +33,6 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 ## TODOs
 - see if the ChainX-opt "bug fix" about strict ChainX precedence affects performance
 - use [CLI11](https://github.com/CLIUtils/CLI11) instead of gengetopt
-- avoid using a list in case 2
+- investigate sorting
+- investigate predecessor data structures
+- avoid using a list in case 3
