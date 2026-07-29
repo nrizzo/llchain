@@ -70,6 +70,8 @@ struct gengetopt_args_info
   const char *store_SAM_sequence_help; /**< @brief Store the query sequence in the SAM output help description.  */
   int chainx_original_magic_numbers_flag;	/**< @brief In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4 (default=off).  */
   const char *chainx_original_magic_numbers_help; /**< @brief In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4 help description.  */
+  int chainx_opt_ensure_pred_flag;	/**< @brief In ChainX-opt mode, always compute a ChainX-≺ chain at a tiny computational cost (default=off).  */
+  const char *chainx_opt_ensure_pred_help; /**< @brief In ChainX-opt mode, always compute a ChainX-≺ chain at a tiny computational cost help description.  */
   char * custom_anchors_arg;	/**< @brief Do not index/query but read the anchors from this file (NB it should respect the same order as query file).  */
   char * custom_anchors_orig;	/**< @brief Do not index/query but read the anchors from this file (NB it should respect the same order as query file) original value given at command line.  */
   const char *custom_anchors_help; /**< @brief Do not index/query but read the anchors from this file (NB it should respect the same order as query file) help description.  */
@@ -97,6 +99,7 @@ struct gengetopt_args_info
   unsigned int sam_given ;	/**< @brief Whether sam was given.  */
   unsigned int store_SAM_sequence_given ;	/**< @brief Whether store-SAM-sequence was given.  */
   unsigned int chainx_original_magic_numbers_given ;	/**< @brief Whether chainx-original-magic-numbers was given.  */
+  unsigned int chainx_opt_ensure_pred_given ;	/**< @brief Whether chainx-opt-ensure-pred was given.  */
   unsigned int custom_anchors_given ;	/**< @brief Whether custom-anchors was given.  */
   unsigned int random_anchors_given ;	/**< @brief Whether random-anchors was given.  */
   unsigned int debug_case_two_output_file_given ;	/**< @brief Whether debug-case-two-output-file was given.  */

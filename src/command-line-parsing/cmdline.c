@@ -48,6 +48,7 @@ const char *gengetopt_args_info_help[] = {
   "      --sam=PATH                Output approximate alignment based on the\n                                  optimal chain (SAM format)",
   "      --store-SAM-sequence      Store the query sequence in the SAM output\n                                  (default=off)",
   "      --chainx-original-magic-numbers\n                                In ChainX mode, use original magic numbers B =\n                                  100, alpha = 4 instead of variable B >= 100,\n                                  alpha = 4  (default=off)",
+  "      --chainx-opt-ensure-pred  In ChainX-opt mode, always compute a ChainX-≺\n                                  chain at a tiny computational cost\n                                  (default=off)",
   "      --custom-anchors=PATH     Do not index/query but read the anchors from\n                                  this file (NB it should respect the same\n                                  order as query file)",
   "      --random-anchors=ANCHORNUM\n                                Number of random anchors to generate\n                                  (default=`-1')",
   "  -g, --debug-case-two-output-file=BMPFILE\n                                Visualize case 2 in this file (BMP format)\n                                  (default=`')",
@@ -92,6 +93,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->sam_given = 0 ;
   args_info->store_SAM_sequence_given = 0 ;
   args_info->chainx_original_magic_numbers_given = 0 ;
+  args_info->chainx_opt_ensure_pred_given = 0 ;
   args_info->custom_anchors_given = 0 ;
   args_info->random_anchors_given = 0 ;
   args_info->debug_case_two_output_file_given = 0 ;
@@ -121,6 +123,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->sam_orig = NULL;
   args_info->store_SAM_sequence_flag = 0;
   args_info->chainx_original_magic_numbers_flag = 0;
+  args_info->chainx_opt_ensure_pred_flag = 0;
   args_info->custom_anchors_arg = NULL;
   args_info->custom_anchors_orig = NULL;
   args_info->random_anchors_arg = -1;
@@ -151,10 +154,11 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->sam_help = gengetopt_args_info_help[11] ;
   args_info->store_SAM_sequence_help = gengetopt_args_info_help[12] ;
   args_info->chainx_original_magic_numbers_help = gengetopt_args_info_help[13] ;
-  args_info->custom_anchors_help = gengetopt_args_info_help[14] ;
-  args_info->random_anchors_help = gengetopt_args_info_help[15] ;
-  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[16] ;
-  args_info->random_seed_help = gengetopt_args_info_help[17] ;
+  args_info->chainx_opt_ensure_pred_help = gengetopt_args_info_help[14] ;
+  args_info->custom_anchors_help = gengetopt_args_info_help[15] ;
+  args_info->random_anchors_help = gengetopt_args_info_help[16] ;
+  args_info->debug_case_two_output_file_help = gengetopt_args_info_help[17] ;
+  args_info->random_seed_help = gengetopt_args_info_help[18] ;
   
 }
 
@@ -329,6 +333,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "store-SAM-sequence", 0, 0 );
   if (args_info->chainx_original_magic_numbers_given)
     write_into_file(outfile, "chainx-original-magic-numbers", 0, 0 );
+  if (args_info->chainx_opt_ensure_pred_given)
+    write_into_file(outfile, "chainx-opt-ensure-pred", 0, 0 );
   if (args_info->custom_anchors_given)
     write_into_file(outfile, "custom-anchors", args_info->custom_anchors_orig, 0);
   if (args_info->random_anchors_given)
@@ -615,6 +621,7 @@ cmdline_parser_internal (
         { "sam",	1, NULL, 0 },
         { "store-SAM-sequence",	0, NULL, 0 },
         { "chainx-original-magic-numbers",	0, NULL, 0 },
+        { "chainx-opt-ensure-pred",	0, NULL, 0 },
         { "custom-anchors",	1, NULL, 0 },
         { "random-anchors",	1, NULL, 0 },
         { "debug-case-two-output-file",	1, NULL, 'g' },
@@ -806,6 +813,18 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->chainx_original_magic_numbers_flag), 0, &(args_info->chainx_original_magic_numbers_given),
                 &(local_args_info.chainx_original_magic_numbers_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "chainx-original-magic-numbers", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* In ChainX-opt mode, always compute a ChainX-≺ chain at a tiny computational cost.  */
+          else if (strcmp (long_options[option_index].name, "chainx-opt-ensure-pred") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->chainx_opt_ensure_pred_flag), 0, &(args_info->chainx_opt_ensure_pred_given),
+                &(local_args_info.chainx_opt_ensure_pred_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "chainx-opt-ensure-pred", '-',
                 additional_error))
               goto failure;
           

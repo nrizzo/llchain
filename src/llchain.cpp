@@ -59,6 +59,10 @@ int main(int argc, char **argv)
 		cerr << "Error: --chainx-original-numbers requires --chainx or --chainx-opt!" << endl;
 		exit(1);
 	}
+	if (argsinfo.chainx_opt_ensure_pred_flag and not argsinfo.chainx_opt_flag) {
+		cerr << "Error: --chainx-opt-ensure-pred requires --chainx-opt!" << endl;
+		exit(1);
+	}
 	if ((argsinfo.sam_arg != NULL or argsinfo.output_arg != NULL) and argsinfo.all_to_all_flag) {
 		cerr << "Error: output and all-to-all mode are incompatible!" << endl;
 		exit(1);
@@ -161,9 +165,9 @@ int main(int argc, char **argv)
 				vector<utils::anchor_index_t> costs;
 				int chainx_revisions = -1;
 				if (argsinfo.chainx_flag) {
-					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode, false);
+					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode, false, argsinfo.chainx_opt_ensure_pred_flag, argsinfo.chainx_original_magic_numbers_flag);
 				} else if (argsinfo.chainx_opt_flag) {
-					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode);
+					chainx::chainx(matches, query.size(), costs, chainx_revisions, chainx_mode, true,  argsinfo.chainx_opt_ensure_pred_flag, argsinfo.chainx_original_magic_numbers_flag);
 				} else {
 					algo::weak_solve_loglinear(matches, texts[t].size(), query.size(), mode, costs);
 				}
@@ -171,7 +175,7 @@ int main(int argc, char **argv)
 
 				start = std::chrono::steady_clock::now();
 				vector<anchor_t> chain;
-				if (argsinfo.chainx_flag or argsinfo.chainx_opt_flag) {
+				if (argsinfo.chainx_flag or (argsinfo.chainx_opt_flag and argsinfo.chainx_opt_ensure_pred_flag)) {
 					algo::chainx_backtrack(matches, costs, mode, chain);
 				} else {
 					algo::weak_backtrack(matches, costs, mode, chain);

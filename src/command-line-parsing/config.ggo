@@ -16,6 +16,7 @@ option	"sam"		-	"Output approximate alignment based on the optimal chain (SAM fo
 option	"store-SAM-sequence"	-	"Store the query sequence in the SAM output"	flag	off
 
 option	"chainx-original-magic-numbers"	-	"In ChainX mode, use original magic numbers B = 100, alpha = 4 instead of variable B >= 100, alpha = 4"	flag	off
+option	"chainx-opt-ensure-pred"	-	"In ChainX-opt mode, always compute a ChainX-≺ chain at a tiny computational cost"	flag	off
 option	"custom-anchors"	-	"Do not index/query but read the anchors from this file (NB it should respect the same order as query file)"	string	typestr = "PATH"	optional
 
 option	"random-anchors"		-	"Number of random anchors to generate"	long	typestr = "ANCHORNUM"	default = "-1"	optional

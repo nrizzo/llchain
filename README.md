@@ -1,7 +1,7 @@
-# llchain — log-linear chaining with L∞ gap costs and Δdiag overlap costs
+# `llchain` — log-linear chaining with L∞ gap costs and Δdiag overlap costs
 `llchain` is a C++20 program to compute the anchored edit distance between query and reference sequences via colinear chaining in O(n log n) time, built on the same tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX). It supports FASTA or gzipped FASTA input, it computes maximal unique/exact anchors, and it supports the output of an optimal chain in MUMmer-like or SAM format.
 
-Right now, the program has been tested GCC version 15. Get the repository and compile `llchain` with
+Right now, the program has been tested with GCC version 15. Get the repository and compile `llchain` with
 ```console
 git clone https://github.com/nrizzo/llchain && cd llchain
 git submodule update --init ext/mummer
@@ -31,8 +31,8 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.
 
 ## TODOs
-- see if the ChainX-opt "bug fix" about strict ChainX precedence affects performance
 - use [CLI11](https://github.com/CLIUtils/CLI11) instead of gengetopt
+- clang
 - investigate sorting
 - investigate predecessor data structures
 - avoid using a list in case 3

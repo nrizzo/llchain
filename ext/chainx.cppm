@@ -1,5 +1,6 @@
 // adaptation of github.com/algbio/ChainX to C++ module
 // TODO copyright
+// TODO upstream modifications
 export module chainx;
 
 import <vector>;
@@ -116,14 +117,21 @@ void compute_global(
 }
 
 /**
- * version of compute_global that finds the optimal chain using diagonal distance
+ * version of compute_global that finds the optimal chain (cost) using diagonal
+ *   distance
+ * NB: ensure_chainx_pred == true forces the DP recursion to *always* use the
+ *     ChainX precedence at a tiny computational cost; this way, a ChainX-≺
+ *     chain is guaranteed to be recovered, otherwise only a (weak-)≺ chain is
+ *     guaranteed (see llchain::algo::chainx_backtrack and
+ *     llchain::algo::weak_backtrack)
  **/
 void compute_global_optimal(
 		const vector<anchor_t> &anchors,
 		const ai_t bound_start,
 		const float ramp_up_factor,
 		vector<ai_t> &costs,
-		int &revisions)
+		int &revisions,
+		const bool ensure_chainx_pred)
 {
 	// anchors are sorted by starting position in first sequence (the reference)
 	const ai_t n = anchors.size();
@@ -238,15 +246,17 @@ void compute_global_optimal(
 					if (diagonal_distance > bound_redit)
 						break;
 					if (active_anchor[dd] != -1 and costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
-						// TODO make this check optional?
 						const ai_t i = active_anchor[dd];
 						const ai_t i_cost = costs[i] + diagonal_distance;
 						if (i_cost < find_min_cost_overlap) {
-							ai_t i_a = get<0>(anchors[i]);
-							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
-							ai_t i_c = get<1>(anchors[i]);
-							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
-							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+							if (ensure_chainx_pred) {
+								const ai_t i_a = get<0>(anchors[i]);
+								const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+								const ai_t i_c = get<1>(anchors[i]);
+								const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+								if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d)
+									find_min_cost_overlap = i_cost;
+							} else {
 								find_min_cost_overlap = i_cost;
 							}
 						}
@@ -260,11 +270,14 @@ void compute_global_optimal(
 						const ai_t i = active_anchor[dd];
 						const ai_t i_cost = costs[i] + diagonal_distance;
 						if (i_cost < find_min_cost_overlap) {
-							ai_t i_a = get<0>(anchors[i]);
-							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
-							ai_t i_c = get<1>(anchors[i]);
-							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
-							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+							if (ensure_chainx_pred) {
+								const ai_t i_a = get<0>(anchors[i]);
+								const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+								const ai_t i_c = get<1>(anchors[i]);
+								const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+								if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d)
+									find_min_cost_overlap = i_cost;
+							} else {
 								find_min_cost_overlap = i_cost;
 							}
 						}
@@ -377,15 +390,21 @@ void compute_semiglobal(
 }
 
 /**
- * version of compute_semiglobal that finds the optimal chain using diagonal
- *   distance
+ * version of compute_semiglobal that finds the optimal chain (cost) using
+ *   diagonal distance
+ * NB: ensure_chainx_pred == true forces the DP recursion to *always* use the
+ *     ChainX precedence at a tiny computational cost; this way, a ChainX-≺
+ *     chain is guaranteed to be recovered, otherwise only a (weak-)≺ chain is
+ *     guaranteed (see llchain::algo::chainx_backtrack and
+ *     llchain::algo::weak_backtrack)
  **/
 void compute_semiglobal_optimal(
 		const vector<anchor_t> &anchors,
 		const ai_t bound_start,
 		const float ramp_up_factor,
 		vector<ai_t> &costs,
-		int &revisions)
+		int &revisions,
+		bool ensure_chainx_pred)
 {
 	// anchors are sorted by starting position in first sequence (the reference)
 	const ai_t n = anchors.size();
@@ -511,15 +530,17 @@ void compute_semiglobal_optimal(
 					if (diagonal_distance > bound_redit)
 						break;
 					if (active_anchor[dd] != -1 and costs[active_anchor[dd]] < std::numeric_limits<ai_t>::max()) {
-						// TODO make this check optional?
 						const ai_t i = active_anchor[dd];
 						const ai_t i_cost = costs[i] + diagonal_distance;
 						if (i_cost < find_min_cost_overlap) {
-							ai_t i_a = get<0>(anchors[i]);
-							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
-							ai_t i_c = get<1>(anchors[i]);
-							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
-							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+							if (ensure_chainx_pred) {
+								const ai_t i_a = get<0>(anchors[i]);
+								const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+								const ai_t i_c = get<1>(anchors[i]);
+								const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+								if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d)
+									find_min_cost_overlap = i_cost;
+							} else {
 								find_min_cost_overlap = i_cost;
 							}
 						}
@@ -533,11 +554,14 @@ void compute_semiglobal_optimal(
 						const ai_t i = active_anchor[dd];
 						const ai_t i_cost = costs[i] + diagonal_distance;
 						if (i_cost < find_min_cost_overlap) {
-							ai_t i_a = get<0>(anchors[i]);
-							ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
-							ai_t i_c = get<1>(anchors[i]);
-							ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
-							if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d) {
+							if (ensure_chainx_pred) {
+								const ai_t i_a = get<0>(anchors[i]);
+								const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]) - 1;
+								const ai_t i_c = get<1>(anchors[i]);
+								const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]) - 1;
+								if (i_a < j_a and i_b < j_b and i_c < j_c and i_d < j_d)
+									find_min_cost_overlap = i_cost;
+							} else {
 								find_min_cost_overlap = i_cost;
 							}
 						}
@@ -575,8 +599,9 @@ void chainx(
 		vector<ai_t> &costs, // output ChainX-precedence DP costs
 		int &revisions, // main loop iterations
 		const mode m = global, // or semiglobal
-		bool optimal = true, // ChainX-opt (default) or ChainX
-		bool originalmagicnumbers = false)
+		const bool optimal = true, // ChainX-opt (default) or ChainX
+		const bool ensure_chainx_pred = false,
+		const bool originalmagicnumbers = false)
 {
 	// original ChainX magic numbers
 	ai_t bound_start = 100;
@@ -591,13 +616,13 @@ void chainx(
 
 	if (m == global) {
 		if (optimal)
-			compute_global_optimal(anchors, bound_start, ramp_up_factor, costs, revisions);
+			compute_global_optimal(anchors, bound_start, ramp_up_factor, costs, revisions, ensure_chainx_pred);
 		else
 			compute_global(anchors, bound_start, ramp_up_factor, costs, revisions);
 	} else {
 		assert(m == semiglobal);
 		if (optimal)
-			compute_semiglobal_optimal(anchors, bound_start, ramp_up_factor, costs, revisions);
+			compute_semiglobal_optimal(anchors, bound_start, ramp_up_factor, costs, revisions, ensure_chainx_pred);
 		else
 			compute_semiglobal(anchors, bound_start, ramp_up_factor, costs, revisions);
 	}
