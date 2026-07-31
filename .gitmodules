@@ -4,3 +4,6 @@
 [submodule "ext/ChainX"]
 	path = ext/ChainX
 	url = https://github.com/algbio/ChainX.git
+[submodule "ext/CLI11"]
+	path = ext/CLI11
+	url = https://github.com/CLIUtils/CLI11.git

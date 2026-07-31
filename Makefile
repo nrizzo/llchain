@@ -5,17 +5,9 @@ STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set
 STDMODULES_FAKEFILES=$(foreach s,$(STDMODULES),makefile.cache/$(s))
 .PHONY : clean
 
-CLC_VIZ_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o src/command-line-parsing/cmdline.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o
-llchain : src/llchain.cpp $(CLC_VIZ_OBJS) $(STDMODULES_FAKEFILES)
-	g++ -I src -I ext $(FLAGS) $< $(CLC_VIZ_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
-
-src/command-line-parsing/cmdline.o : src/command-line-parsing/cmdline.h src/command-line-parsing/cmdline.c
-	g++ $(CFLAGS) -c $^ -o $@
-src/command-line-parsing/cmdline.c src/command-line-parsing/cmdline.h : src/command-line-parsing/config.ggo
-	gengetopt \
-		--input=./src/command-line-parsing/config.ggo \
-		--output-dir=./src/command-line-parsing/ \
-		--unnamed-opts
+LLCHAIN_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o ext/cli11.o
+llchain : src/llchain.cpp $(LLCHAIN_OBJS) $(STDMODULES_FAKEFILES)
+	g++ -I src -I ext $(FLAGS) $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
 
 src/utils.o : src/utils.cppm ext/grid_to_bmp.o $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -c $< -o $@
@@ -23,6 +15,9 @@ src/algo.o : src/algo.cppm src/utils.o src/MinSegmentTree.o $(STDMODULES_FAKEFIL
 	g++ $(FLAGS) -c $< -o $@
 src/MinSegmentTree.o : src/MinSegmentTree.cppm src/utils.o $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -c $< -o $@
+CLI11_INCL=ext/CLI11/include
+ext/cli11.o : ext/CLI11/src/modules/CLI11.cppm $(shell find $(CLI11_INCL) -name *.hpp)
+	g++ $(FLAGS) -I $(CLI11_INCL) -c $< -o $@
 ext/grid_to_bmp.o : ext/grid_to_bmp.cppm $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -c $< -o $@
 ext/kseq.o : ext/kseq.cppm $(STDMODULES_FAKEFILES)
@@ -39,5 +34,5 @@ $(STDMODULES_FAKEFILES) :
 	mkdir -p makefile.cache && touch $@
 
 clean :
-	-rm -f src/utils.o src/algo.o src/MinSegmentTree.o src/command-line-parsing/cmdline.o ext/grid_to_bmp.o ext/kseq.o ext/mummer_essaMEM_wrapper.o ext/chainx.o
+	-rm -f $(LLCHAIN_OBJS)
 	-rm -Rf gcm.cache makefile.cache
