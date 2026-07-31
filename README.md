@@ -22,16 +22,12 @@ To run the experiment on HG002 PacBio HiFi reads aligned to the T2T-CHM13 refere
 - [algbio/ChainX](https://github.com/algbio/ChainX) for the `--chainx` and `--chainx-opt` flags
 - [grid_to_bmp](https://people.sc.fsu.edu/~jburkardt/cpp_src/grid_to_bmp/grid_to_bmp.html) for debugging
 
-## Dependencies
-`gengetopt` for development
-
 ## Citation
 If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding works:
 - **Chirag Jain, Daniel Gibney and Sharma Thankachan**. "[Algorithms for Colinear Chaining with Overlaps and Gap Costs](https://doi.org/10.1089/cmb.2022.0266)". *Journal of Computational Biology*, 2022.
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.
 
 ## TODOs
-- use [CLI11](https://github.com/CLIUtils/CLI11) instead of gengetopt
 - clang
 - investigate sorting
 - investigate predecessor data structures
