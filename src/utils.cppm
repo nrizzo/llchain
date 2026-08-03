@@ -143,6 +143,8 @@ export void plot_gap_gap_lower_diag(
 		vector<anchor_index_t> &costs
 	);
 
+export string::size_type cumulative_length(const vector<string> &v);
+
 export
 inline
 anchor_index_t connect(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2)
@@ -424,7 +426,8 @@ export void merge_perfect_chains(vector<anchor_t> &anchors)
  * NB: file f's formatting is not checked for errors
  */
 export
-vector<anchor_t> read_mummer_anchors_single(ifstream &f) {
+vector<anchor_t> read_mummer_anchors_single(ifstream &f)
+{
 	anchor_index_t tstart, qstart, length;
 	string line;
 	vector<anchor_t> anchors;
@@ -435,6 +438,16 @@ vector<anchor_t> read_mummer_anchors_single(ifstream &f) {
 		anchors.push_back({ tstart-1, qstart-1, length });
 	}
 	return anchors;
+}
+
+export
+string::size_type cumulative_length(const vector<string> &v)
+{
+	string::size_type res = 0;
+	for (auto &s : v) {
+		res += s.length();
+	}
+	return res;
 }
 
 } // namespace utils

@@ -10,4 +10,6 @@ experiments/ChainX-human/output
 experiments/genome-to-genome/input/*
 experiments/genome-to-genome/output
 
-test/matrix.phylip
+test/*.phylip
+test/*.mummer
+test/*.sam
