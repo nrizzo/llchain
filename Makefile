@@ -1,3 +1,4 @@
+VERSION=$(shell git rev-parse --short HEAD)
 FLAGS=-std=c++20 -O3 -Wall -fmodules
 CFLAGS=-std=c++20 -O3 -Wall
 LDFLAGS=-lz
@@ -7,7 +8,7 @@ STDMODULES_FAKEFILES=$(foreach s,$(STDMODULES),makefile.cache/$(s))
 
 LLCHAIN_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o ext/cli11.o
 llchain : src/llchain.cpp $(LLCHAIN_OBJS) $(STDMODULES_FAKEFILES)
-	g++ -I src -I ext $(FLAGS) $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
+	g++ -I src -I ext $(FLAGS) -DVERSION="\"$(VERSION)\"" $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
 
 src/utils.o : src/utils.cppm ext/grid_to_bmp.o $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -c $< -o $@

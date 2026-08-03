@@ -1,3 +1,7 @@
+#ifndef VERSION
+#define VERSION "GitHub"
+#endif
+
 module;
 #include <chrono> // fix for GCC 15.2.1
 
@@ -13,12 +17,12 @@ import mummer_essaMEM_wrapper;
 import chainx;
 import cli11;
 
-using std::cout, std::cerr, std::endl;
+using std::cout, std::cerr, std::clog, std::endl;
 using std::string, std::to_string;
 using std::vector;
 using std::ifstream, std::ofstream;
 using namespace llchain;
-using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::weak_sort_anchors, utils::chainx_sort_anchors, utils::merge_perfect_chains, utils::read_mummer_anchors_single;
+using utils::anchor_t, utils::random_anchors, utils::plot_gap_gap_lower_diag, utils::plot_anchors, utils::Image, utils::place_dummy_anchors, utils::weak_sort_anchors, utils::chainx_sort_anchors, utils::merge_perfect_chains, utils::read_mummer_anchors_single, utils::cumulative_length;
 typedef std::size_t size_type;
 
 enum anchor_type_e { MUM, MEM };
@@ -26,19 +30,23 @@ enum anchor_type_e { MUM, MEM };
 int main(int argc, char **argv)
 {
 	// ### CLI setup ###
-	CLI::App app("Log-linear chaining for anchored edit distance");
+	CLI::App app("Log-linear chaining for anchored edit distance", "llchain");
+	app.usage("Usage: llchain [-t ref.fa] [-q queries.fa] [-a {MUM,MEM}] [-m {global,semiglobal}] [OPTIONS]");
+	app.set_version_flag("--version", "llchain version " + string(VERSION));
 	string text_path {""}, query_path {""};
 	auto t_opt = app.add_option("-t,--text", text_path, "One or more reference sequences in FASTA format (.fa,.fa.gz)")
 		->check(CLI::ExistingFile);
-	app.add_option("-q,--queries,--query", query_path, "Queries in FASTA format (.fa,.fa.gz)")
+	app.add_option("-q,--query,--queries", query_path, "Queries in FASTA format (.fa,.fa.gz)")
 		->check(CLI::ExistingFile);
 
 	string anchor_type_s {"MUM"};
-	auto anchor_type_opt = app.add_option("-a,--anchor-type", anchor_type_s, "MUM or MEM (computed by MUMmer/essaMEM)");
+	auto anchor_type_opt = app.add_option("-a,--anchor-type", anchor_type_s, "MUM or MEM (computed by MUMmer/essaMEM)")
+		->default_val("MUM");
 
 	int anchor_length {20};
 	auto anchor_length_opt = app.add_option("-l,--length", anchor_length, "Minimum anchor length")
-		->check(CLI::Range(2, std::numeric_limits<int>::max()));
+		->check(CLI::Range(2, std::numeric_limits<int>::max()))
+		->default_val(20);
 
 	string custom_anchors_path {""};
 	app.add_option("--custom-anchors", custom_anchors_path, "Do not index/query but read the anchors from this file (NB it should respect the same order as query file)")
@@ -51,7 +59,7 @@ int main(int argc, char **argv)
 		->default_val("global");
 
 	bool all_to_all {false};
-	auto ata_opt = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the queries)")
+	auto ata_opt = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the queries) to obtain a PHYLIP distance matrix")
 		->excludes(t_opt);
 
 	bool chainx {false};
@@ -73,11 +81,26 @@ int main(int argc, char **argv)
 		->group("")
 		->needs(chainx_optimal_option);
 
+	auto open_trunc_check = [](ofstream &out) {
+		return CLI::Validator([&out](const string &file_path) {
+			if (file_path.empty())
+				return string("Empty path");
+			out.open(file_path, std::ios::trunc);
+			if (out.good())
+				return string();
+			else
+				return string("Error in opening path: ") + file_path;
+		}, "OUTFILE", "File can be opened and written into");
+	};
+
 	string mummer_output_path {""}, sam_output_path {""};
-	app.add_option("-o,--output", mummer_output_path, "Output each optimal chain in MUMmer-like format {ref start, query start, length} (1-based)")
-		->excludes(ata_opt);
+	ofstream sam_out, mummer_out;
+	app.add_option("-o,--output", mummer_output_path, "Output each optimal chain in MUMmer-like format (ref start, query start, length) (1-based)")
+		->excludes(ata_opt)
+		->check(open_trunc_check(mummer_out));
 	auto sam_opt = app.add_option("-s,--sam", sam_output_path, "Output approximate alignment based on the optimal chain (SAM format)")
-		->excludes(ata_opt);
+		->excludes(ata_opt)
+		->check(open_trunc_check(sam_out));
 
 	bool store_sam_sequence {false};
 	app.add_flag("--store-SAM-sequence", store_sam_sequence, "Store the query sequence in the SAM output")
@@ -111,7 +134,7 @@ int main(int argc, char **argv)
 		return app.exit(CLI::Error("debug_mode", "--debug_random_anchors: excludes --text and --query", 1));
 	}
 	if (!all_to_all and debug_random_anchors == 0 and ((text_path == "") or (query_path == ""))) {
-		return app.exit(CLI::Error("any_task", "Specify both a text and a query file", 1));
+		return app.exit(CLI::Error("any_task", "Specify both a --text and a --query file", 1));
 	}
 
 	algo::chaining_mode mode;
@@ -131,25 +154,29 @@ int main(int argc, char **argv)
 	else if (anchor_type_s == "MEM") anchortype = MEM;
 	else { return app.exit(CLI::Error("wrong_anchor_type", "--anchor-type: pick a supported anchor type (MUM or MEM)", 1)); };
 
-	cerr << "DEBUG: " << ((mode == algo::chaining_mode::global) ? "global" : "semiglobal") << " mode" << endl;
-	if (custom_anchors_path == "") {
-		cerr << "DEBUG: " << ((anchortype == MUM) ? "MUM" : "MEM") << " anchors of length >= " << anchor_length << endl;
-	} else {
-		cerr << "DEBUG: custom anchors from file " << custom_anchors_path << endl;
-	}
-
 	// ### normal mode ###
 	if ((text_path != "") and (query_path != "")) {
+		cerr << string() +
+			"[llchain] running with options" +
+			" -t " + text_path +
+			" -q " + query_path +
+			((custom_anchors_path == "") ? string(" -m " + mode_s) : string("")) +
+			((custom_anchors_path == "") ? string(" -a " + anchor_type_s) : string("")) +
+			((custom_anchors_path == "") ? string(" -l " + to_string(anchor_length)) : string("")) +
+			((custom_anchors_path != "") ? string(" --custom-anchors " + custom_anchors_path) : string("")) +
+			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
+			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string(""))
+			<< endl;
+
 		vector<string> texts, text_ids; // queries, query_ids;
 		kseq::read_sequences(text_path, texts, text_ids);
 
-		cerr << "DEBUG: read text sequences ";
-		for (auto const &id : text_ids) cerr << id << " ";
-		cerr << "of sizes ";
-		for (auto const &text : texts) cerr << text.size() << " ";
-		cerr << endl;
+		cerr << string() +
+			"[llchain] loaded" +
+			" " + ((texts.size() == 1) ? "reference " + text_ids.front() : to_string(texts.size()) + " references") +
+			" (" + to_string(((texts.size() == 1) ? texts.front().length() : cumulative_length(texts))) + " bps)"
+			<< endl;
 
-		ofstream sam_out;
 		if (sam_output_path != "") {
 			sam_out = ofstream(sam_output_path, std::ios::trunc);
 			algo::write_SAM_header(sam_out);
@@ -157,30 +184,45 @@ int main(int argc, char **argv)
 				algo::write_SAM_text(texts[t], text_ids[t], sam_out);
 		}
 
-		ofstream mummer_out;
 		if (mummer_output_path != "") {
 			mummer_out = ofstream(mummer_output_path, std::ios::trunc);
 		}
 
+		// header for stdout output
+		cout << "#text_id";
+		cout << "\tquery_id";
+		cout << "\tanchored_ED";
+		cout << "\tanchors";
+		cout << "\tmerged";
+		cout << "\tseeding";
+		cout << "\tpreprocessing";
+		cout << "\tchaining";
+		cout << "\tbacktrack";
+		cout << "\ttotal_query";
+		cout << ((chainx or chainx_optimal) ? "\trevisions" : "");
+		cout << "\n";
 		for (size_type t = 0; t < texts.size(); t++) {
 			auto start = std::chrono::steady_clock::now(), querystart = std::chrono::steady_clock::now();
-			auto index = ((custom_anchors_path == "") ? mummer_essaMEM_wrapper::index(texts[t], anchor_length) : mummer_essaMEM_wrapper::dummy_index());
+			auto const index = ((custom_anchors_path == "") ? mummer_essaMEM_wrapper::index(texts[t], anchor_length) : mummer_essaMEM_wrapper::dummy_index());
 			const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
+
 			if (custom_anchors_path == "") {
-				cerr << "DEBUG: indexed " << text_ids[t] << " in " << index_time << endl;
+				cerr << string() +
+					"[llchain] indexed " + text_ids[t] +
+					" in " + (std::ostringstream() << index_time).str()
+					<< endl;
 			}
+
 			ifstream custom_anchors_fs;
 			if (custom_anchors_path != "") {
 				custom_anchors_fs = ifstream(custom_anchors_path);
-				auto a = read_mummer_anchors_single(custom_anchors_fs);
-				assert(a.size() == 0);
+				auto found_custom_anchors_header = read_mummer_anchors_single(custom_anchors_fs).size();
+				assert(found_custom_anchors_header == 0);
 			}
 
 			kseq::FastaGzInput fgz(query_path);
 			string query_id, query;
 			while (fgz.read_sequence(query_id, query)) {
-				cerr << "DEBUG: querying " << query_id << " in " << text_ids[t] << " (" << ((anchortype == MUM) ? "MUM" : "MEM") << " seeds of length >= " << anchor_length << ")...";
-
 				querystart = std::chrono::steady_clock::now();
 				start = querystart;
 				vector<anchor_t> matches;
@@ -227,7 +269,18 @@ int main(int argc, char **argv)
 				const std::chrono::duration<double> backtrack_chaining_time = std::chrono::steady_clock::now() - start;
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
 
-				cerr << "done (" << found_anchors << " anchors, " << matches.size() - 2 << " merged, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << main_chaining_time << " chaining, " << backtrack_chaining_time << " backtrack, " << query_time << " total query time" << ((chainx or chainx_optimal) ? (", " + to_string(chainx_revisions) + " revisions") : "") << ")" << endl;
+				// log chaining results
+				cout << text_ids[t] << "\t" << query_id;
+				cout << "\t" << costs.back(); // anchored edit distance
+				cout << "\t" << found_anchors;
+				cout << "\t" << matches.size() - 2; // merged anchors
+				cout << "\t" << seeding_time;
+				cout << "\t" << preprocessing_time;
+				cout << "\t" << main_chaining_time;
+				cout << "\t" << backtrack_chaining_time;
+				cout << "\t" << query_time;
+				cout << ((chainx or chainx_optimal) ? to_string(chainx_revisions) : "");
+				cout << "\n";
 
 				if (sam_output_path != "" and chain.size() > 2) {
 					algo::write_SAM_entry(texts[t], text_ids[t], query, query_id, store_sam_sequence, chain, mode, costs.back(), sam_out);
@@ -241,6 +294,7 @@ int main(int argc, char **argv)
 				}
 			}
 		}
+
 		if (sam_output_path != "") {
 			sam_out.close();
 		}
@@ -253,6 +307,18 @@ int main(int argc, char **argv)
 
 	// ### all-to-all mode ###
 	if (all_to_all) {
+		cerr << string() +
+			"[llchain] running with options" +
+			" --all-to-all" +
+			" -q " + query_path +
+			((custom_anchors_path == "") ? string(" -m " + mode_s) : string("")) +
+			((custom_anchors_path == "") ? string(" -a " + anchor_type_s) : string("")) +
+			((custom_anchors_path == "") ? string(" -l " + to_string(anchor_length)) : string("")) +
+			((custom_anchors_path != "") ? string(" --custom-anchors " + custom_anchors_path) : string("")) +
+			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
+			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string(""))
+			<< endl;
+
 		vector<string> queries, query_ids;
 		kseq::read_sequences(query_path, queries, query_ids);
 
@@ -263,19 +329,37 @@ int main(int argc, char **argv)
 				);
 		for (size_type i = 1; i < queries.size(); i++) {
 			auto start = std::chrono::steady_clock::now(), querystart = std::chrono::steady_clock::now();
-			auto const index = mummer_essaMEM_wrapper::index(queries[i], anchor_length);
+			auto const index = ((custom_anchors_path == "") ? mummer_essaMEM_wrapper::index(queries[i], anchor_length) : mummer_essaMEM_wrapper::dummy_index());
 			const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
-			cerr << "DEBUG: indexed " << query_ids[i] << " in " << index_time << endl;
+
+			if (custom_anchors_path == "") {
+				cerr << string() +
+					"[llchain] indexed " + query_ids[i] +
+					" in " + (std::ostringstream() << index_time).str()
+					<< endl;
+			}
+
+			ifstream custom_anchors_fs;
+			if (custom_anchors_path != "") {
+				custom_anchors_fs = ifstream(custom_anchors_path);
+				auto found_custom_anchors_header = read_mummer_anchors_single(custom_anchors_fs).size();
+				assert(found_custom_anchors_header == 0);
+			}
 
 			for (size_type j = 0; j < i; j++) {
-				cerr << "DEBUG: querying " << query_ids[j] << " in " << query_ids[i] << " (" << ((anchortype == MUM) ? "MUM" : "MEM") << " seeds of length >= " << anchor_length << ")...";
 				querystart = std::chrono::steady_clock::now();
 				start = querystart;
+
 				vector<anchor_t> matches;
-				if (anchortype == MUM)
-					mummer_essaMEM_wrapper::find_MUMs(index, queries[j], anchor_length, matches);
-				else if (anchortype == MEM)
-					mummer_essaMEM_wrapper::find_MEMs(index, queries[j], anchor_length, matches);
+				if (custom_anchors_path  == "") {
+					if (anchortype == MUM)
+						mummer_essaMEM_wrapper::find_MUMs(index, queries[j], anchor_length, matches);
+					else if (anchortype == MEM)
+						mummer_essaMEM_wrapper::find_MEMs(index, queries[j], anchor_length, matches);
+				} else {
+					matches = read_mummer_anchors_single(custom_anchors_fs);
+				}
+
 				const std::chrono::duration<double> seeding_time = std::chrono::steady_clock::now() - start;
 				const long long found_anchors = matches.size();
 
@@ -303,7 +387,17 @@ int main(int argc, char **argv)
 				const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
 				distances[i][j] = costs.back();
 
-				cerr << "done (" << found_anchors << " anchors, " << matches.size() - 2 << " merged, " << costs.back() << " anchored edit distance, " << seeding_time << " seeding, " << preprocessing_time << " preprocessing, " << main_chaining_time << " chaining, " << query_time << " total query time" << ((chainx or chainx_optimal) ? (", " + to_string(chainx_revisions) + " revisions") : "") << ")" << endl;
+				// log chaining results
+				clog << query_ids[i] << "\t" << query_ids[j];
+				clog << "\t" << costs.back(); // anchored edit distance
+				clog << "\t" << found_anchors;
+				clog << "\t" << matches.size() - 2; // merged anchors
+				clog << "\t" << seeding_time;
+				clog << "\t" << preprocessing_time;
+				clog << "\t" << main_chaining_time;
+				clog << "\t" << query_time;
+				clog << ((chainx or chainx_optimal) ? to_string(chainx_revisions) : "");
+				clog << "\n";
 			}
 		}
 
@@ -346,7 +440,7 @@ int main(int argc, char **argv)
 		plot_gap_gap_lower_diag(image, anchors, costs); // plot case 3 recursions
 		plot_anchors(image, anchors); // plot all anchors
 		plot_anchors(image, weak_chain, utils::defaults::selected_anchor_color); // recolor the optimal chain
-		image.writeToFile(debug_case_three_viz_path);
+		if (debug_case_three_viz_path != "") image.writeToFile(debug_case_three_viz_path);
 		assert(costs.back() == algo::compute_chain_cost(weak_chain, mode));
 
 		// solve via the llchain algo and compare
@@ -356,8 +450,8 @@ int main(int argc, char **argv)
 
 		vector<anchor_t> chain;
 		algo::weak_backtrack(anchors, costs, mode, chain);
-		cerr << "Optimal chain has cost     " << costs.back() << endl;
-		cerr << "Backtracked chain has cost " << algo::compute_chain_cost(chain, mode) << endl;
+		cerr << "[llchain] DEBUG: optimal chain has cost     " << costs.back() << endl;
+		cerr << "[llchain] DEBUG: backtracked chain has cost " << algo::compute_chain_cost(chain, mode) << endl;
 		assert(algo::compute_chain_cost(chain, mode) == algo::compute_chain_cost(weak_chain, mode));
 
 		return 0;
