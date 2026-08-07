@@ -10,7 +10,7 @@ then
 fi
 
 human="GCF_000001405.40_GRCh38.p14_genomic.fna"
-chimp="GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna"
+chimp="GCF_028858775.2_NHGRI_mPanTro3-v2.1_pri_genomic.fna"
 arabthaliana="GCF_000001735.4_TAIR10.1_genomic.fna"
 arablyrata="GCF_000004255.2_v.1.0_genomic.fna"
 

@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 				cout << "\t" << main_chaining_time;
 				cout << "\t" << backtrack_chaining_time;
 				cout << "\t" << query_time;
-				cout << ((chainx or chainx_optimal) ? to_string(chainx_revisions) : "");
+				cout << ((chainx or chainx_optimal) ? "\t" + to_string(chainx_revisions) : "");
 				cout << "\n";
 
 				if (sam_output_path != "" and chain.size() > 2) {

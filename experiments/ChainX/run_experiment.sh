@@ -43,7 +43,7 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 check=$(diff \
 	<(grep "distance =" time_global_chainx     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" time_global_llchain | cut -d' ' -f16))
+	<(grep -v "^\[llchain\]" time_global_llchain | grep -v "^#" | grep -v "maxresident" | cut -f3))
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
@@ -59,7 +59,7 @@ do
 	grep "maxresident" $t | cut -d' ' -f1 | tac >> stats_space_$t
 done
 echo "time (s)" > stats_time_time_global_llchain
-grep "anchored edit distance" time_global_llchain | cut -d' ' -f28 | tr -d "s" | tac >> stats_time_time_global_llchain
+grep -v "^\[llchain\]" time_global_llchain | grep -v "^#" | grep -v "maxresident" | cut -f10 | tr -d "s" | tac >> stats_time_time_global_llchain
 echo "space (kb)" > stats_space_time_global_llchain
 grep "maxresident" time_global_llchain | cut -d' ' -f1 | tac >> stats_space_time_global_llchain
 
@@ -102,7 +102,7 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 check=$(diff \
 	<(grep "distance =" time_semiglobal_chainx     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" time_semiglobal_llchain | cut -d' ' -f16))
+	<(grep -v "^\[llchain\]" time_semiglobal_llchain | grep -v "^#" | grep -v "maxresident" | cut -f3))
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 
@@ -118,7 +118,7 @@ do
 	grep "maxresident" $t | cut -d' ' -f1 | tac >> stats_space_$t
 done
 echo "time (s)" > stats_time_time_semiglobal_llchain
-grep "anchored edit distance" time_semiglobal_llchain | cut -d' ' -f28 | tr -d "s" | tac >> stats_time_time_semiglobal_llchain
+grep -v "^\[llchain\]" time_semiglobal_llchain | grep -v "^#" | grep -v "maxresident" | cut -f10 | tr -d "s" | tac >> stats_time_time_semiglobal_llchain
 echo "space (kb)" > stats_space_time_semiglobal_llchain
 grep "maxresident" time_semiglobal_llchain | cut -d' ' -f1 | tac >> stats_space_time_semiglobal_llchain
 
@@ -164,7 +164,7 @@ do
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 	check=$(diff \
 		<(grep "distance =" correlation_global_chainx_$m     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-		<(grep "anchored edit distance" correlation_global_llchain_$m | cut -d' ' -f16))
+		<(grep -v "^\[llchain\]" correlation_global_llchain_$m | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3))
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 done
 echo " done (no difference)."
@@ -229,7 +229,7 @@ do
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 	check=$(diff \
 		<(grep "distance =" correlation_semiglobal_chainx_$m     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-		<(grep "anchored edit distance" correlation_semiglobal_llchain_$m | cut -d' ' -f16))
+		<(grep -v "^\[llchain\]" correlation_semiglobal_llchain_$m  | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3))
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 done
 echo " done (no difference)."

@@ -11,7 +11,7 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 check=$(diff \
 	<(grep "distance =" time_global_chainx     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" time_global_llchain | cut -d' ' -f16))
+	<(grep -v "^\[llchain\]" time_global_llchain | grep -v "^#" | grep -v "maxresident" | cut -f3))
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 paste -d'$' stats_time_global_mums \
@@ -27,7 +27,7 @@ check=$(diff \
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 check=$(diff \
 	<(grep "distance =" time_semiglobal_chainx     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-	<(grep "anchored edit distance" time_semiglobal_llchain | cut -d' ' -f16))
+	<(grep -v "^\[llchain\]" time_semiglobal_llchain | grep -v "^#" | grep -v "maxresident" | cut -f3))
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
 paste -d'$' stats_time_semiglobal_mums \
@@ -45,7 +45,7 @@ do
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 	check=$(diff \
 		<(grep "distance =" correlation_global_chainx_$m     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-		<(grep "anchored edit distance" correlation_global_llchain_$m | cut -d' ' -f16))
+		<(grep -v "^\[llchain\]" correlation_global_llchain_$m | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3))
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 done
 echo " done (no difference)."
@@ -65,7 +65,7 @@ do
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 	check=$(diff \
 		<(grep "distance =" correlation_semiglobal_chainx_$m     | cut -d'=' -f2 | cut -d')' -f2 | tr -d " ") \
-		<(grep "anchored edit distance" correlation_semiglobal_llchain_$m | cut -d' ' -f16))
+		<(grep -v "^\[llchain\]" correlation_semiglobal_llchain_$m  | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3))
 	if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 done
 echo " done (no difference)."

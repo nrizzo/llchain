@@ -3,10 +3,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import os
+import sys
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
 ALGOS = ["chainx", "chainx-opt", "llchain"]
 ALGO_LABELS = {"chainx": "ChainX", "chainx-opt": "ChainX-opt", "llchain": "llchain"}
+
+# Check if results are present
+for prefix in {'seeding_times_human_mem', 'chaining_times_human_mem'}:
+    for algo in ALGOS:
+        path = os.path.join(DATA_DIR, f"{prefix}_{algo}")
+        if (os.path.exists(path) == False):
+            sys.exit(f"Could not find {path}, rerun run_experiment.sh")
 
 
 def load_file(prefix, algo, strip_s=False):
@@ -23,9 +31,9 @@ def load_file(prefix, algo, strip_s=False):
     return np.array(anchors), np.array(times)
 
 
-# Load seeding (has trailing 's') and chaining data for all algorithms
+# Load seeding and chaining data for all algorithms (stripping trailing 's')
 seeding = {a: load_file("seeding_times_human_mem", a, strip_s=True) for a in ALGOS}
-chaining = {a: load_file("chaining_times_human_mem", a, strip_s=False) for a in ALGOS}
+chaining = {a: load_file("chaining_times_human_mem", a, strip_s=True) for a in ALGOS}
 
 
 def avg_seeding(data):
@@ -57,6 +65,10 @@ panels = [
         *filter_positive(*chaining["chainx"]),
         "tab:blue",
         "tab:cyan",
+        #"#12FCC7",
+        #"#02A780",
+        #"#A22F02",
+        #"#FC5212",
         1.0,
     ),
     (
@@ -64,16 +76,20 @@ panels = [
         *filter_positive(*chaining["chainx-opt"]),
         "tab:orange",
         "tab:red",
-        1.0,
-    ),
-    (
-        f"{ALGO_LABELS['llchain']}",
-        *filter_positive(*chaining["llchain"]),
-        "tab:green",
-        "lime",
+        #"#5212FC",
+        #"#A281FD",
         1.0,
     ),
     ("Seeding", *filter_positive(*avg_seeding(seeding)), "tab:gray", "black", 0.1),
+    (
+        f"{ALGO_LABELS['llchain']}",
+        *filter_positive(*chaining["llchain"]),
+        #"tab:green",
+        #"lime",
+        "#6F5502",
+        (0.99,0.78,0.07),
+        1.0,
+    ),
 ]
 
 fig, ax = plt.subplots(figsize=(5, 3.5))
@@ -81,18 +97,18 @@ fig, ax = plt.subplots(figsize=(5, 3.5))
 for title, x, t, color, c2, s in panels:
     ax.scatter(x, t, s=s, alpha=1.0, color=color, rasterized=True, label=title)
     bx, by = bin_trend(x, t)
-    ax.plot(bx, by, color=c2, linewidth=1.5)
+    ax.plot(bx, by, color=c2, linewidth=2)
 
 ax.set_xscale("log")
 ax.set_yscale("log")
-ax.set_xlabel("# anchors")
-ax.set_ylabel("time [s]")
+ax.set_xlabel("number of anchors")
+plt.ylabel("time (s)", rotation=0, labelpad=20)
 ax.legend(markerscale=6, loc="upper left")
 ax.grid(True, which="major", linestyle="-", linewidth=0.5, alpha=0.7)
 # ax.grid(True, which="minor", linestyle=":", linewidth=0.3, alpha=0.5)
 
 plt.tight_layout()
-out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plot.svg")
+out_path = os.path.join(DATA_DIR, "plot.svg")
 plt.savefig(out_path, dpi=150, bbox_inches="tight")
 print(f"Saved to {out_path}")
 
