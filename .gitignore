@@ -13,3 +13,4 @@ experiments/genome-to-genome/output
 test/*.phylip
 test/*.mummer
 test/*.sam
+test/*.paf

@@ -7,6 +7,7 @@ git clone https://github.com/nrizzo/llchain && cd llchain
 git submodule update --init ext/mummer
 make -j $(nproc)
 ./llchain --text test/T1.fasta --query test/T2.fasta --sam test/out.sam
+./llchain --all-to-all --queries test/Q.fasta --paf test/out.paf
 ```
 
 ## Experiments
@@ -28,8 +29,11 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.
 
 ## TODOs
-- fix experiments
-- PAF input/output
+- reverse complement
+- I/O threads
+- query multithreading
+- PAF input
+- htslib
 - clang
 - investigate sorting
 - investigate predecessor data structures

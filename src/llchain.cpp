@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 		->default_val("global");
 
 	bool all_to_all {false};
-	auto ata_opt = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the queries) to obtain a PHYLIP distance matrix")
+	app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the queries) to obtain a PHYLIP distance matrix in stdout")
 		->excludes(t_opt);
 
 	bool chainx {false};
@@ -93,14 +93,14 @@ int main(int argc, char **argv)
 		}, "OUTFILE", "File can be opened and written into");
 	};
 
-	string mummer_output_path {""}, sam_output_path {""};
-	ofstream sam_out, mummer_out;
-	app.add_option("-o,--output", mummer_output_path, "Output each optimal chain in MUMmer-like format (ref start, query start, length) (1-based)")
-		->excludes(ata_opt)
+	string mummer_output_path {""}, sam_output_path {""}, paf_output_path {""};
+	ofstream sam_out, mummer_out, paf_out;
+	app.add_option("-o,--output", mummer_output_path, "Output the optimal chains in MUMmer-like format (ref start, query start, length) (1-based)")
 		->check(open_trunc_check(mummer_out));
-	auto sam_opt = app.add_option("-s,--sam", sam_output_path, "Output approximate alignment based on the optimal chain (SAM format)")
-		->excludes(ata_opt)
+	auto sam_opt = app.add_option("-s,--sam", sam_output_path, "Output the optimal chains in SAM format")
 		->check(open_trunc_check(sam_out));
+	app.add_option("-p,--paf", paf_output_path, "Output the optimal chains in PAF format")
+		->check(open_trunc_check(paf_out));
 
 	bool store_sam_sequence {false};
 	app.add_flag("--store-SAM-sequence", store_sam_sequence, "Store the query sequence in the SAM output")
@@ -137,13 +137,13 @@ int main(int argc, char **argv)
 		return app.exit(CLI::Error("any_task", "Specify both a --text and a --query file", 1));
 	}
 
-	algo::chaining_mode mode;
+	utils::chaining_mode mode;
 	chainx::mode chainx_mode;
 	if (mode_s == "global") {
-		mode = algo::chaining_mode::global;
+		mode = utils::chaining_mode::global;
 		chainx_mode = chainx::mode::global;
 	} else if (mode_s == "semiglobal") {
-		mode = algo::chaining_mode::semiglobal;
+		mode = utils::chaining_mode::semiglobal;
 		chainx_mode = chainx::mode::semiglobal;
 	} else {
 		return app.exit(CLI::Error("wrong_mode", "--mode: pick a correct chaining mode (global or semiglobal)", 1));
@@ -165,7 +165,8 @@ int main(int argc, char **argv)
 			((custom_anchors_path == "") ? string(" -l " + to_string(anchor_length)) : string("")) +
 			((custom_anchors_path != "") ? string(" --custom-anchors " + custom_anchors_path) : string("")) +
 			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
-			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string(""))
+			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string("")) +
+			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string(""))
 			<< endl;
 
 		vector<string> texts, text_ids; // queries, query_ids;
@@ -285,7 +286,10 @@ int main(int argc, char **argv)
 				if (sam_output_path != "" and chain.size() > 2) {
 					algo::write_SAM_entry(texts[t], text_ids[t], query, query_id, store_sam_sequence, chain, mode, costs.back(), sam_out);
 				}
-				if (mummer_output_path != "") {
+				if (paf_output_path != "" and chain.size() > 2) {
+					algo::write_PAF_entry(texts[t], text_ids[t], query, query_id, store_sam_sequence, chain, mode, costs.back(), paf_out);
+				}
+				if (mummer_output_path != "" and chain.size() > 2) {
 					mummer_out << ">" << query_id << " (Reference " << text_ids[t] << ")\n";
 					assert(chain.size() >= 2);
 					for (size_type i = 1; i < chain.size() - 1; i++) {
@@ -316,7 +320,8 @@ int main(int argc, char **argv)
 			((custom_anchors_path == "") ? string(" -l " + to_string(anchor_length)) : string("")) +
 			((custom_anchors_path != "") ? string(" --custom-anchors " + custom_anchors_path) : string("")) +
 			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
-			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string(""))
+			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string("")) +
+			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string(""))
 			<< endl;
 
 		vector<string> queries, query_ids;
@@ -398,6 +403,29 @@ int main(int argc, char **argv)
 				clog << "\t" << query_time;
 				clog << ((chainx or chainx_optimal) ? to_string(chainx_revisions) : "");
 				clog << "\n";
+
+				vector<anchor_t> chain;
+				if (sam_output_path != "" or paf_output_path != "" or mummer_output_path != "") {
+					if (chainx or (chainx_optimal and chainx_optimal_ensure_pred)) {
+						algo::chainx_backtrack(matches, costs, mode, chain);
+					} else {
+						algo::weak_backtrack(matches, costs, mode, chain);
+					}
+				}
+
+				if (sam_output_path != "" and chain.size() > 2) {
+					algo::write_SAM_entry(queries[i], query_ids[i], queries[j], query_ids[j], store_sam_sequence, chain, mode, costs.back(), sam_out);
+				}
+				if (paf_output_path != "" and chain.size() > 2) {
+					algo::write_PAF_entry(queries[i], query_ids[i], queries[j], query_ids[j], store_sam_sequence, chain, mode, costs.back(), paf_out);
+				}
+				if (mummer_output_path != "" and chain.size() > 2) {
+					mummer_out << ">" << query_ids[j] << " (Reference " << query_ids[i] << ")\n";
+					assert(chain.size() >= 2);
+					for (size_type i = 1; i < chain.size() - 1; i++) {
+						mummer_out << get<0>(chain[i])+1 << '\t' << get<1>(chain[i])+1 << '\t' << get<2>(chain[i])+1 << "\n";
+					}
+				}
 			}
 		}
 

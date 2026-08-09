@@ -24,6 +24,8 @@ using grid_to_bmp::Color, grid_to_bmp::BmpImage; // grid_to_bmp
 namespace llchain::utils {
 export typedef grid_to_bmp::BmpImage Image;
 
+export enum chaining_mode { global, semiglobal };
+
 export namespace defaults
 {
 	// basic colors and a palette
@@ -144,6 +146,15 @@ export void plot_gap_gap_lower_diag(
 	);
 
 export string::size_type cumulative_length(const vector<string> &v);
+
+/*
+ * computes the number of matching bases (mutual coverage) and alignment block
+ *   length of the chain
+ * NB: the chain is expected to respect weak prec (see utils::weak_precedes)
+ * NB: the chain is assumed to start and end with dummy anchors (see utils::place_dummy_anchors)
+ * NB: we assume at least one non-dummy anchor
+ */
+export tuple<anchor_index_t, anchor_index_t> chain_stats(const vector<anchor_t> &chain, const chaining_mode m);
 
 export
 inline
@@ -448,6 +459,47 @@ string::size_type cumulative_length(const vector<string> &v)
 		res += s.length();
 	}
 	return res;
+}
+
+export
+tuple<anchor_index_t, anchor_index_t> chain_stats(
+		const vector<anchor_t> &chain,
+		const chaining_mode m
+) {
+	anchor_index_t mut_cov = 0, aln_len = 0;
+	if (m == global) {
+		aln_len += connect(chain[0], chain[1]);
+	} else {
+		assert(m == semiglobal);
+		aln_len += connect_Qgap(chain[0], chain[1]);
+	}
+
+	for (vector<anchor_t>::size_type i = 1; i <= chain.size() - 3; i++) {
+		const anchor_index_t a_len = get<2>(chain[i]);
+		const anchor_index_t b1 = get<0>(chain[i]) + a_len;
+		const anchor_index_t a2 = get<0>(chain[i+1]);
+		const anchor_index_t Tovl = max((anchor_index_t)0, b1 - a2);
+		const anchor_index_t d1 = get<1>(chain[i]) + a_len;
+		const anchor_index_t c2 = get<1>(chain[i+1]);
+		const anchor_index_t Qovl = max((anchor_index_t)0, d1 - c2);
+
+		mut_cov += a_len - max(Tovl, Qovl);
+
+		const anchor_index_t Tgap = max((anchor_index_t)0, a2 - b1);
+		const anchor_index_t Qgap = max((anchor_index_t)0, c2 - d1);
+		aln_len += a_len + max(Tgap, Qgap);
+	}
+
+	mut_cov += get<2>(chain[chain.size() - 2]);
+	aln_len += get<2>(chain[chain.size() - 2]);
+	if (m == global) {
+		aln_len += connect(chain[chain.size() - 2], chain[chain.size() - 1]);
+	} else {
+		assert(m == semiglobal);
+		aln_len += connect_Qgap(chain[chain.size() - 2], chain[chain.size() - 1]);
+	}
+
+	return {mut_cov, aln_len};
 }
 
 } // namespace utils
