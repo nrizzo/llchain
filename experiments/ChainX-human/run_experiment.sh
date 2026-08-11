@@ -16,13 +16,13 @@ llchainmode="--mode semiglobal"
 llchainseed="-a MUM -l 20"
 
 # run ChainX* (via llchain)
-$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $ref -q $queries -o /dev/null \
         >> human_mum_chainx 2>> human_mum_chainx
 # run ChainX*-opt (via llchain)
-$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $ref -q $queries -o /dev/null \
         >> human_mum_chainx-opt 2>> human_mum_chainx-opt
 # run llchain
-$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $ref -q $queries -o /dev/null \
         >> human_mum_llchain 2>> human_mum_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."
@@ -71,13 +71,13 @@ llchainseed="-a MEM -l 50"
 chainxseed="-a MEM -l 50"
 
 # run ChainX*
-$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $ref -q $queries -o /dev/null\
 	>> human_mem_chainx 2>> human_mem_chainx
 # run ChainX*-opt
-$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $ref -q $queries -o /dev/null\
 	>> human_mem_chainx-opt 2>> human_mem_chainx-opt
 # run llchain
-$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $ref -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $ref -q $queries -o /dev/null\
 	>> human_mem_llchain 2>> human_mem_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."

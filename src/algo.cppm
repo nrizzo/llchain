@@ -1229,6 +1229,7 @@ void write_SAM_entry(
 	const string &text_id,
 	const string &query,
 	const string &query_id,
+	const bool is_query_rc,
 	const bool store_SAM_sequence,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
@@ -1237,7 +1238,7 @@ void write_SAM_entry(
 ) {
 	assert(chain.size() > 2);
 	out << query_id << '\t'; // QNAME
-	out << "2\t"; // FLAG
+	out << to_string(2 + (is_query_rc ? 16 : 0)) << "\t"; // FLAG
 	out << text_id << '\t'; // RNAME
 	out << ((m == global) ? 1 : get<0>(chain[1])+1) << '\t'; // POS
 	out << "30\t"; // MAPQ
@@ -1261,7 +1262,7 @@ void write_PAF_entry(
 	const string &text_id,
 	const string &query,
 	const string &query_id,
-	const bool store_SAM_sequence,
+	const bool is_query_rc,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
 	const ai_t anchored_ed,
@@ -1275,7 +1276,7 @@ void write_PAF_entry(
 	out << "\t" << query.length(); // QLENGTH
 	out << "\t" << 0; // QSTART (0-based)
 	out << "\t" << query.length(); // QEND (0-based, open)
-	out << "\t" << "+"; // STRAND
+	out << "\t" << (is_query_rc ? "-" : "+"); // STRAND
 	out << "\t" << text_id; // TNAME
 	out << "\t" << text.length(); // TLENGTH
 	out << "\t" << ((m == semiglobal) ? to_string(get<0>(first)) : "0"); // TSTART (0-based, original strand)

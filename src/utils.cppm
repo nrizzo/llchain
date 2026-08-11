@@ -8,17 +8,19 @@ import <iostream>;
 import <fstream>;
 import <string>;
 import <sstream>;
+import <array>;
 import <cassert>;
 import grid_to_bmp;
 
 using std::vector;
 using std::tuple;
 using std::uniform_int_distribution, std::random_device, std::mt19937; // random
-using std::max; // algorithm
+using std::max, std::reverse; // algorithm
 using std::cerr, std::endl;
 using std::ifstream;
 using std::getline;
 using std::string, std::istringstream;
+using std::array;
 using grid_to_bmp::Color, grid_to_bmp::BmpImage; // grid_to_bmp
 
 namespace llchain::utils {
@@ -155,6 +157,12 @@ export string::size_type cumulative_length(const vector<string> &v);
  * NB: we assume at least one non-dummy anchor
  */
 export tuple<anchor_index_t, anchor_index_t> chain_stats(const vector<anchor_t> &chain, const chaining_mode m);
+
+/*
+ * reverse complement the given DNA string
+ * NB: the input string is assumed to be ASCII
+ */
+export void reverse_complement(string &s);
 
 export
 inline
@@ -500,6 +508,59 @@ tuple<anchor_index_t, anchor_index_t> chain_stats(
 	}
 
 	return {mut_cov, aln_len};
+}
+
+// https://github.com/steverozen/fastrc/src/fastrc.cpp
+constexpr static array<uint8_t, 256> rev = []()
+{
+	array<uint8_t, 256> table;
+	for (int i = 0; i < 256; i++)
+		table[i] = (uint8_t)i;
+
+	table['C'] = 'G';
+	table['c'] = 'g';
+	table['G'] = 'C';
+	table['g'] = 'c';
+	table['U'] = 'A';
+	table['u'] = 'a';
+	table['T'] = 'A';
+	table['t'] = 'a';
+	table['A'] = 'T';
+	table['a'] = 't';
+	table['M'] = 'K';
+	table['m'] = 'k';
+	table['K'] = 'M';
+	table['k'] = 'm';
+	table['R'] = 'Y';
+	table['r'] = 'y';
+	table['Y'] = 'R';
+	table['y'] = 'r';
+	table['S'] = 'S';
+	table['s'] = 's';
+	table['W'] = 'W';
+	table['w'] = 'w';
+	table['V'] = 'B';
+	table['v'] = 'b';
+	table['B'] = 'V';
+	table['b'] = 'v';
+	table['H'] = 'D';
+	table['h'] = 'd';
+	table['D'] = 'H';
+	table['d'] = 'h';
+	table['N'] = 'N';
+	table['n'] = 'n';
+
+	return table;
+}();
+
+export
+void reverse_complement(string &s)
+{
+	reverse(s.begin(), s.end());
+	for (string::size_type i = 0; i < s.length(); i++) {
+		assert(s[i] >= 0 and s[i] <= 255);
+		s[i] = rev[s[i]];
+	}
 }
 
 } // namespace utils

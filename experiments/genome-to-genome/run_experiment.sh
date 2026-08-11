@@ -26,17 +26,17 @@ llchainseed="-a MUM -l 20"
 # run ChainX* (via llchain)
 seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
 seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
-$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $refs -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
         >> human_mum_chainx 2>> human_mum_chainx
 # run ChainX*-opt (via llchain)
 seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
 seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
-$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $refs -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
         >> human_mum_chainx-opt 2>> human_mum_chainx-opt
 # run llchain
 seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
 seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
-$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $refs -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
         >> human_mum_llchain 2>> human_mum_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."
@@ -87,13 +87,13 @@ llchainmode="--mode global"
 llchainseed="-a MUM -l 20"
 
 # run ChainX*
-$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $refs -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
 	>> plant_mum_chainx 2>> plant_mum_chainx
 # run ChainX*-opt
-$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $refs -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
 	>> plant_mum_chainx-opt 2>> plant_mum_chainx-opt
 # run llchain
-$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $refs -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
 	>> plant_mum_llchain 2>> plant_mum_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."
@@ -155,13 +155,13 @@ llchainmode="--mode global --all-to-all"
 llchainseed="-a MUM -l 20"
 
 # run ChainX*
-$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -q $queries -o /dev/null \
 	>> hprc_mum_chainx.phylip 2>> hprc_mum_chainx
 # run ChainX*-opt
-$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -q $queries -o /dev/null \
 	>> hprc_mum_chainx-opt.phylip 2>> hprc_mum_chainx-opt
 # run llchain
-$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -q $queries \
+$usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -q $queries -o /dev/null \
 	>> hprc_mum_llchain.phylip 2>> hprc_mum_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."

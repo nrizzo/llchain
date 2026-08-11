@@ -32,7 +32,7 @@ done
 # run llchain
 for m in 70 80 90 94 97 99
 do
-	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/time_global/mutated_${m}_perc.fasta" \
+	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/time_global/mutated_${m}_perc.fasta" -o /dev/null \
 		>> time_global_llchain 2>> time_global_llchain
 done
 
@@ -91,7 +91,7 @@ done
 # run llchain
 for m in 70 80 90 94 97
 do
-	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/time_semiglobal/mutated_${m}_perc.fasta" \
+	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/time_semiglobal/mutated_${m}_perc.fasta" -o /dev/null \
 		>> time_semiglobal_llchain 2>> time_semiglobal_llchain
 done
 
@@ -151,7 +151,7 @@ done
 # run llchain
 for m in "75_80" "80_90" "90_100"
 do
-	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/correlation_global/count100_mutated_$m.fa.gz" \
+	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/correlation_global/count100_mutated_$m.fa.gz" -o /dev/null \
 		>> correlation_global_llchain_$m 2>> correlation_global_llchain_$m
 done
 
@@ -216,7 +216,7 @@ done
 # run llchain
 for m in "75_80" "80_90" "90_100"
 do
-	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/correlation_semiglobal/count100_mutated_$m.fa" \
+	$usrbintime "$usrbintimeoptions" $llchain $llchainmode -t $ref -q "$thisfolder/../../ext/ChainX/data/correlation_semiglobal/count100_mutated_$m.fa" -o /dev/null \
 		>> correlation_semiglobal_llchain_$m 2>> correlation_semiglobal_llchain_$m
 done
 
