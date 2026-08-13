@@ -14,3 +14,4 @@ test/*.phylip
 test/*.mummer
 test/*.sam
 test/*.paf
+test/*.fai

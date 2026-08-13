@@ -1,13 +1,14 @@
 # `llchain` — log-linear chaining with L∞ gap costs and Δdiag overlap costs
-`llchain` is a C++20 program to compute the anchored edit distance between query and reference DNA sequences in O(n log n) time, where n is the number of input anchors (currently MUMs or MEMs). The program is built on the same tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX), it supports FASTA or gzipped FASTA input, computes maximal unique/exact anchors, and can output the optimal chains in MUMmer-like, SAM, or PAF format.
+`llchain` is a C++20 program to compute the anchored edit distance between query and reference DNA sequences in O(n log n) time, where n is the number of input anchors (currently MUMs or MEMs). The program is built on the same tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX), it supports (gzipped) FASTA input, computes maximal unique/exact anchors, and can output the optimal chains in MUMmer-like, SAM, or PAF format.
 
-Right now, `llchain` has been only tested with GCC version 15. Get the repository and compile `llchain` with
+Right now, `llchain` has been only tested with GCC version 15. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
 ```console
 git clone https://github.com/nrizzo/llchain && cd llchain
 git submodule update --init ext/mummer
+(git submodule update --init --recursive ext/htslib && cd ext/htslib && autoreconf -i && ./configure && make -j$(nproc)) # if HTSlib + headers are not installed in your system
 make -j $(nproc)
-./llchain --text test/T1.fasta --query test/T2.fasta --sam test/out.sam
-./llchain --all-to-all --queries test/Q.fasta --paf test/out.paf
+./llchain --text test/T1.fasta --query test/T2.fasta --sam test/out.sam | column -t
+./llchain --all-to-all --text test/Q.fasta --phylip test/out.phylip | column -t
 ```
 
 ## Experiments
@@ -18,7 +19,7 @@ To run the experiment on HG002 PacBio HiFi reads aligned to the T2T-CHM13 refere
 ## External libraries
 `llchain` is built with the following libraries:
 
-- [kseq](https://github.com/lh3/seqtk) for FASTA parsing
+- [HTSlib](https://github.com/samtools/htslib) and [kseq](https://github.com/lh3/seqtk) for FASTA parsing
 - [mummer (essaMEM)](https://github.com/mummer4/mummer.git) for seed finding
 - [algbio/ChainX](https://github.com/algbio/ChainX) for the `--chainx` and `--chainx-opt` flags
 - [grid_to_bmp](https://people.sc.fsu.edu/~jburkardt/cpp_src/grid_to_bmp/grid_to_bmp.html) for debugging
@@ -32,7 +33,6 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 - I/O threads
 - query multithreading
 - PAF input
-- htslib
 - clang
 - investigate sorting
 - investigate predecessor data structures

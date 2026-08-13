@@ -16,33 +16,27 @@ usrbintime="/usr/bin/time -f"
 usrbintimeoptions="%e total time elapsed (s)\n%M maxresident k"
 
 echo "# human vs chimp (chr1 only)"
-mkfifo human.fa.gz
 refs=$thisfolder/output/human.fa.gz
-mkfifo chimp.fa.gz
 queries=$thisfolder/output/chimp.fa.gz
 llchainmode="--mode global"
 llchainseed="-a MUM -l 20"
 
 # run ChainX* (via llchain)
-seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
-seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
+seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz
+seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.1_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz
 $usrbintime "$usrbintimeoptions" $llchain --chainx $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
         >> human_mum_chainx 2>> human_mum_chainx
 # run ChainX*-opt (via llchain)
-seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
-seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
 $usrbintime "$usrbintimeoptions" $llchain --chainx-opt $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
         >> human_mum_chainx-opt 2>> human_mum_chainx-opt
 # run llchain
-seqtk subseq $thisfolder/input/GCF_000001405.40_GRCh38.p14_genomic.fna.gz <(echo NC_000001.11) > human.fa.gz &
-seqtk subseq $thisfolder/input/GCF_028858775.2_NHGRI_mPanTro3-v2.0_pri_genomic.fna.gz <(echo NC_072398.2) > chimp.fa.gz &
 $usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $refs -q $queries -o /dev/null \
         >> human_mum_llchain 2>> human_mum_llchain
 
 echo -n "Checking if the optimal chaining cost differs..."
 check=$(diff \
-	<(grep -v "^\[llchain\]" human_mum_chainx-opt | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
-	<(grep -v "^\[llchain\]"    human_mum_llchain | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
+	<(grep -v "^\[" human_mum_chainx-opt | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
+	<(grep -v "^\["    human_mum_llchain | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
 	; exit 0)
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
@@ -58,15 +52,15 @@ do
 	grep "maxresident" ${t} | cut -d' ' -f1 >> stats_space_$t
 
 	# anchor, total time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,10 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,10 \
 		> total_times_$t
 
 	# anchor, seeding time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,6 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,6 \
 		> seeding_times_$t
 
 	# anchor, preprocess + chain + postprocess time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,7,8,9 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,7,8,9 \
 		| awk 'BEGIN {OFS="\t"} {print $1,$2+$3+$4}' \
 		> chaining_times_$t
 
@@ -98,8 +92,8 @@ $usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -t $refs -q 
 
 echo -n "Checking if the optimal chaining cost differs..."
 check=$(diff \
-	<(grep -v "^\[llchain\]" plant_mum_chainx-opt | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
-	<(grep -v "^\[llchain\]"    plant_mum_llchain | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
+	<(grep -v "^\[" plant_mum_chainx-opt | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
+	<(grep -v "^\["    plant_mum_llchain | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
 	; exit 0)
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
@@ -115,15 +109,15 @@ do
 	grep "maxresident" ${t} | cut -d' ' -f1 >> stats_space_$t
 
 	# anchor, total time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,10 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,10 \
 		> total_times_$t
 
 	# anchor, seeding time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,6 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,6 \
 		> seeding_times_$t
 
 	# anchor, preprocess + chain + postprocess time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,7,8,9 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,7,8,9 \
 		| awk 'BEGIN {OFS="\t"} {print $1,$2+$3+$4}' \
 		> chaining_times_$t
 
@@ -166,8 +160,8 @@ $usrbintime "$usrbintimeoptions" $llchain $llchainmode $llchainseed -q $queries 
 
 echo -n "Checking if the optimal chaining cost differs..."
 check=$(diff \
-	<(grep -v "^\[llchain\]" hprc_mum_chainx-opt | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
-	<(grep -v "^\[llchain\]"    hprc_mum_llchain | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
+	<(grep -v "^\[" hprc_mum_chainx-opt | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
+	<(grep -v "^\["    hprc_mum_llchain | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f3) \
 	; exit 0)
 if [ "$check" != "" ] ; then echo " it differs!" ; exit 1 ; fi
 echo " done (no difference)."
@@ -183,15 +177,15 @@ do
 	grep "maxresident" ${t} | cut -d' ' -f1 >> stats_space_$t
 
 	# anchor, total time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,10 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,10 \
 		> total_times_$t
 
 	# anchor, seeding time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,6 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,6 \
 		> seeding_times_$t
 
 	# anchor, preprocess + chain + postprocess time
-	grep -v "^\[llchain\]" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,7,8,9 \
+	grep -v "^\[" $t | grep -v "^#" | grep -v "maxresident" | grep -v "elapsed" | cut -f4,7,8,9 \
 		| awk 'BEGIN {OFS="\t"} {print $1,$2+$3+$4}' \
 		> chaining_times_$t
 

@@ -1220,6 +1220,12 @@ void write_SAM_text(const string &text, const string &text_id, ostream &out)
 	out << "@SQ\tSN:" << text_id << "\tLN:" << text.length() << "\n";
 }
 
+export
+void write_SAM_text(const long unsigned int text_length, const string &text_id, ostream &out)
+{
+	out << "@SQ\tSN:" << text_id << "\tLN:" << text_length << "\n";
+}
+
 /*
  * NB: see write_cigar
  */

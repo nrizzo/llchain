@@ -14,10 +14,11 @@ import utils;
 import algo;
 import kseq;
 import mummer_essaMEM_wrapper;
+import htslib_wrapper;
 import chainx;
 import cli11;
 
-using std::cout, std::cerr, std::clog, std::endl;
+using std::cout, std::cerr, std::endl;
 using std::string, std::to_string;
 using std::vector;
 using std::ifstream, std::ofstream;
@@ -70,17 +71,17 @@ int main(int argc, char **argv)
 	io_streams ioss;
 
 	// ### CLI setup ###
-	CLI::App app("Log-linear chaining for anchored edit distance", "llchain");
+	CLI::App app("Log-linear chaining to compute the anchored edit distance", "llchain");
 	app.usage("Usage: llchain [-t ref.fa] [-q queries.fa] [-a {MUM,MEM}] [-m {global,semiglobal}] [OPTIONS]");
 	app.set_version_flag("--version", "llchain version " + string(VERSION));
 	string text_path {""}, query_path {""};
 	auto t_opt = app.add_option("-t,--text", text_path, "One or more DNA reference sequences in FASTA format (.fa,.fa.gz)")
 		->check(CLI::ExistingFile);
-	app.add_option("-q,--query,--queries", query_path, "DNA queries in FASTA format (.fa,.fa.gz)")
+	auto q_opt = app.add_option("-q,--query,--queries", query_path, "DNA queries in FASTA format (.fa,.fa.gz)")
 		->check(CLI::ExistingFile);
 
 	string anchor_type_s {}; // to be replaced by seed_p.anchor_type
-	auto anchor_type_opt = app.add_option("-a,--anchor-type", anchor_type_s, "MUM or MEM (computed by MUMmer/essaMEM)")
+	auto anchor_type_opt = app.add_option("-a,--anchor-type", anchor_type_s, "MUM or MEM (computed via MUMmer/essaMEM)")
 		->default_val("MUM");
 
 	auto anchor_length_opt = app.add_option("-l,--length", seed_p.anchor_length, "Minimum anchor length")
@@ -101,8 +102,9 @@ int main(int argc, char **argv)
 	app.add_flag("-r,--reverse-complement", reverse_complement, "Compute the anchored edit distance for the reversed-and-complemented queries as well");
 
 	bool all_to_all {false};
-	auto all_to_all_option = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the queries) to obtain a PHYLIP distance matrix in stdout")
-		->excludes(t_opt);
+	auto all_to_all_option = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the text sequences, see also --phylip)")
+		->excludes(q_opt)
+		->needs(t_opt);
 
 	auto chainx_option = app.add_flag("--chainx", chain_p.chainx, "Chain with at-cg/ChainX algorithm (variable B >= 100, alpha = 4)")
 		->group("")
@@ -140,15 +142,14 @@ int main(int argc, char **argv)
 		->check(open_trunc_check(ioss.mummer_out));
 	auto sam_opt = app.add_option("-s,--sam", sam_output_path, "Output the optimal chains in SAM format")
 		->check(open_trunc_check(ioss.sam_out));
-	app.add_option("-p,--paf", paf_output_path, "Output the optimal chains in PAF format")
-		->check(open_trunc_check(ioss.paf_out));
-	app.add_option("--phylip", phylip_output_path, "Output the anchored edit distances in PHYLIP format")
-		->check(open_trunc_check(ioss.phylip_out))
-		->needs(all_to_all_option);
-
 	chain_p.store_sam_sequence = false;
 	app.add_flag("--store-SAM-sequence", chain_p.store_sam_sequence, "Store the query sequence in the SAM output")
 		->needs(sam_opt);
+	app.add_option("-p,--paf", paf_output_path, "Output the optimal chains in PAF format")
+		->check(open_trunc_check(ioss.paf_out));
+	app.add_option("--phylip", phylip_output_path, "Output the anchored edit distances in PHYLIP format (lower triangular)")
+		->check(open_trunc_check(ioss.phylip_out))
+		->needs(all_to_all_option);
 
 	long debug_random_anchors {0};
 	auto debug_opt = app.add_option("--debug-random-anchors", debug_random_anchors, "DEBUG: fuzzy-test this number of random anchors in a 400x200 2D space")
@@ -198,6 +199,22 @@ int main(int argc, char **argv)
 
 	const bool backtrack = ioss.paf_out.is_open() or ioss.mummer_out.is_open() or ioss.sam_out.is_open();
 
+	if ((text_path != "") or (query_path != "")) {
+		// header for stdout output
+		cout << "#text_id";
+		cout << "\tquery_id";
+		cout << "\tanchored_ED";
+		cout << "\tanchors";
+		cout << "\tmerged";
+		cout << "\tseeding";
+		cout << "\tpreprocessing";
+		cout << "\tchaining";
+		cout << (backtrack ? "\tbacktrack" : "");
+		cout << "\ttotal_query";
+		cout << ((chain_p.chainx or chain_p.chainx_optimal) ? "\trevisions" : "");
+		cout << "\n";
+	}
+
 	// ### normal mode ###
 	if ((text_path != "") and (query_path != "")) {
 		cerr << string() +
@@ -214,20 +231,13 @@ int main(int argc, char **argv)
 			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string(""))
 			<< endl;
 
-		vector<string> texts, text_ids;
-		kseq::read_sequences(text_path, texts, text_ids);
-
-		cerr << string() +
-			"[llchain] loaded" +
-			" " + ((texts.size() == 1) ? "reference " + text_ids.front() : to_string(texts.size()) + " references") +
-			" (" + to_string(((texts.size() == 1) ? texts.front().length() : cumulative_length(texts))) + " bps)"
-			<< endl;
+		htslib_wrapper::fasta_file text_idx(text_path);
 
 		if (sam_output_path != "") {
 			assert(ioss.sam_out.is_open());
 			algo::write_SAM_header(ioss.sam_out);
-			for (size_type t = 0; t < texts.size(); t++)
-				algo::write_SAM_text(texts[t], text_ids[t], ioss.sam_out);
+			for (htslib_wrapper::hts_pos_t t = 0; t < text_idx.nseq(); t++)
+				algo::write_SAM_text(text_idx.len(t), text_idx.id(t), ioss.sam_out);
 		}
 
 		if (mummer_output_path != "") {
@@ -245,28 +255,16 @@ int main(int argc, char **argv)
 			assert(found_custom_anchors_header == 0);
 		}
 
-		// header for stdout output
-		cout << "#text_id";
-		cout << "\tquery_id";
-		cout << "\tanchored_ED";
-		cout << "\tanchors";
-		cout << "\tmerged";
-		cout << "\tseeding";
-		cout << "\tpreprocessing";
-		cout << "\tchaining";
-		cout << (backtrack ? "\tbacktrack" : "");
-		cout << "\ttotal_query";
-		cout << ((chain_p.chainx or chain_p.chainx_optimal) ? "\trevisions" : "");
-		cout << "\n";
-
-		for (size_type t = 0; t < texts.size(); t++) {
+		for (htslib_wrapper::hts_pos_t t = 0; t < text_idx.nseq(); t++) {
 			auto start = std::chrono::steady_clock::now();
-			auto const index = ((custom_anchors_path == "") ? mummer_essaMEM_wrapper::index(texts[t], seed_p.anchor_length) : mummer_essaMEM_wrapper::dummy_index());
+			const string text = text_idx.fetch(t);
+			const string text_id = text_idx.id(t);
+			auto const index = ((custom_anchors_path == "") ? mummer_essaMEM_wrapper::index(text, seed_p.anchor_length) : mummer_essaMEM_wrapper::dummy_index());
 			const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
 
 			if (custom_anchors_path == "") {
 				cerr << string() +
-					"[llchain] indexed " + text_ids[t] +
+					"[llchain] indexed " + text_id +
 					" in " + (std::ostringstream() << index_time).str()
 					<< endl;
 			}
@@ -274,11 +272,11 @@ int main(int argc, char **argv)
 			kseq::FastaGzInput fgz(query_path);
 			string query_id, query;
 			while (fgz.read_sequence(query_id, query)) {
-				seed_and_chain(seed_p, chain_p, ioss, index, texts[t], text_ids[t], query, query_id, backtrack, false);
+				seed_and_chain(seed_p, chain_p, ioss, index, text, text_id, query, query_id, backtrack, false);
 
 				if (reverse_complement) {
 					llchain::utils::reverse_complement(query);
-					seed_and_chain(seed_p, chain_p, ioss, index, texts[t], text_ids[t], query, query_id, backtrack, true);
+					seed_and_chain(seed_p, chain_p, ioss, index, text, text_id, query, query_id, backtrack, true);
 				}
 			}
 		}
@@ -301,7 +299,7 @@ int main(int argc, char **argv)
 		cerr << string() +
 			"[llchain] running with options" +
 			" --all-to-all" +
-			" -q " + query_path +
+			" -t " + text_path +
 			((custom_anchors_path == "") ? string(" -m " + mode_s) : string("")) +
 			((custom_anchors_path == "") ? string(" -a " + anchor_type_s) : string("")) +
 			((custom_anchors_path == "") ? string(" -l " + to_string(seed_p.anchor_length)) : string("")) +
@@ -309,25 +307,41 @@ int main(int argc, char **argv)
 			(reverse_complement ? string("-r") : string("")) +
 			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
 			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string("")) +
-			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string(""))
+			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string("")) +
+			((phylip_output_path  != "") ? string(" --phylip " + phylip_output_path) : string(""))
 			<< endl;
 
-		vector<string> queries, query_ids;
-		kseq::read_sequences(query_path, queries, query_ids);
+		htslib_wrapper::fasta_file text_idx(text_path);
+		assert(text_idx.nseq() > 0);
 
-		vector<vector<utils::anchor_index_t>> distances(
-				queries.size(),
-				vector<utils::anchor_index_t>(queries.size(),
-					std::numeric_limits<utils::anchor_index_t>::max())
-				);
-		for (size_type i = 1; i < queries.size(); i++) {
+		// https://phylipweb.github.io/phylip/doc/distance.html
+		if (phylip_output_path != "") {
+			ioss.phylip_out << text_idx.nseq() << "\n";
+			if (text_idx.id(0).length() <= 10)
+				ioss.phylip_out << text_idx.id(0) << string(10 - text_idx.id(0).length(), ' ');
+			else
+				ioss.phylip_out << text_idx.id(0).substr(0, 10);
+			ioss.phylip_out << "\n";
+		}
+
+		for (htslib_wrapper::hts_pos_t t = 1; t < text_idx.nseq(); t++) {
 			auto start = std::chrono::steady_clock::now();
-			auto const index = ((custom_anchors_path == "") ? mummer_essaMEM_wrapper::index(queries[i], seed_p.anchor_length) : mummer_essaMEM_wrapper::dummy_index());
+			const string text = text_idx.fetch(t);
+			const string text_id = text_idx.id(t);
+
+			if (phylip_output_path != "") {
+				if (text_id.length() <= 10)
+					ioss.phylip_out << text_id << string(10 - text_id.length(), ' ');
+				else
+					ioss.phylip_out << text_id.substr(0, 10);
+			}
+
+			auto const index = ((custom_anchors_path == "") ? mummer_essaMEM_wrapper::index(text, seed_p.anchor_length) : mummer_essaMEM_wrapper::dummy_index());
 			const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
 
 			if (custom_anchors_path == "") {
 				cerr << string() +
-					"[llchain] indexed " + query_ids[i] +
+					"[llchain] indexed " + text_id +
 					" in " + (std::ostringstream() << index_time).str()
 					<< endl;
 			}
@@ -339,36 +353,26 @@ int main(int argc, char **argv)
 				assert(found_custom_anchors_header == 0);
 			}
 
-			for (size_type j = 0; j < i; j++) {
-				utils::anchor_index_t anchored_ed = seed_and_chain(seed_p, chain_p, ioss, index, queries[i], query_ids[i], queries[j], query_ids[j], backtrack, false);
-				distances[i][j] = anchored_ed;
+			for (htslib_wrapper::hts_pos_t q = 0; q < t; q++) {
+				string query = text_idx.fetch(q);
+				const string query_id = text_idx.id(q);
+				utils::anchor_index_t anchored_ed = seed_and_chain(seed_p, chain_p, ioss, index, text, text_id, query, query_id, backtrack, false);
 
 				if (reverse_complement) {
-					string query(queries[j]);
 					llchain::utils::reverse_complement(query);
-					utils::anchor_index_t rc_anchored_ed = seed_and_chain(seed_p, chain_p, ioss, index, queries[i], query_ids[i], query, query_ids[j], backtrack, false);
-					distances[i][j] = std::min(distances[i][j], rc_anchored_ed);
+					utils::anchor_index_t rc_anchored_ed = seed_and_chain(seed_p, chain_p, ioss, index, text, text_id, query, query_id, backtrack, false);
+					anchored_ed = std::min(anchored_ed, rc_anchored_ed);
+				}
+
+				if (phylip_output_path != "") {
+					ioss.phylip_out << " " << anchored_ed;
 				}
 			}
-		}
-
-		// https://phylipweb.github.io/phylip/doc/distance.html
-		ioss.phylip_out << queries.size() << "\n";
-		for (size_type i = 0; i < queries.size(); i++) {
-			if (query_ids[i].size() <= 10)
-				ioss.phylip_out << query_ids[i] << string(10 - query_ids[i].size(), ' ');
-			else
-				ioss.phylip_out << query_ids[i].substr(0, 10);
-
-			for (size_type j = 0; j < queries.size(); j++) {
-				if (i == j)
-					ioss.phylip_out << " " << 0;
-				else
-					ioss.phylip_out << " " << ((j < i) ? distances[i][j] : distances[j][i]);
+			if (phylip_output_path != "") {
+				ioss.phylip_out << "\n";
 			}
-
-			ioss.phylip_out << "\n";
 		}
+
 		return 0;
 	}
 
