@@ -1,10 +1,10 @@
 # `llchain` — log-linear chaining with L∞ gap costs and Δdiag overlap costs
 `llchain` is a C++20 program to compute the anchored edit distance between query and reference DNA sequences in O(n log n) time, where n is the number of input anchors (currently MUMs or MEMs). The program is built on the same tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX), it supports (gzipped) FASTA input, computes maximal unique/exact anchors, and can output the optimal chains in MUMmer-like, SAM, or PAF format.
 
-Right now, `llchain` has been only tested with GCC version 15. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
+Right now, `llchain` has been only tested with GCC versions 15 and 16. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
 ```console
 git clone https://github.com/nrizzo/llchain && cd llchain
-git submodule update --init ext/mummer
+git submodule update --init ext/mummer ext/CLI11 ext/concurrentqueue
 (git submodule update --init --recursive ext/htslib && cd ext/htslib && autoreconf -i && ./configure && make -j$(nproc)) # if HTSlib + headers are not installed in your system
 make -j $(nproc)
 ./llchain --text test/T1.fasta --query test/T2.fasta --sam test/out.sam | column -t
@@ -22,6 +22,7 @@ To run the experiment on HG002 PacBio HiFi reads aligned to the T2T-CHM13 refere
 - [HTSlib](https://github.com/samtools/htslib) and [kseq](https://github.com/lh3/seqtk) for FASTA parsing
 - [mummer (essaMEM)](https://github.com/mummer4/mummer.git) for seed finding
 - [algbio/ChainX](https://github.com/algbio/ChainX) for the `--chainx` and `--chainx-opt` flags
+- [moodycamel::ConcurrentQueue](https://github.com/cameron314/concurrentqueue) for handling multithreading queues
 - [grid_to_bmp](https://people.sc.fsu.edu/~jburkardt/cpp_src/grid_to_bmp/grid_to_bmp.html) for debugging
 
 ## Citation
@@ -30,8 +31,6 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.
 
 ## TODOs
-- I/O threads
-- query multithreading
 - PAF input
 - clang
 - investigate sorting

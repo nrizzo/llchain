@@ -2,7 +2,7 @@ VERSION=$(shell git rev-parse --short HEAD)
 FLAGS=-std=c++20 -O3 -Wall -fmodules
 CFLAGS=-std=c++20 -O3 -Wall
 LDFLAGS=-lz
-STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set list string numeric sstream cmath array filesystem
+STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set list string numeric sstream cmath array filesystem thread syncstream latch barrier optional atomic
 STDMODULES_FAKEFILES=$(foreach s,$(STDMODULES),makefile.cache/$(s))
 ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 HTSLIB_LIB=$(ROOT_DIR)ext/htslib
@@ -11,7 +11,7 @@ HTSLIB_FLAGS=-L $(HTSLIB_LIB) -lhts -Wl,-rpath $(HTSLIB_LIB)
 
 LLCHAIN_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o ext/cli11.o ext/htslib_wrapper.o
 llchain : src/llchain.cpp $(LLCHAIN_OBJS) $(STDMODULES_FAKEFILES)
-	g++ -I src -I ext $(FLAGS) $(HTSLIB_FLAGS) -DVERSION="\"$(VERSION)\"" $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
+	g++ -I ext/concurrentqueue $(FLAGS) $(HTSLIB_FLAGS) -DVERSION="\"$(VERSION)\"" $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
 
 src/utils.o : src/utils.cppm ext/grid_to_bmp.o $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -c $< -o $@

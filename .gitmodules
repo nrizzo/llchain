@@ -11,3 +11,6 @@
 [submodule "ext/htslib"]
 	path = ext/htslib
 	url = https://github.com/samtools/htslib.git
+[submodule "ext/concurrentqueue"]
+	path = ext/concurrentqueue
+	url = https://github.com/cameron314/concurrentqueue

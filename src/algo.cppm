@@ -1073,39 +1073,33 @@ tuple<ai_t,vector<ai_t>,vector<ai_t>> compute_cd_ranks(const vector<anchor_t> &a
  */
 export
 void write_cigar(
-	const string &text,
-	const string &query,
+	const string::size_type text_length,
+	const string::size_type query_length,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
 	ostream &out
 ) {
 	assert(chain.size() > 1);
 	assert(chain.front() == anchor_t({-1, -1, 1}));
-	assert(chain.back() == anchor_t({text.length(), query.length(), 1}));
+	assert(chain.back() == anchor_t({text_length, query_length, 1}));
 	const ai_t n = chain.size();
-	//string debugT = text, debugQ = query;
 
 	if (m == global) {
 		const ai_t Tgap = get<0>(chain[1]);
 		const ai_t Qgap = get<1>(chain[1]);
 		if (min(Tgap, Qgap) > 0) {
 			out << min(Tgap, Qgap) << "M";
-			//debugT = debugT.substr(min(Tgap, Qgap));
-			//debugQ = debugQ.substr(min(Tgap, Qgap));
 		}
 		if (Tgap > Qgap) {
 			out << Tgap - Qgap <<  "D";
-			//debugT =  debugT.substr(Tgap - Qgap);
 		}
 		if (Tgap < Qgap) {
 			out << Qgap - Tgap <<  "I";
-			//debugQ = debugQ.substr(Qgap - Tgap);
 		}
 	} else { // semiglobal
 		const ai_t Qgap = get<1>(chain[1]);
 		if (Qgap > 0) {
 			out << Qgap << "I";
-			//debugQ = debugQ.substr(Qgap);
 		}
 	}
 
@@ -1121,88 +1115,57 @@ void write_cigar(
 
 		if (Tovl > 0 and Qovl > 0) {
 			out << min(j_a - i_a, j_c - i_c) << "=";
-			//assert(debugT.substr(0, min(j_a - i_a, j_c - i_c)) == debugQ.substr(0, min(j_a - i_a, j_c - i_c)));
-			//debugT = debugT.substr(min(j_a - i_a, j_c - i_c));
-			//debugQ = debugQ.substr(min(j_a - i_a, j_c - i_c));
 			if (Tovl > Qovl) {
 				out << Tovl - Qovl << "I";
-				//debugQ = debugQ.substr(Tovl - Qovl);
 			} else if (Tovl < Qovl) {
 				out << Qovl - Tovl << "D";
-				//debugT = debugT.substr(Qovl - Tovl);
 			}
 			// else perfect chain, do nothing
 		} else if (Tovl > 0 and Qgap > 0) {
 			out << j_a - i_a << "=";
-			//assert(debugT.substr(0, j_a - i_a) == debugQ.substr(0, j_a - i_a));
-			//debugT = debugT.substr(j_a - i_a);
-			//debugQ = debugQ.substr(j_a - i_a);
 			out << Tovl + Qgap << "I";
-			//debugQ = debugQ.substr(Tovl + Qgap);
 		} else if (Tgap > 0 and Qovl > 0) {
 			out << j_c - i_c << "=";
-			//assert(debugT.substr(0, j_c - i_c) == debugQ.substr(0, j_c - i_c));
-			//debugT = debugT.substr(j_c - i_c);
-			//debugQ = debugQ.substr(j_c - i_c);
 			out << Tgap + Qovl << "D";
-			//debugT = debugT.substr(Tgap + Qovl);
 		} else {
 			out << i_length - max(Tovl, Qovl) << "=";
-			//assert(debugT.substr(0, i_length) == debugQ.substr(0, i_length));
-			//debugT = debugT.substr(i_length - max(Tovl, Qovl));
-			//debugQ = debugQ.substr(i_length - max(Tovl, Qovl));
 			if (Tgap > 0 and Qgap > 0) {
 				out << min(Tgap, Qgap) << "M";
-				//debugT = debugT.substr(min(Tgap, Qgap));
-				//debugQ = debugQ.substr(min(Tgap, Qgap));
 			}
 			if (Tgap < Qgap) {
 				out << Qgap - Tgap << "I";
-				//debugQ = debugQ.substr(Qgap - Tgap);
 			}
 			if (Tgap > Qgap) {
 				out << Tgap - Qgap << "D";
-				//debugT = debugT.substr(Tgap - Qgap);
 			}
 			if (Tovl > 0) {
 				out << Tovl << "I";
-				//debugQ = debugQ.substr(Tovl);
 			}
 			if (Qovl > 0) {
 				out << Qovl << "D";
-				//debugT = debugT.substr(Qovl);
 			}
 		}
 	}
 
 	out << get<2>(chain[n-2]) << "=";
-	//assert(debugT.substr(0, get<2>(chain[n-2])) == debugQ.substr(0, get<2>(chain[n-2])));
-	//debugT = debugT.substr(get<2>(chain[n-2]));
-	//debugQ = debugQ.substr(get<2>(chain[n-2]));
 	if (m == global) {
 		const ai_t Tgap = get<0>(chain[n-1]) - (get<0>(chain[n-2]) + get<2>(chain[n-2]));
 		const ai_t Qgap = get<1>(chain[n-1]) - (get<1>(chain[n-2]) + get<2>(chain[n-2]));
 		if (min(Tgap, Qgap) > 0) {
 			out << min(Tgap, Qgap) << "M";
-			//debugT = debugT.substr(min(Tgap, Qgap));
-			//debugQ = debugQ.substr(min(Tgap, Qgap));
 		}
 		if (Tgap > Qgap) {
 			out << Tgap - Qgap <<  "D";
-			//debugT = debugT.substr(Tgap - Qgap);
 		}
 		if (Tgap < Qgap) {
 			out << Qgap - Tgap <<  "I";
-			//debugQ = debugQ.substr(Qgap - Tgap);
 		}
 	} else { // semiglobal
 		const ai_t Qgap = get<1>(chain[n-1]) - (get<1>(chain[n-2]) + get<2>(chain[n-2]));
 		if (Qgap > 0) {
 			out << Qgap << "I";
-			//debugQ = debugQ.substr(Qgap);
 		}
 	}
-	//assert(debugQ.size() == 0 and debugT.size() == 0);
 }
 
 /*
@@ -1231,7 +1194,7 @@ void write_SAM_text(const long unsigned int text_length, const string &text_id, 
  */
 export
 void write_SAM_entry(
-	const string &text,
+	const string::size_type text_length,
 	const string &text_id,
 	const string &query,
 	const string &query_id,
@@ -1248,12 +1211,18 @@ void write_SAM_entry(
 	out << text_id << '\t'; // RNAME
 	out << ((m == global) ? 1 : get<0>(chain[1])+1) << '\t'; // POS
 	out << "30\t"; // MAPQ
-	write_cigar(text, query, chain, m, out); // CIGAR
+	write_cigar(text_length, query.length(), chain, m, out); // CIGAR
 	out << '\t';
 	out << "*\t"; // RNEXT
 	out << "0\t"; // PNEXT
 	out << "0\t"; // TLEN
-	out << ((store_SAM_sequence) ? query : "*") << '\t'; // SEQ
+	if (store_SAM_sequence) {
+		string original(query);
+		utils::reverse_complement(original);
+		out << original << '\t'; // SEQ
+	} else {
+		out << '*' << '\t'; // SEQ
+	}
 	out << "*\t"; // QUAL
 	out << "NM:i:" << anchored_ed; // NM TAG
 	out << '\n';
@@ -1264,7 +1233,7 @@ void write_SAM_entry(
  */
 export
 void write_PAF_entry(
-	const string &text,
+	const string::size_type text_length,
 	const string &text_id,
 	const string &query,
 	const string &query_id,
@@ -1284,14 +1253,14 @@ void write_PAF_entry(
 	out << "\t" << query.length(); // QEND (0-based, open)
 	out << "\t" << (is_query_rc ? "-" : "+"); // STRAND
 	out << "\t" << text_id; // TNAME
-	out << "\t" << text.length(); // TLENGTH
+	out << "\t" << text_length; // TLENGTH
 	out << "\t" << ((m == semiglobal) ? to_string(get<0>(first)) : "0"); // TSTART (0-based, original strand)
-	out << "\t" << ((m == semiglobal) ? to_string(get<0>(last) + get<2>(last)) : to_string(text.length())); // TEND (0-based, open, original strand)
+	out << "\t" << ((m == semiglobal) ? to_string(get<0>(last) + get<2>(last)) : to_string(text_length)); // TEND (0-based, open, original strand)
 	const auto [mut_cov, aln_len] = chain_stats(chain, m);
 	out << "\t" << mut_cov; // MATCHES
 	out << "\t" << aln_len; // ALIGNMENTLEN
 	out << "\t" << 255; // QUAL
-	out << "\t" << "cg:Z:"; write_cigar(text, query, chain, m, out); // CIGAR
+	out << "\t" << "cg:Z:"; write_cigar(text_length, query.length(), chain, m, out); // CIGAR
 	out << "\n";
 }
 
