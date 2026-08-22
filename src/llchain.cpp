@@ -411,14 +411,14 @@ int main(int argc, char **argv)
 		vector<utils::anchor_index_t> distances;
 		barrier sync_point(1 + qthreads); // to sync reader_indexer and seed_chain workers
 		atomic<bool> stage_end(false);
+		string text(""), text_id("");
 		optional<mummer_essaMEM_wrapper::sparseSA> index = mummer_essaMEM_wrapper::dummy_index(); // no copy/move constructor
 		string::size_type text_length = 0;
-		string text_id("");
 		latch reader_done(1);
 		auto reader_indexer_worker = jthread([&]() {
 			for (htslib_wrapper::hts_pos_t t = 1; t < text_idx.nseq(); t++) {
 				auto start = std::chrono::steady_clock::now();
-				const string text = text_idx.fetch(t);
+				text = text_idx.fetch(t);
 				text_id = text_idx.id(t);
 
 				if (phylip_output_path != "") {
@@ -438,7 +438,9 @@ int main(int argc, char **argv)
 					" in " + (ostringstream() << index_time).str()
 					<< endl;
 
-				distances.resize(t);
+				if (phylip_output_path != "") {
+					distances.resize(t);
+				}
 				for (htslib_wrapper::hts_pos_t q = 0; q < t; q++) {
 					string query = text_idx.fetch(q);
 					const string query_id = text_idx.id(q);
@@ -477,11 +479,27 @@ int main(int argc, char **argv)
 				};
 				while (true) {
 					while (ata_read_queue.try_dequeue(r) or ata_assembly_queue.try_dequeue(r)) {
-						distances[r.read_i] = seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
-
-						if (reverse_complement) {
-							llchain::utils::reverse_complement(r.read);
-							distances[r.read_i] = min(distances[r.read_i], seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, true));
+						if (chain_p.mode == utils::chaining_mode::global or text_length >= r.read.length()) {
+							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
+							if (reverse_complement) {
+								llchain::utils::reverse_complement(r.read);
+								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, true));
+							}
+							if (phylip_output_path != "") {
+								distances[r.read_i] = anchored_ed;
+							}
+						} else {
+							// the smaller text sequence is the "query"
+							auto qindex = mummer_essaMEM_wrapper::index(r.read, seed_p.anchor_length);
+							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, text, text_id, backtrack, false);
+							if (reverse_complement) {
+								string rc_text(text);
+								llchain::utils::reverse_complement(rc_text);
+								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, rc_text, text_id, backtrack, true));
+							}
+							if (phylip_output_path != "") {
+								distances[r.read_i] = anchored_ed;
+							}
 						}
 						if (ioss_sync.cout.good()) ioss_sync.cout.emit();
 						if (ioss_sync.sam_out.good()) ioss_sync.sam_out.emit();
