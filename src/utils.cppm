@@ -26,7 +26,7 @@ using grid_to_bmp::Color, grid_to_bmp::BmpImage; // grid_to_bmp
 namespace llchain::utils {
 export typedef grid_to_bmp::BmpImage Image;
 
-export enum chaining_mode { global, semiglobal };
+export enum chaining_mode { global, semiglobal, global_skipcost, semiglobal_skipcost };
 
 export namespace defaults
 {
@@ -475,10 +475,10 @@ tuple<anchor_index_t, anchor_index_t> chain_stats(
 		const chaining_mode m
 ) {
 	anchor_index_t mut_cov = 0, aln_len = 0;
-	if (m == global) {
+	if (m == global or m == global_skipcost) {
 		aln_len += connect(chain[0], chain[1]);
 	} else {
-		assert(m == semiglobal);
+		assert(m == semiglobal or m == semiglobal_skipcost);
 		aln_len += connect_Qgap(chain[0], chain[1]);
 	}
 
@@ -500,10 +500,10 @@ tuple<anchor_index_t, anchor_index_t> chain_stats(
 
 	mut_cov += get<2>(chain[chain.size() - 2]);
 	aln_len += get<2>(chain[chain.size() - 2]);
-	if (m == global) {
+	if (m == global or m == global_skipcost) {
 		aln_len += connect(chain[chain.size() - 2], chain[chain.size() - 1]);
 	} else {
-		assert(m == semiglobal);
+		assert(m == semiglobal or m == semiglobal_skipcost);
 		aln_len += connect_Qgap(chain[chain.size() - 2], chain[chain.size() - 1]);
 	}
 

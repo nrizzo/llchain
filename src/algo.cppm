@@ -25,7 +25,7 @@ using std::iota;
 using std::ostream;
 using std::string, std::to_string;
 using namespace llchain;
-using utils::chaining_mode, utils::chaining_mode::global, utils::chaining_mode::semiglobal, utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes, utils::chain_stats;
+using utils::chaining_mode, utils::chaining_mode::global, utils::chaining_mode::semiglobal, utils::chaining_mode::global_skipcost, utils::chaining_mode::semiglobal_skipcost, utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes, utils::chain_stats;
 typedef utils::anchor_index_t ai_t;
 
 namespace llchain::algo {
@@ -132,8 +132,13 @@ void chainx_solve_naive(
 
 		if (m == global) {
 			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d);
-		} else {
+		} else if (m == semiglobal) {
 			i_cost = connect_Qgap(anchors[0], i_c);
+		} else if (m == global_skipcost) {
+			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d) / 2;
+		} else {
+			assert(m == semiglobal_skipcost);
+			i_cost = connect_Qgap(anchors[0], i_c) / 2;
 		}
 		backtrack = 0;
 
@@ -154,13 +159,22 @@ void chainx_solve_naive(
 		costs_out[i] = i_cost;
 		backtracks[i] = backtrack;
 	}
-	if (m == semiglobal) {
+	if (m != global) {
 		ai_t final_cost = std::numeric_limits<ai_t>::max();
 		ai_t backtrack = -1;
-		const ai_t final_c = get<1>(anchors[n-1]);
 		for (ai_t j = 1; j < n - 1; j++) {
 			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
-				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				ai_t c;
+				if (m == semiglobal) {
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				} else if (m == global_skipcost) {
+					c = costs_out[j] + connect(anchors[j], anchors[n-1]) / 2;
+				} else {
+					assert(m == semiglobal_skipcost);
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c) / 2;
+				}
 				if (c < final_cost) backtrack = j;
 				final_cost = min(final_cost, c);
 			}
@@ -201,8 +215,13 @@ void weak_solve_naive(
 
 		if (m == global) {
 			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d);
-		} else {
+		} else if (m == semiglobal) {
 			i_cost = connect_Qgap(anchors[0], i_c);
+		} else if (m == global_skipcost) {
+			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d) / 2;
+		} else {
+			assert(m == semiglobal_skipcost);
+			i_cost = connect_Qgap(anchors[0], i_c) / 2;
 		}
 		backtrack = 0;
 
@@ -223,13 +242,22 @@ void weak_solve_naive(
 		costs_out[i] = i_cost;
 		backtracks[i] = backtrack;
 	}
-	if (m == semiglobal) {
+	if (m != global) {
 		ai_t final_cost = std::numeric_limits<ai_t>::max();
 		ai_t backtrack = -1;
-		const ai_t final_c = get<1>(anchors[n-1]);
 		for (ai_t j = 1; j < n - 1; j++) {
 			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
-				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				ai_t c;
+				if (m == semiglobal) {
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				} else if (m == global_skipcost) {
+					c = costs_out[j] + connect(anchors[j], anchors[n-1]) / 2;
+				} else {
+					assert(m == semiglobal_skipcost);
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c) / 2;
+				}
 				if (c < final_cost) backtrack = j;
 				final_cost = min(final_cost, c);
 			}
@@ -333,7 +361,7 @@ void weak_solve_loglinear(
 	points.reserve(2 * n - 3);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points.push_back(-i);
-	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in non-global mode)
 		points.push_back(i);
 	//std::sort(points.begin(), points.end(),
 	//	[&](const ai_t i, const ai_t j) -> bool {
@@ -365,8 +393,13 @@ void weak_solve_loglinear(
 			ai_t cost = std::numeric_limits<ai_t>::max();
 			if (m == global) {
 				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
-			} else {
+			} else if (m == semiglobal) {
 				cost = connect_Qgap(anchors[0], i_c);
+			} else if (m == global_skipcost) {
+				cost = connect(anchors[0], i_a, i_b, i_c, i_d) / 2;
+			} else {
+				assert(m == semiglobal_skipcost);
+				cost = connect_Qgap(anchors[0], i_c) / 2;
 			}
 
 			cost = min(cost, compute_case_two  (I_two, i, anchors[i]));
@@ -390,12 +423,21 @@ void weak_solve_loglinear(
 		}
 	}
 
-	if (m == semiglobal) {
+	if (m != global) {
 		ai_t final_cost = std::numeric_limits<ai_t>::max();
-		const ai_t final_c = get<1>(anchors[n-1]);
 		for (ai_t j = 0; j < n - 1; j++) {
 			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
-				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				ai_t c;
+				if (m == semiglobal) {
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				} else if (m == global_skipcost) {
+					c = costs_out[j] + connect(anchors[j], anchors[n-1]) / 2;
+				} else {
+					assert(m == semiglobal_skipcost);
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c) / 2;
+				}
 				final_cost = min(final_cost, c);
 			}
 		}
@@ -524,7 +566,7 @@ void weak_solve_loglinear_debug(
 	points.reserve(2 * n - 1);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points.push_back(-i);
-	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in semi-global mode)
+	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in non-global mode)
 		points.push_back(i);
 	std::sort(points.begin(), points.end(),
 		[&](const ai_t i, const ai_t j) -> bool {
@@ -551,8 +593,13 @@ void weak_solve_loglinear_debug(
 			ai_t cost = std::numeric_limits<ai_t>::max();
 			if (m == global) {
 				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
-			} else {
+			} else if (m == semiglobal) {
 				cost = connect_Qgap(anchors[0], i_c);
+			} else if (m == global_skipcost) {
+				cost = connect(anchors[0], i_a, i_b, i_c, i_d) / 2;
+			} else {
+				assert(m == semiglobal_skipcost);
+				cost = connect_Qgap(anchors[0], i_c) / 2;
 			}
 			assert(compute_case_two  (I_two, i, anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
 			cost = min(cost, compute_case_two  (I_two, i, anchors[i]));
@@ -582,12 +629,21 @@ void weak_solve_loglinear_debug(
 		}
 	}
 
-	if (m == semiglobal) {
+	if (m != global) {
 		ai_t final_cost = std::numeric_limits<ai_t>::max();
-		const ai_t final_c = get<1>(anchors[n-1]);
 		for (ai_t j = 0; j < n - 1; j++) {
 			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
-				const ai_t c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				ai_t c;
+				if (m == semiglobal) {
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c);
+				} else if (m == global_skipcost) {
+					c = costs_out[j] + connect(anchors[j], anchors[n-1]) / 2;
+				} else {
+					assert(m == semiglobal_skipcost);
+					const ai_t final_c = get<1>(anchors[n-1]);
+					c = costs_out[j] + connect_Qgap(anchors[j], final_c) / 2;
+				}
 				final_cost = min(final_cost, c);
 			}
 		}
@@ -869,13 +925,19 @@ void chainx_backtrack(
 		return;
 	if (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1]))
 		return;
+	if (m == global_skipcost and costs[n-1] == costs[0] + (connect(anchors[0], anchors[n-1]) / 2))
+		return;
+	if (m == semiglobal_skipcost and costs[n-1] == costs[0] + (connect_Qgap(anchors[0], anchors[n-1]) / 2))
+		return;
 
 	ai_t i = n - 1;
 	chain_out.push_back(anchors[n-1]);
-	if (m == semiglobal) {
+	if (m != global) {
 		const ai_t final_c = get<1>(anchors[n-1]);
 		for (ai_t j = i - 1; j > 0; j--) {
-			if (costs[j] + connect_Qgap(anchors[j], final_c) == costs[n-1]) {
+			if ((m == semiglobal and costs[j] + connect_Qgap(anchors[j], final_c) == costs[n-1]) or
+			    (m == global_skipcost and costs[j] + (connect(anchors[j], anchors[n-1]) / 2) == costs[n-1]) or
+			    (m == semiglobal_skipcost and costs[j] + (connect_Qgap(anchors[j], final_c) / 2) == costs[n-1])) {
 				chain_out.push_back(anchors[j]);
 				i = j;
 				break;
@@ -898,13 +960,18 @@ void chainx_backtrack(
 
 		if (!success) {
 			if (m == global) {
-				if (costs[i] == connect(anchors[0], anchors[i])) {
+				if (costs[i] == connect(anchors[0], anchors[i]))
 					break;
-				}
+			} else if (m == semiglobal) {
+				if (costs[i] == connect_Qgap(anchors[0], anchors[i]))
+					break;
+			} else if (m == global_skipcost) {
+				if (costs[i] == connect(anchors[0], anchors[i]) / 2)
+					break;
 			} else {
-				if (costs[i] == connect_Qgap(anchors[0], anchors[i])) {
+				assert(m == semiglobal_skipcost);
+				if (costs[i] == connect_Qgap(anchors[0], anchors[i]) / 2)
 					break;
-				}
 			}
 			assert(false);
 		}
@@ -929,13 +996,19 @@ void weak_backtrack(
 		return;
 	if (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1]))
 		return;
+	if (m == global_skipcost and costs[n-1] == costs[0] + (connect(anchors[0], anchors[n-1]) / 2))
+		return;
+	if (m == semiglobal_skipcost and costs[n-1] == costs[0] + (connect_Qgap(anchors[0], anchors[n-1]) / 2))
+		return;
 
 	ai_t i = n - 1;
 	chain_out.push_back(anchors[n-1]);
-	if (m == semiglobal) {
+	if (m != global) {
 		const ai_t final_c = get<1>(anchors[n-1]);
 		for (ai_t j = i - 1; j > 0; j--) {
-			if (costs[j] + connect_Qgap(anchors[j], final_c) == costs[n-1]) {
+			if ((m == semiglobal and costs[j] + connect_Qgap(anchors[j], final_c) == costs[n-1]) or
+			    (m == global_skipcost and costs[j] + (connect(anchors[j], anchors[n-1]) / 2) == costs[n-1]) or
+			    (m == semiglobal_skipcost and costs[j] + (connect_Qgap(anchors[j], final_c) / 2) == costs[n-1])) {
 				chain_out.push_back(anchors[j]);
 				i = j;
 				break;
@@ -958,13 +1031,18 @@ void weak_backtrack(
 
 		if (!success) {
 			if (m == global) {
-				if (costs[i] == connect(anchors[0], anchors[i])) {
+				if (costs[i] == connect(anchors[0], anchors[i]))
 					break;
-				}
+			} else if (m == semiglobal) {
+				if (costs[i] == connect_Qgap(anchors[0], anchors[i]))
+					break;
+			} else if (m == global_skipcost) {
+				if (costs[i] == connect(anchors[0], anchors[i]) / 2)
+					break;
 			} else {
-				if (costs[i] == connect_Qgap(anchors[0], anchors[i])) {
+				assert(m == semiglobal_skipcost);
+				if (costs[i] == connect_Qgap(anchors[0], anchors[i]) / 2)
 					break;
-				}
 			}
 			assert(false);
 		}
@@ -984,8 +1062,13 @@ ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mode m)
 	ai_t cost = 0;
 	if (m == global) {
 		cost += connect(chain[0], chain[1]);
-	} else {
+	} else if (m == semiglobal) {
 		cost += connect_Qgap(chain[0], chain[1]);
+	} else if (m == global_skipcost) {
+		cost += connect(chain[0], chain[1]) / 2;
+	} else {
+		assert(m == semiglobal_skipcost);
+		cost += connect_Qgap(chain[0], chain[1]) / 2;
 	}
 
 	for (ai_t i = 1; i < ((m == global) ? n-1 : n-2); i++) {
@@ -994,6 +1077,10 @@ ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mode m)
 
 	if (m == semiglobal) {
 		cost += connect_Qgap(chain[n - 2], chain[n - 1]);
+	} else if (m == global_skipcost) {
+		cost += connect(chain[n - 2], chain[n - 1]) / 2;
+	} else if (m == semiglobal_skipcost) {
+		cost += connect_Qgap(chain[n - 2], chain[n - 1]) / 2;
 	}
 
 	return cost;
@@ -1084,7 +1171,7 @@ void write_cigar(
 	assert(chain.back() == anchor_t({text_length, query_length, 1}));
 	const ai_t n = chain.size();
 
-	if (m == global) {
+	if (m == global or m == global_skipcost) {
 		const ai_t Tgap = get<0>(chain[1]);
 		const ai_t Qgap = get<1>(chain[1]);
 		if (min(Tgap, Qgap) > 0) {
@@ -1096,7 +1183,8 @@ void write_cigar(
 		if (Tgap < Qgap) {
 			out << Qgap - Tgap <<  "I";
 		}
-	} else { // semiglobal
+	} else {
+		assert(m == semiglobal or m == semiglobal_skipcost);
 		const ai_t Qgap = get<1>(chain[1]);
 		if (Qgap > 0) {
 			out << Qgap << "I";
@@ -1148,7 +1236,7 @@ void write_cigar(
 	}
 
 	out << get<2>(chain[n-2]) << "=";
-	if (m == global) {
+	if (m == global or m == global_skipcost) {
 		const ai_t Tgap = get<0>(chain[n-1]) - (get<0>(chain[n-2]) + get<2>(chain[n-2]));
 		const ai_t Qgap = get<1>(chain[n-1]) - (get<1>(chain[n-2]) + get<2>(chain[n-2]));
 		if (min(Tgap, Qgap) > 0) {
@@ -1160,7 +1248,8 @@ void write_cigar(
 		if (Tgap < Qgap) {
 			out << Qgap - Tgap <<  "I";
 		}
-	} else { // semiglobal
+	} else {
+		assert(m == semiglobal or m == semiglobal_skipcost);
 		const ai_t Qgap = get<1>(chain[n-1]) - (get<1>(chain[n-2]) + get<2>(chain[n-2]));
 		if (Qgap > 0) {
 			out << Qgap << "I";
@@ -1209,7 +1298,7 @@ void write_SAM_entry(
 	out << query_id << '\t'; // QNAME
 	out << to_string(2 + (is_query_rc ? 16 : 0)) << "\t"; // FLAG
 	out << text_id << '\t'; // RNAME
-	out << ((m == global) ? 1 : get<0>(chain[1])+1) << '\t'; // POS
+	out << ((m == global or m == global_skipcost) ? 1 : get<0>(chain[1])+1) << '\t'; // POS
 	out << "30\t"; // MAPQ
 	write_cigar(text_length, query.length(), chain, m, out); // CIGAR
 	out << '\t';
@@ -1254,8 +1343,8 @@ void write_PAF_entry(
 	out << "\t" << (is_query_rc ? "-" : "+"); // STRAND
 	out << "\t" << text_id; // TNAME
 	out << "\t" << text_length; // TLENGTH
-	out << "\t" << ((m == semiglobal) ? to_string(get<0>(first)) : "0"); // TSTART (0-based, original strand)
-	out << "\t" << ((m == semiglobal) ? to_string(get<0>(last) + get<2>(last)) : to_string(text_length)); // TEND (0-based, open, original strand)
+	out << "\t" << ((m == semiglobal or m == semiglobal_skipcost) ? to_string(get<0>(first)) : "0"); // TSTART (0-based, original strand)
+	out << "\t" << ((m == semiglobal or m == semiglobal_skipcost) ? to_string(get<0>(last) + get<2>(last)) : to_string(text_length)); // TEND (0-based, open, original strand)
 	const auto [mut_cov, aln_len] = chain_stats(chain, m);
 	out << "\t" << mut_cov; // MATCHES
 	out << "\t" << aln_len; // ALIGNMENTLEN

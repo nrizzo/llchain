@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 
 	// ### CLI setup ###
 	CLI::App app("Log-linear chaining to compute the anchored edit distance", "llchain");
-	app.usage("Usage: llchain [-t ref.fa] [-q queries.fa] [-a {MUM,MEM}] [-m {global,semiglobal}] [OPTIONS]");
+	app.usage("Usage: llchain [-t ref.fa] [-q queries.fa] [-a {MUM,MEM}] [-m {global,global-sc,semiglobal,semiglobal-sc}] [OPTIONS]");
 	app.set_version_flag("--version", "llchain version " + string(VERSION));
 	string text_path {""}, query_path {""};
 	auto t_opt = app.add_option("-t,--text", text_path, "One or more DNA reference sequences in FASTA format (.fa,.fa.gz)")
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 
 
 	string anchor_type_s {}; // to be replaced by seed_p.anchor_type
-	app.add_option("-a,--anchor-type", anchor_type_s, "MUM or MEM (computed via MUMmer/essaMEM)")
+	app.add_option("-a,--anchor-type", anchor_type_s, "Use MUM or MEM anchors (computed via MUMmer/essaMEM)")
 		->default_val("MUM");
 
 	app.add_option("-l,--length", seed_p.anchor_length, "Minimum anchor length")
@@ -136,14 +136,14 @@ int main(int argc, char **argv)
 	//	->excludes(anchor_length_opt);
 
 	string mode_s; // to be replaced by chain_p.mode and chain_p.chainx_mode
-	app.add_option("-m,--mode", mode_s, "Chaining mode (global or semiglobal)")
+	app.add_option("-m,--mode", mode_s, "Chaining mode: global or semiglobal (i.e. no penalty for initial and final gaps in the text), or their skip-cost variants global-sc and semiglobal-sc (i.e. initial and final gaps cost half)")
 		->default_val("global");
 
 	bool reverse_complement {false};
 	app.add_flag("-r,--reverse-complement", reverse_complement, "Compute the anchored edit distance for the reversed-and-complemented queries as well");
 
 	bool all_to_all {false};
-	auto all_to_all_option = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the text sequences, see also --phylip)")
+	auto all_to_all_option = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the text sequences, see also --phylip); in semiglobal(-sc) mode, the smaller sequence is the query")
 		->excludes(q_opt)
 		->needs(t_opt);
 
@@ -230,8 +230,14 @@ int main(int argc, char **argv)
 	} else if (mode_s == "semiglobal") {
 		chain_p.mode = utils::chaining_mode::semiglobal;
 		chain_p.chainx_mode = chainx::mode::semiglobal;
+	} else if (mode_s == "global-sc") {
+		chain_p.mode = utils::chaining_mode::global_skipcost;
+		chain_p.chainx_mode = chainx::mode::global_skipcost;
+	} else if (mode_s == "semiglobal-sc") {
+		chain_p.mode = utils::chaining_mode::semiglobal_skipcost;
+		chain_p.chainx_mode = chainx::mode::semiglobal_skipcost;
 	} else {
-		return app.exit(CLI::Error("wrong_mode", "--mode: pick a correct chaining mode (global or semiglobal)", 1));
+		return app.exit(CLI::Error("wrong_mode", "--mode: pick a correct chaining mode (global, global-sc, semiglobal, or semiglobal-sc)", 1));
 	}
 
 	seed_p.anchor_type = MUM;
@@ -479,7 +485,7 @@ int main(int argc, char **argv)
 				};
 				while (true) {
 					while (ata_read_queue.try_dequeue(r) or ata_assembly_queue.try_dequeue(r)) {
-						if (chain_p.mode == utils::chaining_mode::global or text_length >= r.read.length()) {
+						if (chain_p.mode == utils::chaining_mode::global or chain_p.mode == utils::chaining_mode::global_skipcost or text_length >= r.read.length()) {
 							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
 							if (reverse_complement) {
 								llchain::utils::reverse_complement(r.read);
@@ -549,15 +555,22 @@ int main(int argc, char **argv)
 		assert(costs.back() == algo::compute_chain_cost(weak_chain, chain_p.mode));
 
 		// solve via the llchain algo and compare
-		vector<long long> new_costs;
-		algo::weak_solve_loglinear_debug(anchors, width, height, chain_p.mode, new_costs, costs);
-		assert(new_costs.size() == costs.size() and new_costs.back() == costs.back());
+		vector<long long> llchain_costs;
+		algo::weak_solve_loglinear_debug(anchors, width, height, chain_p.mode, llchain_costs, costs);
+		assert(llchain_costs.size() == costs.size() and llchain_costs.back() == costs.back());
 
 		vector<anchor_t> chain;
 		algo::weak_backtrack(anchors, costs, chain_p.mode, chain);
 		cerr << "[llchain] DEBUG: optimal chain has cost     " << costs.back() << endl;
 		cerr << "[llchain] DEBUG: backtracked chain has cost " << algo::compute_chain_cost(chain, chain_p.mode) << endl;
 		assert(algo::compute_chain_cost(chain, chain_p.mode) == algo::compute_chain_cost(weak_chain, chain_p.mode));
+
+		// solve via the chainx-opt algo and compare
+		vector<long long> chainx_opt_costs;
+		//algo::weak_solve_loglinear_debug(anchors, width, height, chain_p.mode, llchain_costs, costs);
+		int chainx_revisions;
+		chainx::chainx(anchors, height, chainx_opt_costs, chainx_revisions, chain_p.chainx_mode, true, chain_p.chainx_optimal_ensure_pred, chain_p.chainx_original_magic_numbers);
+		assert(chainx_opt_costs.size() == costs.size() and chainx_opt_costs.back() == costs.back());
 
 		return 0;
 	}
