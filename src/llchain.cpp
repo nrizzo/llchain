@@ -462,6 +462,7 @@ int main(int argc, char **argv)
 				stage_end = true;
 				sync_point.arrive_and_wait(); // wait for the seed_chain_workers
 				stage_end = false;
+				sync_point.arrive_and_wait(); // sync again
 
 				if (phylip_output_path != "") {
 					for (auto d : distances)
@@ -513,9 +514,9 @@ int main(int argc, char **argv)
 						if (ioss_sync.mummer_out.good()) ioss_sync.mummer_out.emit();
 					}
 					if (final_check and stage_end) {
-						sync_point.arrive_and_wait();
+						sync_point.arrive_and_wait(); // wait for other workers and reader_indexer
 						final_check = false;
-						stage_end = false;
+						sync_point.arrive_and_wait(); // sync again, stage_end should be false now
 						continue;
 					}
 					if (reader_done.try_wait() or stage_end) {
