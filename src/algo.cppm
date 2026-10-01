@@ -25,58 +25,46 @@ using std::iota;
 using std::ostream;
 using std::string, std::to_string;
 using namespace llchain;
-using utils::chaining_mode, utils::chaining_mode::global, utils::chaining_mode::semiglobal, utils::chaining_mode::global_skipcost, utils::chaining_mode::semiglobal_skipcost, utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes, utils::chain_stats;
+using utils::chaining_mode, utils::chaining_mode::global, utils::chaining_mode::semiglobal, utils::chaining_mode::global_skipcost, utils::chaining_mode::semiglobal_skipcost, utils::precedence, utils::precedence::chainx_p, utils::precedence::weak_p, utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes, utils::chain_stats;
 typedef utils::anchor_index_t ai_t;
 
 namespace llchain::algo {
 
 /*
- * solves colinear chaining via DP under chainx or weak precedence, returns an
- *   optimal chain via backtracking; adapted from github.com/at-cg/ChainX
+ * solves colinear chaining with L∞ gap costs and Δdiag overlap costs under
+ *   the given precedence notion (see utils::chainx_precedes and
+ *   utils::weak_precedes), returns the partial DP values (costs_out) and an
+ *   optimal chain (chain_out) via backtracking;
+ *   adapted from github.com/at-cg/ChainX
  * NB: O(n^2) time
  * NB: assumes anchors contains dummies (see place_dummy_anchors)
  * NB: assumes sorted anchors (see sort_anchors)
  */
-export void chainx_solve_naive(
+export void solve_naive(
 		const vector<anchor_t> &anchors,
 		const chaining_mode m,
-		vector<ai_t> &costs_out,
-		vector<anchor_t> &chain_out
-	);
-export void weak_solve_naive(
-		const vector<anchor_t> &anchors,
-		const chaining_mode m,
+		const precedence p,
 		vector<ai_t> &costs_out,
 		vector<anchor_t> &chain_out
 	);
 
 /*
- * solves weak-precedence colinear chaining via DP in O(n log n) time
+ * O(n log n)-time implementation of Algorithm 1
+ *   (https://doi.org/10.4230/LIPIcs.WABI.2026.13)
+ *   solves colinear chaining with L∞ gap costs and Δdiag overlap costs under
+ *   weak precedence and returns the partial DP values (costs_out)
  * NB: assumes anchors contains dummies (see place_dummy_anchors)
  * NB: assumes sorted anchors (see sort_anchors)
  * NB: assumes there are no perfect chains between the anchors (see
  *     utils::merge_perfect_chains)
  */
-export void weak_solve_loglinear(
+export const bool solve_debug = true;
+export template<bool debug> void weak_solve_loglinear(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
 		const ai_t Qlength,
 		const chaining_mode m,
 		vector<ai_t> &costs_out
-	);
-
-/*
- * debug version of weak_solve_loglinear that checks the correctness of all
- *   partial costs
- * NB: O(n^2) time or worse
- */
-export void weak_solve_loglinear_debug(
-		const vector<anchor_t> &anchors,
-		const ai_t Tlength,
-		const ai_t Qlength,
-		const chaining_mode m,
-		vector<ai_t> &costs_out,
-		const vector<ai_t> &correct_costs
 	);
 
 /*
@@ -109,9 +97,10 @@ export ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mod
 // start of implementation
 
 export
-void chainx_solve_naive(
+void solve_naive(
 		const vector<anchor_t> &anchors,
 		const chaining_mode m,
+		const precedence p,
 		vector<ai_t> &costs_out,
 		vector<anchor_t> &chain_out
 ) {
@@ -149,90 +138,8 @@ void chainx_solve_naive(
 			const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
 			if (costs_out[j] < std::numeric_limits<ai_t>::max() and
-			    j_a < i_a and j_b < i_b and j_c < i_c and j_d < i_d) { // chainx precedence
-				const ai_t c = costs_out[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d);
-				if (c < i_cost) backtrack = j;
-				i_cost = min(i_cost, c);
-			}
-		}
-		//save optimal cost at offset i
-		costs_out[i] = i_cost;
-		backtracks[i] = backtrack;
-	}
-	if (m != global) {
-		ai_t final_cost = std::numeric_limits<ai_t>::max();
-		ai_t backtrack = -1;
-		for (ai_t j = 1; j < n - 1; j++) {
-			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
-				ai_t c;
-				if (m == semiglobal) {
-					const ai_t final_c = get<1>(anchors[n-1]);
-					c = costs_out[j] + connect_Qgap(anchors[j], final_c);
-				} else if (m == global_skipcost) {
-					c = costs_out[j] + connect(anchors[j], anchors[n-1]) / 2;
-				} else {
-					assert(m == semiglobal_skipcost);
-					const ai_t final_c = get<1>(anchors[n-1]);
-					c = costs_out[j] + connect_Qgap(anchors[j], final_c) / 2;
-				}
-				if (c < final_cost) backtrack = j;
-				final_cost = min(final_cost, c);
-			}
-		}
-		costs_out[n-1] = final_cost;
-		backtracks[n-1] = backtrack;
-	}
-
-	// trace back an optimal chain
-	for (ai_t i = n - 1; backtracks[i] >= 0; i = backtracks[i]) {
-		chain_out.push_back(anchors[i]);
-	}
-	chain_out.push_back(anchors[0]);
-	std::reverse(chain_out.begin(), chain_out.end());
-}
-
-export
-void weak_solve_naive(
-		const vector<anchor_t> &anchors,
-		const chaining_mode m,
-		vector<ai_t> &costs_out,
-		vector<anchor_t> &chain_out
-) {
-	const ai_t n = anchors.size();
-	costs_out = vector<ai_t>(n); // partial chainx-prec DP costs
-	vector<ai_t> backtracks(n, -1); // index of an optimal previous anchor
-	chain_out.clear();
-
-	costs_out[0] = 0; // first dummy anchor
-	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) {
-		ai_t i_cost = std::numeric_limits<ai_t>::max();
-		ai_t backtrack = -1;
-
-		const ai_t i_a = get<0>(anchors[i]);
-		const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
-		const ai_t i_c = get<1>(anchors[i]);
-		const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
-
-		if (m == global) {
-			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d);
-		} else if (m == semiglobal) {
-			i_cost = connect_Qgap(anchors[0], i_c);
-		} else if (m == global_skipcost) {
-			i_cost = connect(anchors[0], i_a, i_b, i_c, i_d) / 2;
-		} else {
-			assert(m == semiglobal_skipcost);
-			i_cost = connect_Qgap(anchors[0], i_c) / 2;
-		}
-		backtrack = 0;
-
-		for (ai_t j = i - 1; j > 0; j--) { // anchor j < anchor i, first dummy anchor is treated separately
-			const ai_t j_a = get<0>(anchors[j]);
-			const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
-			const ai_t j_c = get<1>(anchors[j]);
-			const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
-
-			if (costs_out[j] < std::numeric_limits<ai_t>::max() and
-			    weak_precedes(anchors[j], anchors[i])) { // weak precedence
+			    (p == chainx_p ? chainx_precedes(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d)
+			                 : weak_precedes(j_a, j_c, i_a, i_c))) {
 				const ai_t c = costs_out[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d);
 				if (c < i_cost) backtrack = j;
 				i_cost = min(i_cost, c);
@@ -281,7 +188,39 @@ void weak_solve_naive(
  *   anchor (c or d), r' for Q-pos d if d is the (r+1)-th hit Q-position
  */
 pair<ai_t,vector<ai_t>> compute_diagonal_ranks(const vector<anchor_t> &anchors);
-tuple<ai_t,vector<ai_t>,vector<ai_t>> compute_cd_ranks(const vector<anchor_t> &anchors);
+
+/*
+ * case 1a: larger T-overlap
+ *   uses a 1-dimensional dynamic successor data structure to find the closest
+ *   anchor that T-overlaps the current one and has a bigger diagonal
+ *   (i.e. above)
+ *   NB: it uses the sweep line of T to save space
+ */
+struct case_onea_index {
+	const vector<anchor_t>& anchors;
+	const vector<ai_t>& ranks; // anchor index -> diagonal rank
+	const vector<ai_t>& costs;
+	map<ai_t,ai_t> overlap_T; // anchors that T-overlap the sweep line (diag rank -> anchor index)
+};
+struct case_onea_index init_case_onea(const vector<anchor_t>& anchors, const vector<ai_t>& ranks, const vector<ai_t>& costs);
+ai_t compute_case_onea(const case_onea_index &I, ai_t i);
+void update_startpoint_case_onea(case_onea_index &I, ai_t j);
+void update_endpoint_case_onea(case_onea_index &I, ai_t j);
+
+/*
+ * case 1b: larger Q-overlap
+ *   uses a 1-dimensional dynamic successor data structure to find the closest
+ *   anchor that T-overlaps the current one and has a bigger diagonal
+ *   (i.e. above)
+ *   NB: it precomputes all closest anchors
+ */
+struct case_oneb_index {
+	const vector<anchor_t>& anchors;
+	const vector<ai_t>& costs;
+	const vector<ai_t> closest_overlap_Q;
+};
+struct case_oneb_index init_case_oneb(const vector<anchor_t>& anchors, const ai_t max_diag_rank, const vector<ai_t>& ranks, const vector<ai_t>& costs);
+ai_t compute_case_oneb(const case_oneb_index &I, const ai_t i);
 
 /*
  * case 2: gap-gap case, larger Q-gap
@@ -293,15 +232,10 @@ struct case_two_index {
 	const vector<ai_t>& ranks; // anchor index -> diagonal rank
 	MinSegmentTree<ai_t> recursive_values; // diagonal rank -> min(C[j] - q_e^j)
 };
-struct case_two_index init_case_two(ai_t max_rank, const vector<ai_t>& ranks);
+struct case_two_index init_case_two(const ai_t max_rank, const vector<ai_t>& ranks);
 ai_t compute_case_two(const case_two_index &I, ai_t i, const anchor_t &a_i);
 void update_startpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, ai_t j_cost);
 void update_endpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
-
-/*
- * helper function that considers all recursive cases considered by case 2
- */
-ai_t compute_case_two_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs);
 
 /*
  * case 3: gap-gap case, larger T-gap
@@ -328,7 +262,6 @@ void  update_endpoint_case_three (case_three_index &I, ai_t j, const anchor_t &a
 /*
  * helper function that considers all recursive cases considered by case 3
  */
-ai_t compute_case_three_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs_out);
 
 /*
  * helper function to handle intersection events for case 2 and to remove lines
@@ -337,12 +270,16 @@ ai_t compute_case_three_debug(const vector<anchor_t> &anchors, const ai_t i, con
 void prune_shadowed_delimiting_lines(case_three_index &I, const ai_t sweeping_line_a);
 
 /*
- * preprocess anchor to find the closest overlaps to their startpoints
+ * debug functions
+ * NB: O(n) time
  */
-vector<ai_t> compute_closest_T_overlap(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks);
-vector<ai_t> compute_closest_Q_overlap(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks);
+ai_t compute_case_onea_naive (const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs);
+ai_t compute_case_oneb_naive (const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs);
+ai_t compute_case_two_naive  (const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs);
+ai_t compute_case_three_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs);
 
 export
+template <bool debug = false>
 void weak_solve_loglinear(
 		const vector<anchor_t> &anchors,
 		const ai_t Tlength,
@@ -351,43 +288,34 @@ void weak_solve_loglinear(
 		vector<ai_t> &costs_out
 ) {
 	const ai_t n = anchors.size();
-	costs_out = vector<ai_t>(n, 0);
+	costs_out = vector<ai_t>(n, 0); // n space
 
-	const auto [ max_diag_rank, diag_ranks ] = compute_diagonal_ranks(anchors);
-	const auto closest_overlap_T = compute_closest_T_overlap(anchors, max_diag_rank, diag_ranks);
-	const auto closest_overlap_Q = compute_closest_Q_overlap(anchors, max_diag_rank, diag_ranks);
+	const auto [ max_diag_rank, diag_ranks ] = compute_diagonal_ranks(anchors); // n + 1
 
-	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
-	points.reserve(2 * n - 3);
+	vector<ai_t> points; // points of horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
+	points.reserve(2 * n - 3); // 2n - 3
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points.push_back(-i);
 	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in non-global mode)
 		points.push_back(i);
-	//std::sort(points.begin(), points.end(),
-	//	[&](const ai_t i, const ai_t j) -> bool {
-	//		return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
-	//		        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))))
-	//		        or
-	//		        (i >= 0 and j >= 0 and get<0>(anchors[i]) == get<0>(anchors[j]) and get<1>(anchors[i]) < get<1>(anchors[j]));
-	//});
+
+	// sort points for the line sweep
 	std::stable_sort(points.begin(), points.end(),
 		[&anchors](const ai_t i, const ai_t j) -> bool {
 			return (((i >= 0) ? get<0>(anchors[i]) : get<0>(anchors[-i]) + get<2>(anchors[-i])) <
 			        ((j >= 0) ? get<0>(anchors[j]) : get<0>(anchors[-j]) + get<2>(anchors[-j])));
 	});
 
-	case_two_index   I_two   = init_case_two(max_diag_rank, diag_ranks);
-	case_three_index I_three = init_case_three(anchors);
+	case_onea_index  I_onea  = init_case_onea(anchors, diag_ranks, costs_out); // < n
+	case_oneb_index  I_oneb  = init_case_oneb(anchors, max_diag_rank, diag_ranks, costs_out); // n
+	case_two_index   I_two   = init_case_two(max_diag_rank, diag_ranks); // < 2n (2 x diagonal ranks)
+	case_three_index I_three = init_case_three(anchors); // < 12n probably
 
 	for (ai_t point : points) {
-		if (point >= 0) { // startpoint
+		if (point >= 0) { // startpoint of anchor [i_a..i_b),[i_c..i_d)
 			const ai_t i = point;
-			const ai_t i_a = get<0>(anchors[i]);
-			const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
-			const ai_t i_c = get<1>(anchors[i]);
-			const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
-			const ai_t closest_T = closest_overlap_T[i];
-			const ai_t closest_Q = closest_overlap_Q[i];
+			const ai_t i_a = get<0>(anchors[i]), i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+			const ai_t i_c = get<1>(anchors[i]), i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
 			// compute cost[i]
 			ai_t cost = std::numeric_limits<ai_t>::max();
@@ -402,22 +330,22 @@ void weak_solve_loglinear(
 				cost = connect_Qgap(anchors[0], i_c) / 2;
 			}
 
+			cost = min(cost, compute_case_onea (I_onea, i));
+			if constexpr (debug) { assert(compute_case_onea (I_onea, i) == compute_case_onea_naive(anchors, i, costs_out)); };
+			cost = min(cost, compute_case_oneb (I_oneb, i));
+			if constexpr (debug) { assert(compute_case_oneb (I_oneb, i) == compute_case_oneb_naive(anchors, i, costs_out)); };
 			cost = min(cost, compute_case_two  (I_two, i, anchors[i]));
+			if constexpr (debug) { assert(compute_case_two  (I_two, i, anchors[i]) == compute_case_two_naive(anchors, i, costs_out)); };
 			cost = min(cost, compute_case_three(I_three, anchors[i]));
-			if (closest_T != -1) {
-				assert(weak_precedes(anchors[closest_T], anchors[i]));
-				cost = min(cost, costs_out[closest_T] + connect(anchors[closest_T], anchors[i]));
-			}
-			if (closest_Q != -1) {
-				assert(weak_precedes(anchors[closest_Q], anchors[i]));
-				cost = min(cost, costs_out[closest_Q] + connect(anchors[closest_Q], anchors[i]));
-			}
+			if constexpr (debug) { assert(compute_case_three(I_three, anchors[i]) == compute_case_three_naive(anchors, i, costs_out)); };
 			costs_out[i] = cost;
 
+			update_startpoint_case_onea (I_onea, i);
 			update_startpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
 			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
 		} else { // endpoint
 			ai_t i = -point;
+			update_endpoint_case_onea (I_onea, i);
 			update_endpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
 			update_endpoint_case_three(I_three, i, anchors[i], costs_out[i]);
 		}
@@ -442,6 +370,53 @@ void weak_solve_loglinear(
 			}
 		}
 		costs_out[n-1] = final_cost;
+	}
+}
+
+struct case_onea_index init_case_onea(const vector<anchor_t>& anchors, const vector<ai_t>& ranks, const vector<ai_t>& costs)
+{
+	return case_onea_index { anchors, ranks, costs, map<ai_t,ai_t>() };
+}
+
+ai_t compute_case_onea(const case_onea_index &I, ai_t i)
+{
+	const auto successor = I.overlap_T.upper_bound(I.ranks[i]);
+	if (successor == I.overlap_T.end()) {
+		return std::numeric_limits<ai_t>::max();
+	} else {
+		const ai_t closest_T = successor->second;
+		assert(closest_T != -1 and weak_precedes(I.anchors[closest_T], I.anchors[i]));
+		return I.costs[closest_T] + connect(I.anchors[closest_T], I.anchors[i]);
+	}
+}
+
+void update_startpoint_case_onea(case_onea_index &I, ai_t j)
+{
+	I.overlap_T.insert({ I.ranks[j], j });
+}
+
+void update_endpoint_case_onea(case_onea_index &I, ai_t j)
+{
+	I.overlap_T.erase(I.ranks[j]);
+}
+
+/*
+ * preprocess anchor to find the closest overlaps to their startpoints
+ */
+vector<ai_t> compute_closest_Q_overlap(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks);
+struct case_oneb_index init_case_oneb(const vector<anchor_t>& anchors, const ai_t max_diag_rank, const vector<ai_t>& ranks, const vector<ai_t>& costs)
+{
+	return { anchors, costs, compute_closest_Q_overlap(anchors, max_diag_rank, ranks) };
+}
+
+ai_t compute_case_oneb(const case_oneb_index &I, const ai_t i)
+{
+	const ai_t closest_Q = I.closest_overlap_Q[i];
+	if (closest_Q == -1) {
+		return std::numeric_limits<ai_t>::max();
+	} else {
+		assert(weak_precedes(I.anchors[closest_Q], I.anchors[i]));
+		return I.costs[closest_Q] + connect(I.anchors[closest_Q], I.anchors[i]);
 	}
 }
 
@@ -494,164 +469,7 @@ vector<ai_t> compute_closest_Q_overlap(const vector<anchor_t> &anchors, ai_t max
 	return closest_overlap;
 }
 
-vector<ai_t> compute_closest_T_overlap(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks)
-{
-	const ai_t n = anchors.size();
-	vector<ai_t> closest_overlap(anchors.size(), -1);
-	vector<ai_t> points_T; // horizontal line sweep moving down (+i means T-startpoint of i-th anchor, -i means T-endpoint)
-	points_T.reserve(2 * n - 2);
-	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
-		points_T.push_back(-i);
-	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
-		points_T.push_back(i);
-	//std::sort(points_T.begin(), points_T.end(),
-	//	[&](const ai_t i, const ai_t j) -> bool {
-	//		return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
-	//		        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))));
-	//});
-	std::stable_sort(points_T.begin(), points_T.end(),
-		[&anchors](const ai_t i, const ai_t j) -> bool {
-			return (((i >= 0) ? get<0>(anchors[i]) : get<0>(anchors[-i]) + get<2>(anchors[-i])) <
-			        ((j >= 0) ? get<0>(anchors[j]) : get<0>(anchors[-j]) + get<2>(anchors[-j])));
-	});
-
-	//typedef unsigned long long uai_t;
-	//ordered::range_marking::Map<uai_t,ai_t> active(max_rank);
-	map<ai_t,ai_t> active; // diag rank -> anchor index
-	for (const ai_t point : points_T) {
-		if (point > 0) { // startpoint
-			const ai_t i = point;
-			const auto successor = active.upper_bound(ranks[i]);
-			if (successor != active.end()) {
-				closest_overlap[i] = successor->second;
-			}
-			//auto const r = active.successor(ranks[i]);
-			//if (r.exists) {
-			//	closest_overlap[i] = r.value;
-			//}
-
-			//active.insert(static_cast<uai_t>(ranks[i]), i);
-			active.insert({ ranks[i], i });
-		} else { // endpoint
-			const ai_t i = -point;
-			//active.erase(static_cast<uai_t>(ranks[i]));
-			active.erase(ranks[i]);
-		}
-	}
-	return closest_overlap;
-}
-
-export
-void weak_solve_loglinear_debug(
-		const vector<anchor_t> &anchors,
-		const ai_t Tlength,
-		const ai_t Qlength,
-		const chaining_mode m,
-		vector<ai_t> &costs_out,
-		const vector<ai_t> &correct_costs
-) {
-	ai_t n = anchors.size();
-	costs_out = vector<ai_t>(n, 0);
-
-	const auto [ max_diag_rank, diag_ranks ] = compute_diagonal_ranks(anchors);
-	const auto closest_overlap_T = compute_closest_T_overlap(anchors, max_diag_rank, diag_ranks);
-	const auto closest_overlap_Q = compute_closest_Q_overlap(anchors, max_diag_rank, diag_ranks);
-
-	//cerr << "DEBUG: closest overlaps are defined as follows:\n";
-	//for (ai_t i = 1; i < n - 1; i++) {
-	//	cerr << i << "-th anchor (" << get<0>(anchors[i]) << "," << get<1>(anchors[i]) << "," << get<2>(anchors[i]) << ") has " << closest_overlap_Q[i] << "-th anchor as closest Q overlap\n";
-	//}
-
-	vector<ai_t> points; // horizontal line sweep (+i means T-startpoint of i-th anchor, -i means T-endpoint)
-	points.reserve(2 * n - 1);
-	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
-		points.push_back(-i);
-	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) // skip starting dummy anchor (and end anchor if in non-global mode)
-		points.push_back(i);
-	std::sort(points.begin(), points.end(),
-		[&](const ai_t i, const ai_t j) -> bool {
-			return (((i >= 0) ? 2*get<0>(anchors[i])+1 : 2*(get<0>(anchors[-i]) + get<2>(anchors[-i]))) <
-			        ((j >= 0) ? 2*get<0>(anchors[j])+1 : 2*(get<0>(anchors[-j]) + get<2>(anchors[-j]))))
-			        or
-			        (i >= 0 and j >= 0 and get<0>(anchors[i]) == get<0>(anchors[j]) and get<1>(anchors[i]) < get<1>(anchors[j]));
-	});
-
-	case_two_index   I_two   = init_case_two(max_diag_rank, diag_ranks);
-	case_three_index I_three = init_case_three(anchors);
-
-	for (ai_t point : points) {
-		if (point >= 0) { // startpoint
-			const ai_t i = point;
-			const ai_t i_a = get<0>(anchors[i]);
-			const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
-			const ai_t i_c = get<1>(anchors[i]);
-			const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
-			const ai_t closest_T = closest_overlap_T[i];
-			const ai_t closest_Q = closest_overlap_Q[i];
-
-			// compute cost[i]
-			ai_t cost = std::numeric_limits<ai_t>::max();
-			if (m == global) {
-				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
-			} else if (m == semiglobal) {
-				cost = connect_Qgap(anchors[0], i_c);
-			} else if (m == global_skipcost) {
-				cost = connect(anchors[0], i_a, i_b, i_c, i_d) / 2;
-			} else {
-				assert(m == semiglobal_skipcost);
-				cost = connect_Qgap(anchors[0], i_c) / 2;
-			}
-			assert(compute_case_two  (I_two, i, anchors[i]) == compute_case_two_debug  (anchors, i, costs_out));
-			cost = min(cost, compute_case_two  (I_two, i, anchors[i]));
-
-			assert(compute_case_three(I_three,  anchors[i]) == compute_case_three_debug(anchors, i, costs_out));
-			cost = min(cost, compute_case_three(I_three, anchors[i]));
-
-			// TODO debug cases 1a and 1b
-			if (closest_T != -1) {
-				assert(weak_precedes(anchors[closest_T], anchors[i]));
-				cost = min(cost, costs_out[closest_T] + connect(anchors[closest_T], anchors[i]));
-			}
-			if (closest_Q != -1) {
-				assert(weak_precedes(anchors[closest_Q], anchors[i]));
-				cost = min(cost, costs_out[closest_Q] + connect(anchors[closest_Q], anchors[i]));
-			}
-
-			costs_out[i] = cost;
-			assert(costs_out[i] == correct_costs[i]);
-
-			update_startpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
-			update_startpoint_case_three(I_three,  anchors[i], costs_out[i]);
-		} else { // endpoint
-			ai_t i = -point;
-			update_endpoint_case_two  (I_two,   i, anchors[i], costs_out[i]);
-			update_endpoint_case_three(I_three, i, anchors[i], costs_out[i]);
-		}
-	}
-
-	if (m != global) {
-		ai_t final_cost = std::numeric_limits<ai_t>::max();
-		for (ai_t j = 0; j < n - 1; j++) {
-			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
-				ai_t c;
-				if (m == semiglobal) {
-					const ai_t final_c = get<1>(anchors[n-1]);
-					c = costs_out[j] + connect_Qgap(anchors[j], final_c);
-				} else if (m == global_skipcost) {
-					c = costs_out[j] + connect(anchors[j], anchors[n-1]) / 2;
-				} else {
-					assert(m == semiglobal_skipcost);
-					const ai_t final_c = get<1>(anchors[n-1]);
-					c = costs_out[j] + connect_Qgap(anchors[j], final_c) / 2;
-				}
-				final_cost = min(final_cost, c);
-			}
-		}
-		costs_out[n-1] = final_cost;
-	}
-}
-
-struct case_two_index init_case_two(ai_t max_rank, const vector<ai_t> &ranks)
+struct case_two_index init_case_two(const ai_t max_rank, const vector<ai_t> &ranks)
 {
 	return { ranks, MinSegmentTree<ai_t>(0, max_rank) };
 }
@@ -682,7 +500,55 @@ void update_endpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, co
 	I.recursive_values.update(j_rank, rec_value);
 }
 
-ai_t compute_case_two_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
+ai_t compute_case_onea_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
+{
+	ai_t cost = std::numeric_limits<ai_t>::max();
+
+	const ai_t i_a = get<0>(anchors[i]);
+	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+	const ai_t i_c = get<1>(anchors[i]);
+	const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+
+	// anchor j < anchor i
+	for(ai_t j = i - 1; j > 0; j--) { // dummy start anchor is handled separately
+		const ai_t j_a = get<0>(anchors[j]);
+		const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
+		const ai_t j_c = get<1>(anchors[j]);
+		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
+
+		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		    j_a <= i_a and i_a < j_b and j_a - j_c > i_a - i_c) // case 1a
+			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
+	}
+
+	return cost;
+}
+
+ai_t compute_case_oneb_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
+{
+	ai_t cost = std::numeric_limits<ai_t>::max();
+
+	const ai_t i_a = get<0>(anchors[i]);
+	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
+	const ai_t i_c = get<1>(anchors[i]);
+	const ai_t i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
+
+	// anchor j < anchor i
+	for(ai_t j = i - 1; j > 0; j--) { // dummy start anchor is handled separately
+		const ai_t j_a = get<0>(anchors[j]);
+		const ai_t j_b = get<0>(anchors[j]) + get<2>(anchors[j]);
+		const ai_t j_c = get<1>(anchors[j]);
+		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
+
+		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		    j_c <= i_c and i_c < j_d and j_a - j_c < i_a - i_c) // case 1a
+			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
+	}
+
+	return cost;
+}
+
+ai_t compute_case_two_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
 	ai_t cost = std::numeric_limits<ai_t>::max();
 
@@ -706,7 +572,7 @@ ai_t compute_case_two_debug(const vector<anchor_t> &anchors, const ai_t i, const
 	return cost;
 }
 
-ai_t compute_case_three_debug(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
+ai_t compute_case_three_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
 	ai_t cost = std::numeric_limits<ai_t>::max();
 
@@ -745,7 +611,7 @@ struct case_three_index init_case_three(const vector<anchor_t> &anchors)
 		{},
 		{{0, 0}, {get<1>(anchors.back()) + get<2>(anchors.back()), anchors.size() - 1}},
 		{}
-			});
+	});
 }
 
 void prune_shadowed_delimiting_lines(case_three_index &I, const ai_t sweeping_line_a)
@@ -1112,43 +978,6 @@ pair<ai_t,vector<ai_t>> compute_diagonal_ranks(const vector<anchor_t> &anchors)
 		}
 	}
 	return { last_rank, ranks };
-}
-
-tuple<ai_t,vector<ai_t>,vector<ai_t>> compute_cd_ranks(const vector<anchor_t> &anchors)
-{
-	const ai_t n = anchors.size();
-	if (n == 0) return {0, vector<ai_t>(), vector<ai_t>()};
-
-	vector<ai_t> anchors_cd(2 * n);
-	iota(anchors_cd.begin(), anchors_cd.begin() + n, 0);
-	iota(anchors_cd.begin() + n, anchors_cd.end(), -(n-1));
-	std::sort(anchors_cd.begin(), anchors_cd.end(),
-		[&anchors](ai_t i, ai_t j) -> bool {
-			return ((i >= 0) ? get<1>(anchors[i]) : get<1>(anchors[-i]) + get<2>(anchors[-i])) <
-			       ((j >= 0) ? get<1>(anchors[j]) : get<1>(anchors[-j]) + get<2>(anchors[-j]));
-		});
-
-	vector<ai_t> c_ranks(n), d_ranks(n);
-	c_ranks[0] = 0;
-	d_ranks[0] = 0;
-	ai_t last_rank = 0, last_cd = ((anchors_cd[0] >= 0) ? get<1>(anchors[anchors_cd[0]]) : get<1>(anchors[-anchors_cd[0]]) + get<2>(anchors[-anchors_cd[0]]));
-	for (vector<ai_t>::size_type i = 1; i < anchors_cd.size(); i++) {
-		const ai_t i_cd = ((anchors_cd[i] >= 0) ? get<1>(anchors[anchors_cd[i]]) : get<1>(anchors[-anchors_cd[i]]) + get<2>(anchors[-anchors_cd[i]]));
-		if (i_cd == last_cd) {
-			if (anchors_cd[i] >= 0)
-				c_ranks[anchors_cd[i]] = last_rank;
-			else
-				d_ranks[-anchors_cd[i]] = last_rank;
-		} else {
-			last_rank += 1;
-			if (anchors_cd[i] >= 0)
-				c_ranks[anchors_cd[i]] = last_rank;
-			else
-				d_ranks[-anchors_cd[i]] = last_rank;
-			last_cd = i_cd;
-		}
-	}
-	return { last_rank, c_ranks, d_ranks };
 }
 
 /*

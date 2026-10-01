@@ -548,7 +548,7 @@ int main(int argc, char **argv)
 		Image image(width, height);
 		vector<long long> costs;
 		vector<anchor_t> weak_chain;
-		algo::weak_solve_naive(anchors, chain_p.mode, costs, weak_chain);
+		algo::solve_naive(anchors, chain_p.mode, utils::precedence::weak_p, costs, weak_chain);
 		plot_gap_gap_lower_diag(image, anchors, costs); // plot case 3 recursions
 		plot_anchors(image, anchors); // plot all anchors
 		plot_anchors(image, weak_chain, utils::defaults::selected_anchor_color); // recolor the optimal chain
@@ -557,7 +557,7 @@ int main(int argc, char **argv)
 
 		// solve via the llchain algo and compare
 		vector<long long> llchain_costs;
-		algo::weak_solve_loglinear_debug(anchors, width, height, chain_p.mode, llchain_costs, costs);
+		algo::weak_solve_loglinear<algo::solve_debug>(anchors, width, height, chain_p.mode, llchain_costs);
 		assert(llchain_costs.size() == costs.size() and llchain_costs.back() == costs.back());
 
 		vector<anchor_t> chain;
