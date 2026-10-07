@@ -11,19 +11,21 @@ import <cassert>;
 import <numeric>; // std::iota
 import <sstream>;
 import <string>;
+import <iterator>;
 import utils;
 import MinSegmentTree;
 
 using std::vector;
-using std::tuple, std::pair, std::get;
-using std::max, std::min, std::abs;
+using std::tuple, std::pair, std::get, std::make_tuple;
+using std::max, std::min, std::abs, std::reverse;
 using std::cerr, std::endl;
 using std::map, std::multimap;
 using std::set, std::multiset;
 using std::list;
-using std::iota;
+using std::iota, std::numeric_limits;
 using std::ostream;
 using std::string, std::to_string;
+using std::prev, std::next;
 using namespace llchain;
 using utils::chaining_mode, utils::chaining_mode::global, utils::chaining_mode::semiglobal, utils::chaining_mode::global_skipcost, utils::chaining_mode::semiglobal_skipcost, utils::precedence, utils::precedence::chainx_p, utils::precedence::weak_p, utils::anchor_t, utils::connect, utils::connect_Qgap, utils::chainx_precedes, utils::weak_precedes, utils::chain_stats;
 typedef utils::anchor_index_t ai_t;
@@ -94,6 +96,59 @@ export void weak_backtrack(
  */
 export ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mode m);
 
+/*
+ * export a given colinear chain to CIGAR format
+ * NB: the chain is expected to respect weak prec (see utils::weak_precedes)
+ * NB: the chain is assumed to start and end with dummy anchors (see utils::place_dummy_anchors)
+ * NB: we assume at least one non-dummy anchor
+ * NB: to output a well-formed CIGAR string, we assume the chain does NOT contain adjacent anchors with connect cost = 0
+ */
+export void write_cigar(
+	const string::size_type text_length,
+	const string::size_type query_length,
+	const vector<anchor_t> &chain,
+	const chaining_mode m,
+	ostream &out
+);
+
+/*
+ * see https://samtools.github.io/hts-specs/SAMv1.pdf
+ */
+export void write_SAM_header(ostream &out);
+export void write_SAM_text(const string &text, const string &text_id, ostream &out);
+export void write_SAM_text(const long unsigned int text_length, const string &text_id, ostream &out);
+
+/*
+ * NB: see write_cigar
+ */
+export void write_SAM_entry(
+	const string::size_type text_length,
+	const string &text_id,
+	const string &query,
+	const string &query_id,
+	const bool is_query_rc,
+	const bool store_SAM_sequence,
+	const vector<anchor_t> &chain,
+	const chaining_mode m,
+	const ai_t anchored_ed,
+	ostream &out
+);
+
+/*
+ * NB: see write_cigar
+ */
+export void write_PAF_entry(
+	const string::size_type text_length,
+	const string &text_id,
+	const string &query,
+	const string &query_id,
+	const bool is_query_rc,
+	const vector<anchor_t> &chain,
+	const chaining_mode m,
+	const ai_t anchored_ed,
+	ostream &out
+);
+
 // start of implementation
 
 export
@@ -111,7 +166,7 @@ void solve_naive(
 
 	costs_out[0] = 0; // first dummy anchor
 	for (ai_t i = 1; i < ((m == global) ? n : n-1); i++) {
-		ai_t i_cost = std::numeric_limits<ai_t>::max();
+		ai_t i_cost = numeric_limits<ai_t>::max();
 		ai_t backtrack = -1;
 
 		const ai_t i_a = get<0>(anchors[i]);
@@ -137,7 +192,7 @@ void solve_naive(
 			const ai_t j_c = get<1>(anchors[j]);
 			const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-			if (costs_out[j] < std::numeric_limits<ai_t>::max() and
+			if (costs_out[j] < numeric_limits<ai_t>::max() and
 			    (p == chainx_p ? chainx_precedes(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d)
 			                 : weak_precedes(j_a, j_c, i_a, i_c))) {
 				const ai_t c = costs_out[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d);
@@ -150,10 +205,10 @@ void solve_naive(
 		backtracks[i] = backtrack;
 	}
 	if (m != global) {
-		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		ai_t final_cost = numeric_limits<ai_t>::max();
 		ai_t backtrack = -1;
 		for (ai_t j = 1; j < n - 1; j++) {
-			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+			if (costs_out[j] < numeric_limits<ai_t>::max()) {
 				ai_t c;
 				if (m == semiglobal) {
 					const ai_t final_c = get<1>(anchors[n-1]);
@@ -178,7 +233,7 @@ void solve_naive(
 		chain_out.push_back(anchors[i]);
 	}
 	chain_out.push_back(anchors[0]);
-	std::reverse(chain_out.begin(), chain_out.end());
+	reverse(chain_out.begin(), chain_out.end());
 }
 
 /*
@@ -194,7 +249,7 @@ pair<ai_t,vector<ai_t>> compute_diagonal_ranks(const vector<anchor_t> &anchors);
  *   uses a 1-dimensional dynamic successor data structure to find the closest
  *   anchor that T-overlaps the current one and has a bigger diagonal
  *   (i.e. above)
- *   NB: it uses the sweep line of T to save space
+ *   NB: O(n) space, it uses the sweep line of T to save space
  */
 struct case_onea_index {
 	const vector<anchor_t>& anchors;
@@ -212,7 +267,8 @@ void update_endpoint_case_onea(case_onea_index &I, ai_t j);
  *   uses a 1-dimensional dynamic successor data structure to find the closest
  *   anchor that T-overlaps the current one and has a bigger diagonal
  *   (i.e. above)
- *   NB: it precomputes all closest anchors
+ *   NB: it precomputes all closest anchors in O(n log n) time
+ *   NB: Θ(n) space
  */
 struct case_oneb_index {
 	const vector<anchor_t>& anchors;
@@ -234,40 +290,38 @@ struct case_two_index {
 };
 struct case_two_index init_case_two(const ai_t max_rank, const vector<ai_t>& ranks);
 ai_t compute_case_two(const case_two_index &I, ai_t i, const anchor_t &a_i);
-void update_startpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, ai_t j_cost);
 void update_endpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
 
 /*
  * case 3: gap-gap case, larger T-gap
- *   requires a complex data structure that handles all boundaries obtained
- *   by propagating case 2 recursions to the right (horizontal or diagonal
- *   lines)
+ *   requires a predecessor data structure to handle a 1D representation of the
+ *   recursive cases projected onto the sweep line, and it needs to bookkeep all
+ *   intersections between diagonal and horizontal lines and how their
+ *   regions cover one another
  */
 enum line_t { horizontal, diagonal };
-typedef tuple<ai_t, line_t, ai_t> l_t; // (anchor index j, hor/diag, C[k] - t_e^k)
+typedef pair<ai_t, ai_t> index_recvalue_t; // (anchor index j, C[k] - t_e^k of the appropriate region)
+typedef pair<ai_t, ai_t> cross; // (anchor index j, anchor index i) for a cross of j's diagonal with i's horizontal
 struct case_three_index {
 	const vector<anchor_t>& anchors;
-	list<l_t> delimiting_lines; // top-to-bottom ordered list of lines/rec values involved in case 2
-	vector<list<l_t>::iterator> anchor_diag_to_list; // [j] contains pointer to diagonal   list element of anchor[j]
-	vector<list<l_t>::iterator> anchor_hor_to_list;  // [j] contains pointer to horizontal list element of anchor[j]
-	multimap<ai_t,ai_t> updates; // event T-position -> anchor j whose diagonal line might cross the next line
-	map<ai_t, ai_t> active_horizontal_lines; // horizontal line -> anchor j
-	map<ai_t, ai_t> active_diagonal_lines;   // diagonal line -> anchor j
+	multimap<ai_t,cross> updates; // event T-position -> potential cross happening at this position
+	map<ai_t,index_recvalue_t> active_horizontal_lines; // horizontal line -> anchor j, C[k] - t_e^k of the region below line
+	map<ai_t,index_recvalue_t> active_diagonal_lines;   // diagonal line -> anchor j, C[k] - t_e^k of the region below line
 };
 struct case_three_index init_case_three(const vector<anchor_t> &anchors);
 ai_t compute_case_three(case_three_index &I, const anchor_t &anchor_i);
-void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost);
 void  update_endpoint_case_three (case_three_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost);
 
 /*
- * helper function that considers all recursive cases considered by case 3
- */
-
-/*
- * helper function to handle intersection events for case 2 and to remove lines
- *   that have been crossed
+ * helper function to handle intersection events for case 3
  */
 void prune_shadowed_delimiting_lines(case_three_index &I, const ai_t sweeping_line_a);
+
+/*
+ * helper function to precompute the closest Q-overlapping anchor to the left
+ *   of each anchor's startpoint
+ */
+vector<ai_t> compute_closest_Q_overlap(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks);
 
 /*
  * debug functions
@@ -309,7 +363,7 @@ void weak_solve_loglinear(
 	case_onea_index  I_onea  = init_case_onea(anchors, diag_ranks, costs_out); // < n
 	case_oneb_index  I_oneb  = init_case_oneb(anchors, max_diag_rank, diag_ranks, costs_out); // n
 	case_two_index   I_two   = init_case_two(max_diag_rank, diag_ranks); // < 2n (2 x diagonal ranks)
-	case_three_index I_three = init_case_three(anchors); // < 12n probably
+	case_three_index I_three = init_case_three(anchors); // < 7n probably
 
 	for (ai_t point : points) {
 		if (point >= 0) { // startpoint of anchor [i_a..i_b),[i_c..i_d)
@@ -318,7 +372,7 @@ void weak_solve_loglinear(
 			const ai_t i_c = get<1>(anchors[i]), i_d = get<1>(anchors[i]) + get<2>(anchors[i]);
 
 			// compute cost[i]
-			ai_t cost = std::numeric_limits<ai_t>::max();
+			ai_t cost = numeric_limits<ai_t>::max();
 			if (m == global) {
 				cost = connect(anchors[0], i_a, i_b, i_c, i_d);
 			} else if (m == semiglobal) {
@@ -329,7 +383,6 @@ void weak_solve_loglinear(
 				assert(m == semiglobal_skipcost);
 				cost = connect_Qgap(anchors[0], i_c) / 2;
 			}
-
 			cost = min(cost, compute_case_onea (I_onea, i));
 			if constexpr (debug) { assert(compute_case_onea (I_onea, i) == compute_case_onea_naive(anchors, i, costs_out)); };
 			cost = min(cost, compute_case_oneb (I_oneb, i));
@@ -341,8 +394,6 @@ void weak_solve_loglinear(
 			costs_out[i] = cost;
 
 			update_startpoint_case_onea (I_onea, i);
-			update_startpoint_case_two  (I_two, i, anchors[i], costs_out[i]);
-			update_startpoint_case_three(I_three, anchors[i], costs_out[i]);
 		} else { // endpoint
 			ai_t i = -point;
 			update_endpoint_case_onea (I_onea, i);
@@ -352,9 +403,9 @@ void weak_solve_loglinear(
 	}
 
 	if (m != global) {
-		ai_t final_cost = std::numeric_limits<ai_t>::max();
+		ai_t final_cost = numeric_limits<ai_t>::max();
 		for (ai_t j = 0; j < n - 1; j++) {
-			if (costs_out[j] < std::numeric_limits<ai_t>::max()) {
+			if (costs_out[j] < numeric_limits<ai_t>::max()) {
 				ai_t c;
 				if (m == semiglobal) {
 					const ai_t final_c = get<1>(anchors[n-1]);
@@ -382,7 +433,7 @@ ai_t compute_case_onea(const case_onea_index &I, ai_t i)
 {
 	const auto successor = I.overlap_T.upper_bound(I.ranks[i]);
 	if (successor == I.overlap_T.end()) {
-		return std::numeric_limits<ai_t>::max();
+		return numeric_limits<ai_t>::max();
 	} else {
 		const ai_t closest_T = successor->second;
 		assert(closest_T != -1 and weak_precedes(I.anchors[closest_T], I.anchors[i]));
@@ -400,10 +451,6 @@ void update_endpoint_case_onea(case_onea_index &I, ai_t j)
 	I.overlap_T.erase(I.ranks[j]);
 }
 
-/*
- * preprocess anchor to find the closest overlaps to their startpoints
- */
-vector<ai_t> compute_closest_Q_overlap(const vector<anchor_t> &anchors, ai_t max_rank, const vector<ai_t> &ranks);
 struct case_oneb_index init_case_oneb(const vector<anchor_t>& anchors, const ai_t max_diag_rank, const vector<ai_t>& ranks, const vector<ai_t>& costs)
 {
 	return { anchors, costs, compute_closest_Q_overlap(anchors, max_diag_rank, ranks) };
@@ -413,7 +460,7 @@ ai_t compute_case_oneb(const case_oneb_index &I, const ai_t i)
 {
 	const ai_t closest_Q = I.closest_overlap_Q[i];
 	if (closest_Q == -1) {
-		return std::numeric_limits<ai_t>::max();
+		return numeric_limits<ai_t>::max();
 	} else {
 		assert(weak_precedes(I.anchors[closest_Q], I.anchors[i]));
 		return I.costs[closest_Q] + connect(I.anchors[closest_Q], I.anchors[i]);
@@ -430,39 +477,24 @@ vector<ai_t> compute_closest_Q_overlap(const vector<anchor_t> &anchors, ai_t max
 		points_Q.push_back(-i);
 	for (ai_t i = 1; i < n - 1; i++) // skip both dummy anchors
 		points_Q.push_back(i);
-	//std::sort(points_Q.begin(), points_Q.end(),
-	//	[&](const ai_t i, const ai_t j) -> bool {
-	//		return (((i >= 0) ? 2*get<1>(anchors[i])+1 : 2*(get<1>(anchors[-i]) + get<2>(anchors[-i]))) <
-	//		        ((j >= 0) ? 2*get<1>(anchors[j])+1 : 2*(get<1>(anchors[-j]) + get<2>(anchors[-j]))));
-	//});
 	std::stable_sort(points_Q.begin(), points_Q.end(),
 		[&anchors](const ai_t i, const ai_t j) -> bool {
 		return (((i >= 0) ? get<1>(anchors[i]) : get<1>(anchors[-i]) + get<2>(anchors[-i])) <
 		        ((j >= 0) ? get<1>(anchors[j]) : get<1>(anchors[-j]) + get<2>(anchors[-j])));
 	});
 
-	//typedef unsigned long long uai_t;
-	//ordered::range_marking::Map<uai_t,ai_t> active(max_rank);
 	map<ai_t,ai_t> active; // diag rank -> anchor index
 	for (const ai_t point : points_Q) {
 		if (point > 0) { // startpoint
 			const ai_t i = point;
 			const auto split = active.lower_bound(ranks[i]);
 			if (split != active.begin()) {
-				const auto predecessor = std::prev(split);
+				const auto predecessor = prev(split);
 				closest_overlap[i] = predecessor->second;
 			}
-			//auto const r = active.predecessor(ranks[i]);
-			//if (r.exists) {
-			//	closest_overlap[i] = r.value;
-			//}
-
-			//active.insert(static_cast<uai_t>(ranks[i]), i);
 			active.insert({ ranks[i], i });
 		} else { // endpoint
 			const ai_t i = -point;
-			//bool res = active.erase(static_cast<uai_t>(ranks[i]));
-			//assert(res);
 			active.erase(ranks[i]);
 		}
 	}
@@ -479,16 +511,11 @@ ai_t compute_case_two(const case_two_index &I, ai_t i, const anchor_t &a_i)
 	const ai_t i_c = get<1>(a_i);
 	const ai_t rec_min = I.recursive_values.query(I.ranks[i] + 1, I.recursive_values.maxquery);
 
-	if (rec_min < std::numeric_limits<ai_t>::max()) {
+	if (rec_min < numeric_limits<ai_t>::max()) {
 		return i_c + rec_min;
 	} else {
-		return std::numeric_limits<ai_t>::max();
+		return numeric_limits<ai_t>::max();
 	}
-}
-
-void update_startpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, ai_t j_cost)
-{
-	// do nothing
 }
 
 void update_endpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
@@ -502,7 +529,7 @@ void update_endpoint_case_two(case_two_index &I, ai_t j, const anchor_t &a_j, co
 
 ai_t compute_case_onea_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
-	ai_t cost = std::numeric_limits<ai_t>::max();
+	ai_t cost = numeric_limits<ai_t>::max();
 
 	const ai_t i_a = get<0>(anchors[i]);
 	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
@@ -516,7 +543,7 @@ ai_t compute_case_onea_naive(const vector<anchor_t> &anchors, const ai_t i, cons
 		const ai_t j_c = get<1>(anchors[j]);
 		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		if (costs[j] < numeric_limits<ai_t>::max() and
 		    j_a <= i_a and i_a < j_b and j_a - j_c > i_a - i_c) // case 1a
 			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
@@ -526,7 +553,7 @@ ai_t compute_case_onea_naive(const vector<anchor_t> &anchors, const ai_t i, cons
 
 ai_t compute_case_oneb_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
-	ai_t cost = std::numeric_limits<ai_t>::max();
+	ai_t cost = numeric_limits<ai_t>::max();
 
 	const ai_t i_a = get<0>(anchors[i]);
 	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
@@ -540,7 +567,7 @@ ai_t compute_case_oneb_naive(const vector<anchor_t> &anchors, const ai_t i, cons
 		const ai_t j_c = get<1>(anchors[j]);
 		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		if (costs[j] < numeric_limits<ai_t>::max() and
 		    j_c <= i_c and i_c < j_d and j_a - j_c < i_a - i_c) // case 1a
 			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
@@ -550,7 +577,7 @@ ai_t compute_case_oneb_naive(const vector<anchor_t> &anchors, const ai_t i, cons
 
 ai_t compute_case_two_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
-	ai_t cost = std::numeric_limits<ai_t>::max();
+	ai_t cost = numeric_limits<ai_t>::max();
 
 	const ai_t i_a = get<0>(anchors[i]);
 	const ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
@@ -564,7 +591,7 @@ ai_t compute_case_two_naive(const vector<anchor_t> &anchors, const ai_t i, const
 		const ai_t j_c = get<1>(anchors[j]);
 		const ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		if (costs[j] < numeric_limits<ai_t>::max() and
 		    j_b <= i_a and j_d <= i_c and j_a - j_c > i_a - i_c) // case 2
 			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
@@ -574,7 +601,7 @@ ai_t compute_case_two_naive(const vector<anchor_t> &anchors, const ai_t i, const
 
 ai_t compute_case_three_naive(const vector<anchor_t> &anchors, const ai_t i, const vector<ai_t> &costs)
 {
-	ai_t cost = std::numeric_limits<ai_t>::max();
+	ai_t cost = numeric_limits<ai_t>::max();
 
 	ai_t i_a = get<0>(anchors[i]);
 	ai_t i_b = get<0>(anchors[i]) + get<2>(anchors[i]);
@@ -588,7 +615,7 @@ ai_t compute_case_three_naive(const vector<anchor_t> &anchors, const ai_t i, con
 		ai_t j_c = get<1>(anchors[j]);
 		ai_t j_d = get<1>(anchors[j]) + get<2>(anchors[j]);
 
-		if (costs[j] < std::numeric_limits<ai_t>::max() and
+		if (costs[j] < numeric_limits<ai_t>::max() and
 		    j_b <= i_a and j_d <= i_c and j_a - j_c <= i_a - i_c) // case 3
 			cost = min(cost, costs[j] + connect(j_a, j_b, j_c, j_d, i_a, i_b, i_c, i_d));
 	}
@@ -598,75 +625,13 @@ ai_t compute_case_three_naive(const vector<anchor_t> &anchors, const ai_t i, con
 
 struct case_three_index init_case_three(const vector<anchor_t> &anchors)
 {
-	list<l_t> delimiting_lines = {{0, horizontal, std::numeric_limits<ai_t>::max()}, {anchors.size()-1, horizontal, std::numeric_limits<ai_t>::min()}};
-	vector<list<l_t>::iterator> anchor_diag_to_list(anchors.size());
-	vector<list<l_t>::iterator> anchor_hor_to_list (anchors.size());
-	anchor_hor_to_list[0] = delimiting_lines.begin();
-	anchor_hor_to_list[anchors.size()-1] = --delimiting_lines.end();
+	// for convenience, there is an initial active horizontal line of the first dummy anchor
 	return case_three_index({
 		anchors,
-		std::move(delimiting_lines),
-		std::move(anchor_diag_to_list),
-		std::move(anchor_hor_to_list),
-		{},
-		{{0, 0}, {get<1>(anchors.back()) + get<2>(anchors.back()), anchors.size() - 1}},
-		{}
+		{}, // updates
+		{{0, {0, numeric_limits<ai_t>::max()}}}, // active hor
+		{} // active diag
 	});
-}
-
-void prune_shadowed_delimiting_lines(case_three_index &I, const ai_t sweeping_line_a)
-{
-	const auto bound = I.updates.upper_bound(sweeping_line_a);
-	for (auto e = I.updates.begin(); e != bound; ++e) { // TODO is this linear-time complexity or linearithmic?
-		const ai_t j = e->second;
-		const ai_t j_diag = get<0>(I.anchors[j]) - get<1>(I.anchors[j]);
-
-		// check if diagonal line is still in the list or if we just added a new update before bound
-		if (!I.active_diagonal_lines.contains(j_diag) or
-				I.active_diagonal_lines[j_diag] != j or
-				sweeping_line_a < e->first)
-		       	continue;
-
-		const auto line_it = I.anchor_diag_to_list[j];
-		const auto next_it = std::next(line_it);
-		const auto [_j, j_line, j_val] = *line_it;
-		const auto [k,  k_line, k_val] = *next_it;
-		const ai_t k_d = get<1>(I.anchors[k]) + get<2>(I.anchors[k]);
-		assert(j == _j);
-
-		// check if update is still valid for this exact diagonal/horizontal position
-		if (k_line != horizontal or k_d + j_diag != e->first)
-			continue;
-
-		if (get<2>(*std::prev(line_it)) <= k_val) { // TODO is this the correct order?
-			// diagonal shadows horizontal
-			//cerr << "DEBUG: line " << j << "diag" << " shadows " << k << "hor" << endl;
-			get<2>(*line_it) = k_val;
-			I.delimiting_lines.erase(next_it);
-			assert(I.active_horizontal_lines[k_d] == k);
-			I.active_horizontal_lines.erase(k_d);
-			const auto [h, h_line, _] = *std::next(line_it);
-			if (h_line == horizontal) {
-				const ai_t h_d = get<1>(I.anchors[h]) + get<2>(I.anchors[h]);
-				I.updates.insert({ h_d + j_diag, j });
-			}
-		} else {
-			// horizontal shadows diagonal
-			//cerr << "DEBUG: line " << j << "diag" << " is shadowed by " << k << "hor" << endl;
-			I.delimiting_lines.erase(line_it);
-			assert(I.active_diagonal_lines[j_diag] == j);
-			I.active_diagonal_lines.erase(j_diag);
-
-			const auto [h, h_line, _] = *std::prev(next_it);
-			if (h_line == diagonal) {
-				const ai_t h_diag = get<0>(I.anchors[h]) - get<1>(I.anchors[h]);
-				I.updates.insert({ k_d + h_diag, h });
-			}
-		}
-	}
-
-	// delete events
-	I.updates.erase(I.updates.begin(), I.updates.upper_bound(sweeping_line_a)); // recompute bound? TODO check
 }
 
 ai_t compute_case_three(case_three_index &I, const anchor_t &anchor_i)
@@ -677,29 +642,20 @@ ai_t compute_case_three(case_three_index &I, const anchor_t &anchor_i)
 
 	prune_shadowed_delimiting_lines(I, i_a);
 
-	// locate closest lines
-	const auto hor_lb  = std::prev(I.active_horizontal_lines.upper_bound(i_c));
-	const auto diag_lb = I.active_diagonal_lines.upper_bound(i_diag); // NB we exclude the diagonal itself
+	// locate closest active lines above anchor start and get their Q-coordinates (aka c value)
+	const auto hor_up  = prev(I.active_horizontal_lines.upper_bound(i_c)); // horizontal line at i_c included
+	const ai_t c_hor_up = hor_up->first; // the key is the Q-coordinate already
 
-	const ai_t c_hor_lb = hor_lb->first;
-	const ai_t c_diag_lb = ((diag_lb != I.active_diagonal_lines.end()) ? i_a - (get<0>(I.anchors[diag_lb->second]) - get<1>(I.anchors[diag_lb->second])) : std::numeric_limits<ai_t>::min());
-	ai_t rec_value;
-	if (c_hor_lb <= c_diag_lb) {
-		rec_value = get<2>(*(I.anchor_diag_to_list[diag_lb->second]));
-	} else {
-		rec_value = get<2>(*(I.anchor_hor_to_list[hor_lb->second]));
-	}
+	const auto diag_up = I.active_diagonal_lines.upper_bound(i_diag); // diagonal line at i_diag excluded
+	const ai_t c_diag_up = ((diag_up != I.active_diagonal_lines.end()) ? i_a - diag_up->first : numeric_limits<ai_t>::min());
 
-	if (rec_value == std::numeric_limits<ai_t>::max()) {
-		return std::numeric_limits<ai_t>::max();
-	} else {
+	// find the correct region and its recursive value
+	const ai_t rec_value = (c_hor_up <= c_diag_up) ? diag_up->second.second : hor_up->second.second;
+
+	if (rec_value == numeric_limits<ai_t>::max())
+		return numeric_limits<ai_t>::max();
+	else
 		return rec_value + i_a;
-	}
-}
-
-void update_startpoint_case_three(case_three_index &I, const anchor_t &a_j, const ai_t j_cost)
-{
-	// do nothing
 }
 
 void  update_endpoint_case_three(case_three_index &I, ai_t j, const anchor_t &a_j, const ai_t j_cost)
@@ -707,72 +663,170 @@ void  update_endpoint_case_three(case_three_index &I, ai_t j, const anchor_t &a_
 	const ai_t j_b = get<0>(a_j) + get<2>(a_j);
 	const ai_t j_d = get<1>(a_j) + get<2>(a_j);
 	const ai_t j_diag = j_b - j_d;
+	const ai_t j_rec_value = j_cost - j_b; // value of the new 1D segment to insert
 
 	prune_shadowed_delimiting_lines(I, j_b);
 
-	// value of the two lines to (potentially?) insert
-	const ai_t j_rec_value = j_cost - j_b;
-
-	// find position in delimiting_lines
-	list<l_t>::iterator pos;
-	const auto hor_lb  = std::prev(I.active_horizontal_lines.upper_bound(j_d));
-	const auto diag_lb = I.active_diagonal_lines.upper_bound(j_diag - 1); // NB we include the diagonal
-	const ai_t c_hor_lb = hor_lb->first;
-	const ai_t c_diag_lb = ((diag_lb != I.active_diagonal_lines.end()) ? j_b - (get<0>(I.anchors[diag_lb->second]) - get<1>(I.anchors[diag_lb->second])) : std::numeric_limits<ai_t>::min());
-
-	if (c_hor_lb <= c_diag_lb) {
-		pos = I.anchor_diag_to_list[diag_lb->second];
-	} else {
-		pos = I.anchor_hor_to_list [hor_lb->second];
-	}
-	const auto [p, p_line, p_val] = *pos;
+	// find region that will be covered by our new 1D segment
+	const auto hor_up  = prev(I.active_horizontal_lines.upper_bound(j_d));
+	const auto diag_up = I.active_diagonal_lines.upper_bound(j_diag - 1); // NB we include the diagonal
+	const ai_t c_hor_up = hor_up->first; // the key is the Q-coordinate already
+	const ai_t c_diag_up = ((diag_up != I.active_diagonal_lines.end()) ? j_b - diag_up->first : numeric_limits<ai_t>::min());
+	const auto [ p, p_line, p_val ] = [&]() {
+		if (c_diag_up >= c_hor_up) {
+			return make_tuple( diag_up->second.first, diagonal, diag_up->second.second );
+		} else {
+			return make_tuple( hor_up->second.first, horizontal, hor_up->second.second );
+		}
+	}();
 	const ai_t p_d = get<1>(I.anchors[p]) + get<2>(I.anchors[p]);
 	const ai_t p_diag = get<0>(I.anchors[p]) - get<1>(I.anchors[p]);
 
-	if (((p_line == horizontal) ? p_d : j_b - p_diag) < j_d) {
-		// case 1: no line intersects with the two new ones
-		const auto j_diag_pos = I.delimiting_lines.insert(std::next(pos), { j, diagonal, p_val });
-		I.anchor_diag_to_list[j] = j_diag_pos;
-		I.active_diagonal_lines[j_diag] = j;
-		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_rec_value });
-		I.anchor_hor_to_list[j] = j_hor_pos;
-		I.active_horizontal_lines[j_d] = j;
+	// activate the new horizontal and diagonal lines, possibly replacing a line at the same hor/diag
+	assert(j_rec_value <= p_val);
+	const auto [ diag_new, _ ] = I.active_diagonal_lines.insert_or_assign(j_diag, std::make_pair(j, p_val));
+	const auto [ hor_new, __ ] = I.active_horizontal_lines.insert_or_assign(j_d, std::make_pair(j, j_rec_value));
+
+	// insert update if line following new diagonal is horizontal
+	const auto [ n, n_line ] = [&]() {
+		const auto hor_next  = next(hor_new);
+		const auto diag_next = (diag_new != I.active_diagonal_lines.begin()) ? prev(diag_new) : I.active_diagonal_lines.end();
+
+		if (hor_next == I.active_horizontal_lines.end() and diag_next == I.active_diagonal_lines.end()) {
+			return make_tuple( (ai_t)0, diagonal ); // do nothing outcome
+		}
+
+		const ai_t c_hor_next = (hor_next != I.active_horizontal_lines.end()) ? hor_next->first : numeric_limits<ai_t>::max();
+		const ai_t c_diag_next = ((diag_next != I.active_diagonal_lines.end()) ? j_b - diag_next->first : numeric_limits<ai_t>::max());
+
+		// smaller Q-coordinate is closer, tie is won by horizontal
+		if (c_hor_next <= c_diag_next) {
+			return make_tuple( hor_next->second.first,  horizontal );
+		} else {
+			return make_tuple( diag_next->second.first, diagonal );
+		}
+	}();
+	if (n_line == horizontal) {
+		const ai_t n_d = get<1>(I.anchors[n]) + get<2>(I.anchors[n]);
+		I.updates.insert({ n_d + j_diag, {j, n} });
+	}
+
+	// insert update if line preceeding new horizontal is diagonal
+	if (((p_line == horizontal) ? p_d : j_b - p_diag) < j_d) { // case 1: no line intersects with the two new ones
 		if (p_line == diagonal) {
-			I.updates.insert({ j_d + p_diag, p });
+			I.updates.insert({ j_d + p_diag, {p, j} });
 		}
-		const auto [k, k_line, _] = *std::next(j_diag_pos);
-		if (k_line == horizontal) {
-			const ai_t k_d = get<1>(I.anchors[k]) + get<2>(I.anchors[k]);
-			I.updates.insert({ k_d + j_diag, j });
-		}
-	} else {
-		// case 2: some line intersects with the two new ones
+	} else { // case 2: some line intersects with the two new ones
 		assert(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_rec_value <= p_val);
-		//if (!(((p_line == horizontal) ? p_d : j_b - p_diag) == j_d and j_rec_value <= p_val)) {
-		//	cerr << "WARNING: a rare edge case has been found involving case 2 and anchors " << p << ":[" << get<0>(I.anchors[p]) << ".." << get<0>(I.anchors[p]) + get<2>(I.anchors[p]) << "),[" << get<1>(I.anchors[p]) << ".." << get<1>(I.anchors[p]) + get<2>(I.anchors[p]) << ") and " << j << ":["  << get<0>(a_j) << ".." << get<0>(a_j) + get<2>(a_j) << "),[" << get<1>(a_j) << ".." << get<1>(a_j) + get<2>(a_j) << ")" << endl;
-		//}
-		const auto j_diag_pos = I.delimiting_lines.insert(std::next(pos), { j, diagonal, p_val });
-		I.anchor_diag_to_list[j] = j_diag_pos;
-		I.active_diagonal_lines[j_diag] = j;
-		const auto j_hor_pos =  I.delimiting_lines.insert(j_diag_pos, { j, horizontal, j_rec_value });
-		I.anchor_hor_to_list[j] = j_hor_pos;
-		I.active_horizontal_lines[j_d] = j;
+		const auto [ pp, pp_line ] = [&]() {
+			const auto hor_prev = prev(hor_new); // always exists
+			const ai_t c_hor_prev = hor_prev->first;
 
-		I.delimiting_lines.erase(pos);
+			const auto diag_prev = next(diag_new);
+			const ai_t c_diag_prev = ((diag_prev != I.active_diagonal_lines.end()) ? j_b - diag_prev->first : numeric_limits<ai_t>::min());
 
-		const auto [k, k_line, _] = *std::next(j_diag_pos);
-		if (k_line == horizontal) {
-			const ai_t k_d = get<1>(I.anchors[k]) + get<2>(I.anchors[k]);
-			I.updates.insert({ k_d + j_diag, j });
-		}
-		assert((k_line == horizontal) ? (get<1>(I.anchors[k]) + get<2>(I.anchors[k]) != j_d) : (get<0>(I.anchors[k]) - get<1>(I.anchors[k]) != j_diag));
-		// TODO possible duplication?
-		const auto [h, h_line, __] = *std::prev(j_hor_pos);
-		if (h_line == diagonal) {
-			const ai_t h_diag = get<0>(I.anchors[h]) - get<1>(I.anchors[h]);
-			I.updates.insert({ j_d + h_diag, h });
+			// larger Q-coordinate is closer, tie is won by diagonal
+			if (c_hor_prev > c_diag_prev) {
+				return make_tuple( hor_prev->second.first,  horizontal );
+			} else {
+				return make_tuple( diag_prev->second.first, diagonal );
+			}
+		}();
+		if (pp_line == diagonal) {
+			const ai_t pp_diag = get<0>(I.anchors[pp]) - get<1>(I.anchors[pp]);
+			I.updates.insert({ j_d + pp_diag, {pp, j} });
 		}
 	}
+}
+
+void prune_shadowed_delimiting_lines(case_three_index &I, const ai_t sweeping_line_a)
+{
+	if (I.updates.size() == 0)
+		return;
+
+	// process the update queues in sorted order NB: the queues will be updated during this pass
+	for (auto e = I.updates.begin(); e != I.updates.end() and e->first <= sweeping_line_a; ++e) {
+		// check if diagonal involved in the cross is still valid
+		const ai_t j = e->second.first;
+		const ai_t j_diag = get<0>(I.anchors[j]) - get<1>(I.anchors[j]);
+		const auto j_diag_it = I.active_diagonal_lines.find(j_diag);
+		if (j_diag_it == I.active_diagonal_lines.end() or j_diag_it->second.first != j)
+			continue;
+
+		// check if horizontal involved in the cross is still valid
+		const ai_t i = e->second.second;
+		const ai_t i_d = get<1>(I.anchors[i]) + get<2>(I.anchors[i]);
+		const auto i_hor_it = I.active_horizontal_lines.find(i_d);
+		if (i_hor_it == I.active_horizontal_lines.end() or i_hor_it->second.first != i)
+			continue;
+		const ai_t i_val = i_hor_it->second.second;
+
+		// find rec value of area above diagonal
+		const auto [ p, p_line, p_val ] = [&]() {
+			const auto hor_prev = prev(i_hor_it); // always exists
+			const ai_t c_hor_prev = hor_prev->first;
+			const ai_t j_hor_prev = hor_prev->second.first;
+			const ai_t hor_prev_val = hor_prev->second.second;
+
+			const auto diag_prev = next(j_diag_it);
+			const ai_t c_diag_prev = (diag_prev != I.active_diagonal_lines.end()) ? e->first - diag_prev->first : numeric_limits<ai_t>::min();
+			const ai_t j_diag_prev = (diag_prev != I.active_diagonal_lines.end()) ? diag_prev->second.first : 0;
+			const ai_t diag_prev_val = (diag_prev != I.active_diagonal_lines.end()) ? diag_prev->second.second : numeric_limits<ai_t>::max();
+
+			// larger Q-coordinate is closer, ties need to be double checked
+			if (c_hor_prev > c_diag_prev) {
+				return make_tuple(j_hor_prev, horizontal, hor_prev_val);
+			} else if (c_diag_prev > c_hor_prev) {
+				return make_tuple(j_diag_prev, diagonal, diag_prev_val);
+			}
+			// rare edge case of update on this T-coordinate!
+			if (hor_prev_val <= diag_prev_val) { // this tie can be broken arbitrarily since each update triggers a scan for crosses
+				return make_tuple(j_hor_prev, horizontal, hor_prev_val);
+			} else {
+				return make_tuple(j_diag_prev, diagonal, diag_prev_val);
+			}
+		}();
+
+		if (p_val <= i_val) {
+			// area above diagonal covers the area below horizontal
+			//cerr << "DEBUG: line " << j << "diag" << " shadows " << i << "hor" << endl;
+			j_diag_it->second.second = i_val;
+			const auto [ n, n_line ] = [&]() {
+				const auto hor_next  = next(i_hor_it);
+				const auto diag_next = (j_diag_it != I.active_diagonal_lines.begin()) ? prev(j_diag_it) : I.active_diagonal_lines.end();
+
+				if (hor_next == I.active_horizontal_lines.end() and diag_next == I.active_diagonal_lines.end()) {
+					return make_tuple( (ai_t)0, diagonal ); // do nothing outcome
+				}
+
+				const ai_t c_hor_next = (hor_next != I.active_horizontal_lines.end()) ? hor_next->first : numeric_limits<ai_t>::max();
+				const ai_t c_diag_next = (diag_next != I.active_diagonal_lines.end()) ? e->first - diag_next->first : numeric_limits<ai_t>::max();
+
+				// smaller Q-coordinate is closer, tie is won by horizontal
+				if (c_hor_next <= c_diag_next) {
+					return make_tuple( hor_next->second.first,  horizontal );
+				} else {
+					return make_tuple( diag_next->second.first, diagonal );
+				}
+			}();
+			if (n_line == horizontal) {
+				const ai_t n_d = get<1>(I.anchors[n]) + get<2>(I.anchors[n]);
+				I.updates.insert({ n_d + j_diag, {j, n}});
+			}
+			I.active_horizontal_lines.erase(i_d);
+		} else {
+			// area below horizontal covers area above diagonal
+			//cerr << "DEBUG: line " << j << "diag" << " is shadowed by " << i << "hor" << endl;
+			I.active_diagonal_lines.erase(j_diag);
+			if (p_line == diagonal) {
+				const ai_t p_diag = get<0>(I.anchors[p]) - get<1>(I.anchors[p]);
+				I.updates.insert({ i_d + p_diag, {p, i} });
+			}
+		}
+	}
+
+	// delete events
+	I.updates.erase(I.updates.begin(), I.updates.upper_bound(sweeping_line_a));
 }
 
 export
@@ -785,7 +839,7 @@ void chainx_backtrack(
 	const ai_t n = anchors.size();
 	chain_out.clear();
 
-	if (costs[n-1] == std::numeric_limits<ai_t>::max())
+	if (costs[n-1] == numeric_limits<ai_t>::max())
 		return;
 	if (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1]))
 		return;
@@ -843,7 +897,7 @@ void chainx_backtrack(
 		}
 	}
 	chain_out.push_back(anchors[0]);
-	std::reverse(chain_out.begin(), chain_out.end());
+	reverse(chain_out.begin(), chain_out.end());
 }
 
 export
@@ -856,7 +910,7 @@ void weak_backtrack(
 	const ai_t n = anchors.size();
 	chain_out.clear();
 
-	if (costs[n-1] == std::numeric_limits<ai_t>::max())
+	if (costs[n-1] == numeric_limits<ai_t>::max())
 		return;
 	if (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1]))
 		return;
@@ -914,7 +968,7 @@ void weak_backtrack(
 		}
 	}
 	chain_out.push_back(anchors[0]);
-	std::reverse(chain_out.begin(), chain_out.end());
+	reverse(chain_out.begin(), chain_out.end());
 }
 
 export
@@ -922,7 +976,7 @@ ai_t compute_chain_cost(const vector<anchor_t> &chain, const chaining_mode m)
 {
 	const ai_t n = chain.size();
 	if (n <= 1) {
-		return std::numeric_limits<ai_t>::max();
+		return numeric_limits<ai_t>::max();
 	}
 
 	ai_t cost = 0;
@@ -980,13 +1034,6 @@ pair<ai_t,vector<ai_t>> compute_diagonal_ranks(const vector<anchor_t> &anchors)
 	return { last_rank, ranks };
 }
 
-/*
- * export a given colinear chain to CIGAR format
- * NB: the chain is expected to respect weak prec (see utils::weak_precedes)
- * NB: the chain is assumed to start and end with dummy anchors (see utils::place_dummy_anchors)
- * NB: we assume at least one non-dummy anchor
- * NB: to output a well-formed CIGAR string, we assume the chain does NOT contain adjacent anchors with connect cost = 0
- */
 export
 void write_cigar(
 	const string::size_type text_length,
@@ -1086,9 +1133,6 @@ void write_cigar(
 	}
 }
 
-/*
- * see https://samtools.github.io/hts-specs/SAMv1.pdf
- */
 export
 void write_SAM_header(ostream &out)
 {
@@ -1107,9 +1151,6 @@ void write_SAM_text(const long unsigned int text_length, const string &text_id, 
 	out << "@SQ\tSN:" << text_id << "\tLN:" << text_length << "\n";
 }
 
-/*
- * NB: see write_cigar
- */
 export
 void write_SAM_entry(
 	const string::size_type text_length,
@@ -1146,9 +1187,6 @@ void write_SAM_entry(
 	out << '\n';
 }
 
-/*
- * NB: see write_cigar
- */
 export
 void write_PAF_entry(
 	const string::size_type text_length,

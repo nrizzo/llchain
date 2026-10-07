@@ -1,8 +1,8 @@
 VERSION=$(shell git rev-parse --short HEAD)
-FLAGS=-std=c++20 -O3 -Wall -fmodules
-CFLAGS=-std=c++20 -O3 -Wall
+FLAGS=-std=c++20 -O3 -flto -march=native -DNDEBUG -Wall -fmodules
+CFLAGS=-std=c++20 -O3 -flto -march=native -DNDEBUG -Wall
 LDFLAGS=-lz
-STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set list string numeric sstream cmath array filesystem thread syncstream latch barrier optional atomic
+STDMODULES=iostream vector fstream tuple random algorithm limits cassert map set list string numeric sstream cmath array filesystem thread syncstream latch barrier optional atomic iterator
 STDMODULES_FAKEFILES=$(foreach s,$(STDMODULES),makefile.cache/$(s))
 ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 HTSLIB_LIB=$(ROOT_DIR)ext/htslib
