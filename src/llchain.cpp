@@ -193,6 +193,9 @@ int main(int argc, char **argv)
 		->check(open_trunc_check(phylip_out))
 		->needs(all_to_all_option);
 
+	bool low_mem = false;
+	app.add_flag("--low-mem", low_mem, "Index one reference at a time and read the query FILE once per reference (no effect in --all-to-all mode)");
+
 	long debug_random_anchors {0};
 	auto debug_opt = app.add_option("--debug-random-anchors", debug_random_anchors, "DEBUG: fuzzy-test this number of random anchors in a 400x200 2D space")
 		->group("")
@@ -264,7 +267,7 @@ int main(int argc, char **argv)
 	}
 
 	// ### normal mode ###
-	if ((text_path != "") and (query_path != "")) {
+	if ((text_path != "") and (query_path != "") and !low_mem) {
 		cerr << string() +
 			"[llchain] running with options" +
 			" -t " + text_path +
@@ -314,11 +317,10 @@ int main(int argc, char **argv)
 		}
 
 		latch reader_done(1);
-		// queue for normal/short sequences
+		// different queues for normal/short queries (reads) and longer queries (assemblies)
 		moodycamel::ConcurrentQueue<read> read_queue(3*qthreads, 1, 1);
-		// queue for very long sequences
 		moodycamel::ConcurrentQueue<read,assembly_traits> assembly_queue(1, 1, 1);
-		auto reader_thread = jthread([&query_path, &read_queue, &assembly_queue, &reader_done]() {
+		auto reader_thread = jthread([&]() {
 			kseq::FastaGzInput fgz(query_path);
 			string query_id, query;
 			while (fgz.read_sequence(query_id, query)) {
@@ -372,9 +374,147 @@ int main(int argc, char **argv)
 			});
 		}
 
-		reader_thread.join();
-		for (auto &t : seed_chain_workers) {
-			t.join();
+		return 0;
+	}
+
+	// ### low mem mode ###
+	if ((text_path != "") and (query_path != "") and low_mem) {
+		cerr << string() +
+			"[llchain] running with options" +
+			" -t " + text_path +
+			" -q " + query_path +
+			" --qthreads " + to_string(qthreads) +
+			string(" -m " + mode_s) +
+			string(" -a " + anchor_type_s) +
+			string(" -l " + to_string(seed_p.anchor_length)) +
+			(reverse_complement ? string("-r") : string("")) +
+			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
+			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string("")) +
+			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string("")) +
+			((low_mem)                   ? string(" --low-mem") : string(""))
+			<< endl;
+
+		htslib_wrapper::fasta_file text_idx(text_path);
+
+		if (mummer_output_path != "") {
+			assert(ioss.mummer_out.is_open());
+		}
+
+		if (paf_output_path != "") {
+			assert(ioss.paf_out.is_open());
+		}
+
+		if (sam_output_path != "") {
+			assert(ioss.sam_out.is_open());
+			algo::write_SAM_header(ioss.sam_out);
+			for (htslib_wrapper::hts_pos_t t = 0; t < text_idx.nseq(); t++)
+				algo::write_SAM_text(text_idx.len(t), text_idx.id(t), ioss.sam_out);
+		}
+
+		// different queues for normal/short queries (reads) and longer queries (assemblies)
+		moodycamel::ConcurrentQueue<read> read_queue(3*qthreads, 1, 1);
+		moodycamel::ConcurrentQueue<read,assembly_traits> assembly_queue(1, 1, 1);
+		barrier sync_point(1 + qthreads); // to sync reader_indexer and seed_chain workers
+		atomic<bool> stage_end(false);
+		string text(""), text_id("");
+		optional<mummer_essaMEM_wrapper::sparseSA> index = mummer_essaMEM_wrapper::dummy_index(); // no copy/move constructor
+		string::size_type text_length = 0;
+		latch reader_done(1);
+		auto reader_indexer_worker = jthread([&]() {
+			long long past_qn = -1;
+			for (htslib_wrapper::hts_pos_t t = 0; t < text_idx.nseq(); t++) {
+				auto start = std::chrono::steady_clock::now();
+				text = text_idx.fetch(t);
+				text_id = text_idx.id(t);
+
+				index.reset();
+				index.emplace(mummer_essaMEM_wrapper::index(text, seed_p.anchor_length));
+				text_length = text.length();
+				const std::chrono::duration<double> index_time = std::chrono::steady_clock::now() - start;
+
+				cerr << string() +
+					"[llchain] indexed " + text_id +
+					" in " + (ostringstream() << index_time).str()
+					<< endl;
+
+				kseq::FastaGzInput fgz(query_path);
+				string query_id, query;
+				long long qn = 0;
+				while (fgz.read_sequence(query_id, query)) {
+					assert(query.length() > 0 and query_id != "");
+					if (query.length() <= 200000) {
+						while(!read_queue.try_enqueue({query, query_id}))
+							std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					} else {
+						while(!assembly_queue.try_enqueue({query, query_id}))
+							std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					}
+					qn += 1;
+				}
+
+				if (past_qn != -1 and past_qn != qn) {
+					cerr << "[llchain] ERROR: --low-mem expects a query file but a different number of queries was read after the first pass!";
+					exit(1);
+				}
+				past_qn = qn;
+
+				stage_end = true;
+				sync_point.arrive_and_wait(); // wait for the seed_chain_workers
+				stage_end = false;
+				sync_point.arrive_and_wait(); // sync again
+			}
+			reader_done.count_down();
+		});
+
+		vector<jthread> seed_chain_workers(qthreads);
+		for (int i = 0; i < qthreads; i++) {
+			seed_chain_workers[i] = jthread([&]() {
+				read r;
+				bool final_check = false;
+				io_streams_sync ioss_sync{
+					osyncstream(cout),
+					osyncstream(ioss.sam_out),
+					osyncstream(ioss.paf_out),
+					osyncstream(ioss.mummer_out)
+				};
+				while (true) {
+					while (read_queue.try_dequeue(r) or assembly_queue.try_dequeue(r)) {
+						if (chain_p.mode == utils::chaining_mode::global or chain_p.mode == utils::chaining_mode::global_skipcost or text_length >= r.read.length()) {
+							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
+							if (reverse_complement) {
+								llchain::utils::reverse_complement(r.read);
+								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, true));
+							}
+						} else {
+							// the smaller text sequence is the "query"
+							auto qindex = mummer_essaMEM_wrapper::index(r.read, seed_p.anchor_length);
+							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, text, text_id, backtrack, false);
+							if (reverse_complement) {
+								string rc_text(text);
+								llchain::utils::reverse_complement(rc_text);
+								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, rc_text, text_id, backtrack, true));
+							}
+						}
+						if (ioss_sync.cout.good()) ioss_sync.cout.emit();
+						if (ioss_sync.sam_out.good()) ioss_sync.sam_out.emit();
+						if (ioss_sync.paf_out.good()) ioss_sync.paf_out.emit();
+						if (ioss_sync.mummer_out.good()) ioss_sync.mummer_out.emit();
+					}
+					if (final_check and stage_end) {
+						sync_point.arrive_and_wait(); // wait for other workers and reader_indexer
+						final_check = false;
+						sync_point.arrive_and_wait(); // sync again, stage_end should be false now
+						continue;
+					}
+					if (reader_done.try_wait() or stage_end) {
+						if (final_check and reader_done.try_wait())
+							break;
+						final_check = true;
+					}
+					if (!final_check)
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+				}
+			});
 		}
 
 		return 0;
@@ -410,9 +550,8 @@ int main(int argc, char **argv)
 			phylip_out << "\n";
 		}
 
-		// queue for normal/short sequences
+		// different queues for normal/short queries (reads) and longer queries (assemblies)
 		moodycamel::ConcurrentQueue<ata_read> ata_read_queue(3*qthreads, 1, 1);
-		// queue for very long sequences
 		moodycamel::ConcurrentQueue<ata_read,assembly_traits> ata_assembly_queue(1, 1, 1);
 		vector<utils::anchor_index_t> distances;
 		barrier sync_point(1 + qthreads); // to sync reader_indexer and seed_chain workers

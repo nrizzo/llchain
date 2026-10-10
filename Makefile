@@ -11,7 +11,7 @@ HTSLIB_FLAGS=-L $(HTSLIB_LIB) -lhts -Wl,-rpath $(HTSLIB_LIB)
 
 LLCHAIN_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o ext/cli11.o ext/htslib_wrapper.o
 llchain : src/llchain.cpp $(LLCHAIN_OBJS) $(STDMODULES_FAKEFILES)
-	g++ -I ext/concurrentqueue $(FLAGS) $(HTSLIB_FLAGS) -DVERSION="\"$(VERSION)\"" $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
+	g++ -I ext/concurrentqueue $(FLAGS) -flto-partition=none $(HTSLIB_FLAGS) -DVERSION="\"$(VERSION)\"" $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS) -Wno-global-module
 
 src/utils.o : src/utils.cppm ext/grid_to_bmp.o $(STDMODULES_FAKEFILES)
 	g++ $(FLAGS) -c $< -o $@
