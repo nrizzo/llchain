@@ -27,6 +27,7 @@ namespace llchain::utils {
 export typedef grid_to_bmp::BmpImage Image;
 
 export enum chaining_mode { global, semiglobal, global_skipcost, semiglobal_skipcost };
+export enum precedence { chainx_p, weak_p };
 
 export namespace defaults
 {
@@ -83,7 +84,9 @@ export inline anchor_index_t connect_Qgap(const anchor_t &anc1, const anchor_t &
  * check if anc1 precedes anc2 according to ChainX/weak precedence
  */
 export inline bool chainx_precedes(const anchor_t &anc1, const anchor_t &anc2);
+export inline bool chainx_precedes(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2);
 export inline bool weak_precedes  (const anchor_t &anc1, const anchor_t &anc2);
+export inline bool weak_precedes  (anchor_index_t a1, anchor_index_t c1, anchor_index_t a2, anchor_index_t c2);
 
 /*
  * generate n random anchors
@@ -374,7 +377,14 @@ bool chainx_precedes(const anchor_t &anc1, const anchor_t &anc2)
 	const anchor_index_t anc2_c = get<1>(anc2);
 	const anchor_index_t anc2_d = get<1>(anc2) + get<2>(anc2);
 
-	return (anc1_a < anc2_a and anc1_b <= anc2_b and anc1_c < anc2_c and anc1_d <= anc2_d);
+	return (anc1_a < anc2_a and anc1_b < anc2_b and anc1_c < anc2_c and anc1_d < anc2_d);
+}
+
+export
+inline
+bool chainx_precedes(anchor_index_t a1, anchor_index_t b1, anchor_index_t c1, anchor_index_t d1, anchor_index_t a2, anchor_index_t b2, anchor_index_t c2, anchor_index_t d2)
+{
+	return (a1 < a2 and b1 < b2 and c1 < c2 and d1 < d2);
 }
 
 export
@@ -388,6 +398,13 @@ bool weak_precedes(const anchor_t &anc1, const anchor_t &anc2)
 	const anchor_index_t anc2_c = get<1>(anc2);
 
 	return (anc1_a <= anc2_a and anc1_c <= anc2_c and (anc1_a != anc2_a or anc1_c != anc2_c));
+}
+
+export
+inline
+bool weak_precedes(anchor_index_t a1, anchor_index_t c1, anchor_index_t a2, anchor_index_t c2)
+{
+	return (a1 <= a2 and c1 <= c2 and (a1 != a2 or c1 != c2));
 }
 
 export void merge_perfect_chains(vector<anchor_t> &anchors)
