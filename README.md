@@ -31,6 +31,7 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.
 
 ## TODOs
+- primary alignment TAG
 - PAF input
 - clang
 - investigate sorting

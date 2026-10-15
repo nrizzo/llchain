@@ -58,7 +58,11 @@ struct chaining_params {
 	chainx::mode chainx_mode;
 	bool chainx_original_magic_numbers;
 	bool chainx_optimal_ensure_pred;
+};
+struct io_params {
 	bool store_sam_sequence;
+	bool paf_no_hit;
+	bool sam_hit_only;
 };
 struct io_streams {
 	ofstream sam_out;
@@ -67,9 +71,9 @@ struct io_streams {
 };
 struct io_streams_sync {
 	osyncstream cout;
-	osyncstream sam_out;
-	osyncstream paf_out;
-	osyncstream mummer_out;
+	optional<osyncstream> sam_out;
+	optional<osyncstream> paf_out;
+	optional<osyncstream> mummer_out;
 };
 struct read {
 	string read;
@@ -90,7 +94,8 @@ struct assembly_traits : public moodycamel::ConcurrentQueueDefaultTraits {
 utils::anchor_index_t seed_and_chain(
 	const seeding_params &seed_p,
 	const chaining_params &chain_p,
-	io_streams_sync &ioss,
+	const io_params &io_p,
+	io_streams_sync &ioss_sync,
 	const mummer_essaMEM_wrapper::sparseSA &index,
 	const string::size_type text_length,
 	const string &text_id,
@@ -104,6 +109,7 @@ int main(int argc, char **argv)
 {
 	seeding_params seed_p;
 	chaining_params chain_p;
+	io_params io_p;
 	io_streams ioss;
 
 	// ### CLI setup ###
@@ -143,7 +149,7 @@ int main(int argc, char **argv)
 	app.add_flag("-r,--reverse-complement", reverse_complement, "Compute the anchored edit distance for the reversed-and-complemented queries as well");
 
 	bool all_to_all {false};
-	auto all_to_all_option = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the text sequences, see also --phylip); in semiglobal(-sc) mode, the smaller sequence is the query")
+	auto all_to_all_option = app.add_flag("--all-to-all", all_to_all, "Pairwise comparisons (of the text sequences, see also --phylip); in semiglobal(-sc) mode, the smaller sequence is the query and the best performance happens when the text sequences are sorted by length")
 		->excludes(q_opt)
 		->needs(t_opt);
 
@@ -183,11 +189,17 @@ int main(int argc, char **argv)
 		->check(open_trunc_check(ioss.mummer_out));
 	auto sam_opt = app.add_option("-s,--sam", sam_output_path, "Output the optimal chains in SAM format")
 		->check(open_trunc_check(ioss.sam_out));
-	chain_p.store_sam_sequence = false;
-	app.add_flag("--store-SAM-sequence", chain_p.store_sam_sequence, "Store the query sequence in the SAM output")
+	io_p.store_sam_sequence = false;
+	app.add_flag("--store-sam-sequence", io_p.store_sam_sequence, "Store the query sequence in the SAM output")
 		->needs(sam_opt);
-	app.add_option("-p,--paf", paf_output_path, "Output the optimal chains in PAF format")
+	io_p.sam_hit_only = false;
+	app.add_flag("--sam-hit-only", io_p.sam_hit_only, "In SAM output, don't output unmapped reads")
+		->needs(sam_opt);
+	auto paf_opt = app.add_option("-p,--paf", paf_output_path, "Output the optimal chains in PAF format")
 		->check(open_trunc_check(ioss.paf_out));
+	io_p.paf_no_hit = false;
+	app.add_flag("--paf-no-hit", io_p.paf_no_hit, "In PAF, output unmapped queries; the strand and the reference name fields are set to '*'")
+		->needs(paf_opt);
 	ofstream phylip_out;
 	app.add_option("--phylip", phylip_output_path, "Output the distances in a PHYLIP matrix (lower triangular)")
 		->check(open_trunc_check(phylip_out))
@@ -276,7 +288,7 @@ int main(int argc, char **argv)
 			string(" -m " + mode_s) +
 			string(" -a " + anchor_type_s) +
 			string(" -l " + to_string(seed_p.anchor_length)) +
-			(reverse_complement ? string("-r") : string("")) +
+			(reverse_complement ? string(" -r") : string("")) +
 			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
 			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string("")) +
 			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string(""))
@@ -343,25 +355,29 @@ int main(int argc, char **argv)
 				bool final_check = false;
 				io_streams_sync ioss_sync{
 					osyncstream(cout),
-					osyncstream(ioss.sam_out),
-					osyncstream(ioss.paf_out),
-					osyncstream(ioss.mummer_out)
+					(ioss.sam_out.is_open()    ? optional<osyncstream>(ioss.sam_out)    : optional<osyncstream>()),
+					(ioss.paf_out.is_open()    ? optional<osyncstream>(ioss.paf_out)    : optional<osyncstream>()),
+					(ioss.mummer_out.is_open() ? optional<osyncstream>(ioss.mummer_out) : optional<osyncstream>())
 				};
 				while (true) {
 					while (read_queue.try_dequeue(r) or assembly_queue.try_dequeue(r)) {
 						assert(r.read.length() > 0 and r.read_id != "");
 						for (vector<string::size_type>::size_type t = 0; t < texts.size(); t++) {
-							seed_and_chain(seed_p, chain_p, ioss_sync, text_indexes[t], texts[t].length(), text_idx.id(t), r.read, r.read_id, backtrack, false);
+							seed_and_chain(seed_p, chain_p, io_p, ioss_sync, text_indexes[t], texts[t].length(), text_idx.id(t), r.read, r.read_id, backtrack, false);
 
 							if (reverse_complement) {
 								llchain::utils::reverse_complement(r.read);
-								seed_and_chain(seed_p, chain_p, ioss_sync, text_indexes[t], texts[t].length(), text_idx.id(t), r.read, r.read_id, backtrack, true);
+								seed_and_chain(seed_p, chain_p, io_p, ioss_sync, text_indexes[t], texts[t].length(), text_idx.id(t), r.read, r.read_id, backtrack, true);
+								if (t < texts.size() - 1)
+									llchain::utils::reverse_complement(r.read);
 							}
 						}
 						if (ioss_sync.cout.good()) ioss_sync.cout.emit();
-						if (ioss_sync.sam_out.good()) ioss_sync.sam_out.emit();
-						if (ioss_sync.paf_out.good()) ioss_sync.paf_out.emit();
-						if (ioss_sync.mummer_out.good()) ioss_sync.mummer_out.emit();
+						if (backtrack) {
+							if (ioss_sync.sam_out.has_value() and ioss_sync.sam_out->good()) ioss_sync.sam_out->emit();
+							if (ioss_sync.paf_out.has_value() and ioss_sync.paf_out->good()) ioss_sync.paf_out->emit();
+							if (ioss_sync.mummer_out.has_value() and ioss_sync.mummer_out->good()) ioss_sync.mummer_out->emit();
+						}
 					}
 					if (reader_done.try_wait()) {
 						if (final_check)
@@ -387,7 +403,7 @@ int main(int argc, char **argv)
 			string(" -m " + mode_s) +
 			string(" -a " + anchor_type_s) +
 			string(" -l " + to_string(seed_p.anchor_length)) +
-			(reverse_complement ? string("-r") : string("")) +
+			(reverse_complement ? string(" -r") : string("")) +
 			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
 			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string("")) +
 			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string("")) +
@@ -473,32 +489,23 @@ int main(int argc, char **argv)
 				bool final_check = false;
 				io_streams_sync ioss_sync{
 					osyncstream(cout),
-					osyncstream(ioss.sam_out),
-					osyncstream(ioss.paf_out),
-					osyncstream(ioss.mummer_out)
+					(ioss.sam_out.is_open()    ? optional<osyncstream>(ioss.sam_out)    : optional<osyncstream>()),
+					(ioss.paf_out.is_open()    ? optional<osyncstream>(ioss.paf_out)    : optional<osyncstream>()),
+					(ioss.mummer_out.is_open() ? optional<osyncstream>(ioss.mummer_out) : optional<osyncstream>())
 				};
 				while (true) {
 					while (read_queue.try_dequeue(r) or assembly_queue.try_dequeue(r)) {
-						if (chain_p.mode == utils::chaining_mode::global or chain_p.mode == utils::chaining_mode::global_skipcost or text_length >= r.read.length()) {
-							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
-							if (reverse_complement) {
-								llchain::utils::reverse_complement(r.read);
-								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, true));
-							}
-						} else {
-							// the smaller text sequence is the "query"
-							auto qindex = mummer_essaMEM_wrapper::index(r.read, seed_p.anchor_length);
-							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, text, text_id, backtrack, false);
-							if (reverse_complement) {
-								string rc_text(text);
-								llchain::utils::reverse_complement(rc_text);
-								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, rc_text, text_id, backtrack, true));
-							}
+						seed_and_chain(seed_p, chain_p, io_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
+						if (reverse_complement) {
+							llchain::utils::reverse_complement(r.read);
+							seed_and_chain(seed_p, chain_p, io_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, true);
 						}
 						if (ioss_sync.cout.good()) ioss_sync.cout.emit();
-						if (ioss_sync.sam_out.good()) ioss_sync.sam_out.emit();
-						if (ioss_sync.paf_out.good()) ioss_sync.paf_out.emit();
-						if (ioss_sync.mummer_out.good()) ioss_sync.mummer_out.emit();
+						if (backtrack) {
+							if (ioss_sync.sam_out.has_value() and ioss_sync.sam_out->good()) ioss_sync.sam_out->emit();
+							if (ioss_sync.paf_out.has_value() and ioss_sync.paf_out->good()) ioss_sync.paf_out->emit();
+							if (ioss_sync.mummer_out.has_value() and ioss_sync.mummer_out->good()) ioss_sync.mummer_out->emit();
+						}
 					}
 					if (final_check and stage_end) {
 						sync_point.arrive_and_wait(); // wait for other workers and reader_indexer
@@ -530,7 +537,7 @@ int main(int argc, char **argv)
 			string(" -m " + mode_s) +
 			string(" -a " + anchor_type_s) +
 			string(" -l " + to_string(seed_p.anchor_length)) +
-			(reverse_complement ? string("-r") : string("")) +
+			(reverse_complement ? string(" -r") : string("")) +
 			((mummer_output_path  != "") ? string(" -o " + mummer_output_path) : string("")) +
 			((sam_output_path     != "") ? string(" -s " + sam_output_path) : string("")) +
 			((paf_output_path     != "") ? string(" -p " + paf_output_path) : string("")) +
@@ -619,38 +626,38 @@ int main(int argc, char **argv)
 				bool final_check = false;
 				io_streams_sync ioss_sync{
 					osyncstream(cout),
-					osyncstream(ioss.sam_out),
-					osyncstream(ioss.paf_out),
-					osyncstream(ioss.mummer_out)
+					(ioss.sam_out.is_open()    ? optional<osyncstream>(ioss.sam_out)    : optional<osyncstream>()),
+					(ioss.paf_out.is_open()    ? optional<osyncstream>(ioss.paf_out)    : optional<osyncstream>()),
+					(ioss.mummer_out.is_open() ? optional<osyncstream>(ioss.mummer_out) : optional<osyncstream>())
 				};
 				while (true) {
 					while (ata_read_queue.try_dequeue(r) or ata_assembly_queue.try_dequeue(r)) {
 						if (chain_p.mode == utils::chaining_mode::global or chain_p.mode == utils::chaining_mode::global_skipcost or text_length >= r.read.length()) {
-							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
+							auto anchored_ed = seed_and_chain(seed_p, chain_p, io_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, false);
 							if (reverse_complement) {
 								llchain::utils::reverse_complement(r.read);
-								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, true));
+								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, io_p, ioss_sync, *index, text_length, text_id, r.read, r.read_id, backtrack, true));
 							}
 							if (phylip_output_path != "") {
 								distances[r.read_i] = anchored_ed;
 							}
 						} else {
-							// the smaller text sequence is the "query"
+							// in semi-global mode, the smaller text sequence is the "query"
 							auto qindex = mummer_essaMEM_wrapper::index(r.read, seed_p.anchor_length);
-							auto anchored_ed = seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, text, text_id, backtrack, false);
+							auto anchored_ed = seed_and_chain(seed_p, chain_p, io_p, ioss_sync, qindex, r.read.length(), r.read_id, text, text_id, backtrack, false);
 							if (reverse_complement) {
 								string rc_text(text);
 								llchain::utils::reverse_complement(rc_text);
-								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, ioss_sync, qindex, r.read.length(), r.read_id, rc_text, text_id, backtrack, true));
+								anchored_ed = min(anchored_ed, seed_and_chain(seed_p, chain_p, io_p, ioss_sync, qindex, r.read.length(), r.read_id, rc_text, text_id, backtrack, true));
 							}
 							if (phylip_output_path != "") {
 								distances[r.read_i] = anchored_ed;
 							}
 						}
 						if (ioss_sync.cout.good()) ioss_sync.cout.emit();
-						if (ioss_sync.sam_out.good()) ioss_sync.sam_out.emit();
-						if (ioss_sync.paf_out.good()) ioss_sync.paf_out.emit();
-						if (ioss_sync.mummer_out.good()) ioss_sync.mummer_out.emit();
+						if (ioss_sync.sam_out.has_value() and ioss_sync.sam_out->good()) ioss_sync.sam_out->emit();
+						if (ioss_sync.paf_out.has_value() and ioss_sync.paf_out->good()) ioss_sync.paf_out->emit();
+						if (ioss_sync.mummer_out.has_value() and ioss_sync.mummer_out->good()) ioss_sync.mummer_out->emit();
 					}
 					if (final_check and stage_end) {
 						sync_point.arrive_and_wait(); // wait for other workers and reader_indexer
@@ -721,7 +728,8 @@ int main(int argc, char **argv)
 utils::anchor_index_t seed_and_chain(
 	const seeding_params &seed_p,
 	const chaining_params &chain_p,
-	io_streams_sync &ioss,
+	const io_params &io_p,
+	io_streams_sync &ioss_sync,
 	const mummer_essaMEM_wrapper::sparseSA &index,
 	const string::size_type text_length,
 	const string &text_id,
@@ -765,39 +773,44 @@ utils::anchor_index_t seed_and_chain(
 	const std::chrono::duration<double> main_chaining_time = std::chrono::steady_clock::now() - start;
 
 	start = std::chrono::steady_clock::now();
+	std::chrono::duration<double> backtrack_chaining_time;
 	vector<anchor_t> chain;
-	if (chain_p.chainx or (chain_p.chainx_optimal and chain_p.chainx_optimal_ensure_pred)) {
-		algo::chainx_backtrack(matches, costs, chain_p.mode, chain);
-	} else {
-		algo::weak_backtrack(matches, costs, chain_p.mode, chain);
+	if (backtrack) {
+		if (chain_p.chainx or (chain_p.chainx_optimal and chain_p.chainx_optimal_ensure_pred)) {
+			algo::chainx_backtrack(matches, costs, chain_p.mode, chain);
+		} else {
+			algo::weak_backtrack(matches, costs, chain_p.mode, chain);
+		}
+		backtrack_chaining_time = std::chrono::steady_clock::now() - start;
 	}
-	const std::chrono::duration<double> backtrack_chaining_time = std::chrono::steady_clock::now() - start;
 	const std::chrono::duration<double> query_time = std::chrono::steady_clock::now() - querystart;
 
 	// log chaining results
-	ioss.cout << text_id << "\t" << query_id + (is_query_rc ? "_rc" : "");
-	ioss.cout << "\t" << costs.back(); // anchored edit distance
-	ioss.cout << "\t" << found_anchors;
-	ioss.cout << "\t" << matches.size() - 2; // merged anchors
-	ioss.cout << "\t" << seeding_time;
-	ioss.cout << "\t" << preprocessing_time;
-	ioss.cout << "\t" << main_chaining_time;
-	if (backtrack) ioss.cout << "\t" << backtrack_chaining_time;
-	ioss.cout << "\t" << query_time;
-	ioss.cout << ((chain_p.chainx or chain_p.chainx_optimal) ? "\t" + to_string(chainx_revisions) : "");
-	ioss.cout << "\n";
+	ioss_sync.cout << text_id << "\t" << query_id + (is_query_rc ? "_rc" : "");
+	ioss_sync.cout << "\t" << costs.back(); // anchored edit distance
+	ioss_sync.cout << "\t" << found_anchors;
+	ioss_sync.cout << "\t" << matches.size() - 2; // merged anchors
+	ioss_sync.cout << "\t" << seeding_time;
+	ioss_sync.cout << "\t" << preprocessing_time;
+	ioss_sync.cout << "\t" << main_chaining_time;
+	if (backtrack) ioss_sync.cout << "\t" << backtrack_chaining_time;
+	ioss_sync.cout << "\t" << query_time;
+	ioss_sync.cout << ((chain_p.chainx or chain_p.chainx_optimal) ? "\t" + to_string(chainx_revisions) : "");
+	ioss_sync.cout << "\n";
 
-	if (ioss.sam_out.good() and chain.size() > 2) {
-		algo::write_SAM_entry(text_length, text_id, query, query_id, is_query_rc, chain_p.store_sam_sequence, chain, chain_p.mode, costs.back(), ioss.sam_out);
-	}
-	if (ioss.paf_out.good() and chain.size() > 2) {
-		algo::write_PAF_entry(text_length, text_id, query, query_id, is_query_rc, chain, chain_p.mode, costs.back(), ioss.paf_out);
-	}
-	if (ioss.mummer_out.good() and chain.size() > 2) {
-		ioss.mummer_out << ">" << query_id + "_rc" << " (Reference " << text_id << ")\n";
-		assert(chain.size() >= 2);
-		for (size_type i = 1; i < chain.size() - 1; i++) {
-			ioss.mummer_out << get<0>(chain[i])+1 << '\t' << get<1>(chain[i])+1 << '\t' << get<2>(chain[i])+1 << "\n";
+	if (backtrack) {
+		if (ioss_sync.sam_out.has_value() and ioss_sync.sam_out->good() and (!io_p.sam_hit_only or chain.size() > 2)) {
+			algo::write_SAM_entry(text_length, text_id, query, query_id, is_query_rc, io_p.store_sam_sequence, io_p.sam_hit_only, chain, chain_p.mode, costs.back(), *ioss_sync.sam_out);
+		}
+		if (ioss_sync.paf_out.has_value() and ioss_sync.paf_out->good() and chain.size() > 2) {
+			algo::write_PAF_entry(text_length, text_id, query, query_id, is_query_rc, io_p.paf_no_hit, chain, chain_p.mode, costs.back(), *ioss_sync.paf_out);
+		}
+		if (ioss_sync.mummer_out.has_value() and ioss_sync.mummer_out->good() and chain.size() > 2) {
+			*ioss_sync.mummer_out << ">" << query_id + "_rc" << " (Reference " << text_id << ")\n";
+			assert(chain.size() >= 2);
+			for (size_type i = 1; i < chain.size() - 1; i++) {
+				*ioss_sync.mummer_out << get<0>(chain[i])+1 << '\t' << get<1>(chain[i])+1 << '\t' << get<2>(chain[i])+1 << "\n";
+			}
 		}
 	}
 

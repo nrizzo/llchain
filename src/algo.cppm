@@ -128,6 +128,7 @@ export void write_SAM_entry(
 	const string &query_id,
 	const bool is_query_rc,
 	const bool store_SAM_sequence,
+	const bool hit_only,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
 	const ai_t anchored_ed,
@@ -143,6 +144,7 @@ export void write_PAF_entry(
 	const string &query,
 	const string &query_id,
 	const bool is_query_rc,
+	const bool no_hit,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
 	const ai_t anchored_ed,
@@ -837,18 +839,18 @@ void chainx_backtrack(
 		vector<anchor_t> &chain_out
 ) {
 	const ai_t n = anchors.size();
+	assert(n >= 2);
 	chain_out.clear();
 
-	if (costs[n-1] == numeric_limits<ai_t>::max())
+	if (costs[n-1] == numeric_limits<ai_t>::max() or
+	    (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1])) or
+	    (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1])) or
+	    (m == global_skipcost and costs[n-1] == costs[0] + (connect(anchors[0], anchors[n-1]) / 2)) or
+	    (m == semiglobal_skipcost and costs[n-1] == costs[0] + (connect_Qgap(anchors[0], anchors[n-1]) / 2))) {
+		chain_out.push_back(anchors[0]);
+		chain_out.push_back(anchors[n-1]);
 		return;
-	if (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1]))
-		return;
-	if (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1]))
-		return;
-	if (m == global_skipcost and costs[n-1] == costs[0] + (connect(anchors[0], anchors[n-1]) / 2))
-		return;
-	if (m == semiglobal_skipcost and costs[n-1] == costs[0] + (connect_Qgap(anchors[0], anchors[n-1]) / 2))
-		return;
+	}
 
 	ai_t i = n - 1;
 	chain_out.push_back(anchors[n-1]);
@@ -908,18 +910,18 @@ void weak_backtrack(
 		vector<anchor_t> &chain_out
 ) {
 	const ai_t n = anchors.size();
+	assert(n >= 2);
 	chain_out.clear();
 
-	if (costs[n-1] == numeric_limits<ai_t>::max())
+	if (costs[n-1] == numeric_limits<ai_t>::max() or
+	    (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1])) or
+	    (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1])) or
+	    (m == global_skipcost and costs[n-1] == costs[0] + (connect(anchors[0], anchors[n-1]) / 2)) or
+	    (m == semiglobal_skipcost and costs[n-1] == costs[0] + (connect_Qgap(anchors[0], anchors[n-1]) / 2))) {
+		chain_out.push_back(anchors[0]);
+		chain_out.push_back(anchors[n-1]);
 		return;
-	if (m == global and costs[n-1] == costs[0] + connect(anchors[0], anchors[n-1]))
-		return;
-	if (m == semiglobal and costs[n-1] == costs[0] + connect_Qgap(anchors[0], anchors[n-1]))
-		return;
-	if (m == global_skipcost and costs[n-1] == costs[0] + (connect(anchors[0], anchors[n-1]) / 2))
-		return;
-	if (m == semiglobal_skipcost and costs[n-1] == costs[0] + (connect_Qgap(anchors[0], anchors[n-1]) / 2))
-		return;
+	}
 
 	ai_t i = n - 1;
 	chain_out.push_back(anchors[n-1]);
@@ -1159,26 +1161,30 @@ void write_SAM_entry(
 	const string &query_id,
 	const bool is_query_rc,
 	const bool store_SAM_sequence,
+	const bool hit_only,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
 	const ai_t anchored_ed,
 	ostream &out
 ) {
-	assert(chain.size() > 2);
+	assert(chain.size() >= 2);
+	const bool unmapped = chain.size() == 2;
+	if (hit_only and unmapped) return;
 	out << query_id << '\t'; // QNAME
-	out << to_string(2 + (is_query_rc ? 16 : 0)) << "\t"; // FLAG
+	out << to_string(2 + (unmapped ? 4 : 0) + (is_query_rc ? 16 : 0)) << "\t"; // FLAG
 	out << text_id << '\t'; // RNAME
-	out << ((m == global or m == global_skipcost) ? 1 : get<0>(chain[1])+1) << '\t'; // POS
-	out << "30\t"; // MAPQ
-	write_cigar(text_length, query.length(), chain, m, out); // CIGAR
+	out << (unmapped ? 0 : ((m == global or m == global_skipcost) ? 1 : get<0>(chain[1])+1)) << '\t'; // POS
+	out << (unmapped ? 255 : 30) << "\t"; // MAPQ
+	if (!unmapped)
+		write_cigar(text_length, query.length(), chain, m, out); // CIGAR
+	else
+		out << '*';
 	out << '\t';
 	out << "*\t"; // RNEXT
 	out << "0\t"; // PNEXT
 	out << "0\t"; // TLEN
 	if (store_SAM_sequence) {
-		string original(query);
-		utils::reverse_complement(original);
-		out << original << '\t'; // SEQ
+		out << query << '\t'; // SEQ
 	} else {
 		out << '*' << '\t'; // SEQ
 	}
@@ -1194,30 +1200,41 @@ void write_PAF_entry(
 	const string &query,
 	const string &query_id,
 	const bool is_query_rc,
+	const bool no_hit,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
 	const ai_t anchored_ed,
 	ostream &out
 ) {
-	assert(chain.size() > 2);
-	const anchor_t first = chain[1]; // first non-dummy anchor
-	const anchor_t last = chain[chain.size() - 2]; // last non-dummy anchor
+	assert(chain.size() >= 2);
+	const bool unmapped = chain.size() == 2;
+	if (unmapped and !no_hit) return;
 
 	out <<         query_id; // QNAME
 	out << "\t" << query.length(); // QLENGTH
-	out << "\t" << 0; // QSTART (0-based)
-	out << "\t" << query.length(); // QEND (0-based, open)
-	out << "\t" << (is_query_rc ? "-" : "+"); // STRAND
-	out << "\t" << text_id; // TNAME
-	out << "\t" << text_length; // TLENGTH
-	out << "\t" << ((m == semiglobal or m == semiglobal_skipcost) ? to_string(get<0>(first)) : "0"); // TSTART (0-based, original strand)
-	out << "\t" << ((m == semiglobal or m == semiglobal_skipcost) ? to_string(get<0>(last) + get<2>(last)) : to_string(text_length)); // TEND (0-based, open, original strand)
-	const auto [mut_cov, aln_len] = chain_stats(chain, m);
-	out << "\t" << mut_cov; // MATCHES
-	out << "\t" << aln_len; // ALIGNMENTLEN
-	out << "\t" << 255; // QUAL
-	out << "\t" << "cg:Z:"; write_cigar(text_length, query.length(), chain, m, out); // CIGAR
-	out << "\n";
+	if (unmapped) {
+		out << '\t' << 0; // QSTART
+		out << '\t' << 0; // QEND
+		out << '\t' << '*'; // STRAND
+		out << '\t' << '*'; // TNAME
+		out << "\t0\t0\t0\t0\t0\t0\n";
+	} else {
+		out << '\t' << 0; // QSTART (0-based)
+		out << '\t' << query.length(); // QEND (0-based, open)
+		out << '\t' << (is_query_rc ? '-' : '+'); // STRAND
+		out << '\t' << text_id; // TNAME
+		out << '\t' << text_length; // TLENGTH
+		const anchor_t first = chain[1]; // first non-dummy anchor
+		const anchor_t last = chain[chain.size() - 2]; // last non-dummy anchor
+		out << '\t' << ((m == semiglobal or m == semiglobal_skipcost) ? to_string(get<0>(first)) : "0"); // TSTART (0-based, original strand)
+		out << '\t' << ((m == semiglobal or m == semiglobal_skipcost) ? to_string(get<0>(last) + get<2>(last)) : to_string(text_length)); // TEND (0-based, open, original strand)
+		const auto [mut_cov, aln_len] = chain_stats(chain, m);
+		out << '\t' << mut_cov; // MATCHES
+		out << '\t' << aln_len; // ALIGNMENTLEN
+		out << '\t' << 255; // QUAL
+		out << '\t' << "cg:Z:"; write_cigar(text_length, query.length(), chain, m, out); // CIGAR
+		out << '\n';
+	}
 }
 
 } // namespace algo
