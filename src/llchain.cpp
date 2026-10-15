@@ -802,7 +802,7 @@ utils::anchor_index_t seed_and_chain(
 		if (ioss_sync.sam_out.has_value() and ioss_sync.sam_out->good() and (!io_p.sam_hit_only or chain.size() > 2)) {
 			algo::write_SAM_entry(text_length, text_id, query, query_id, is_query_rc, io_p.store_sam_sequence, io_p.sam_hit_only, chain, chain_p.mode, costs.back(), *ioss_sync.sam_out);
 		}
-		if (ioss_sync.paf_out.has_value() and ioss_sync.paf_out->good() and chain.size() > 2) {
+		if (ioss_sync.paf_out.has_value() and ioss_sync.paf_out->good() and (io_p.paf_no_hit or chain.size() > 2)) {
 			algo::write_PAF_entry(text_length, text_id, query, query_id, is_query_rc, io_p.paf_no_hit, chain, chain_p.mode, costs.back(), *ioss_sync.paf_out);
 		}
 		if (ioss_sync.mummer_out.has_value() and ioss_sync.mummer_out->good() and chain.size() > 2) {
