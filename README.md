@@ -1,23 +1,25 @@
 # `llchain` — log-linear chaining with L∞ gap costs and Δdiag overlap costs
-`llchain` is a C++20 program to compute the anchored edit distance between query and reference DNA sequences in O(n log n) time, where n is the number of input anchors (currently MUMs or MEMs). The program is built on the same tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX), it supports (gzipped) FASTA input, computes maximal unique/exact anchors, and can output the optimal chains in MUMmer-like, SAM, or PAF format.
+![Figure: a 2D example and two cost diagrams of chaining with L∞ gap costs and Δdiag overlap costs](docs/costs.svg)
 
-Right now, `llchain` has been only tested with GCC versions 15 and 16. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
+`llchain` is a C++20 program to compute the anchored edit distance between query and reference DNA sequences in O(n log n) time, where n is the number of input anchors (currently MUMs or MEMs). It supports gzipped FASTA input, computes maximal unique/exact anchors, and can output the optimal chains in SAM and PAF format.
+
+Right now, `llchain` has been only tested with the latest GCC version 16. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
 ```sh
 git clone https://github.com/nrizzo/llchain && cd llchain
 git submodule update --init ext/mummer ext/CLI11 ext/concurrentqueue
 (git submodule update --init --recursive ext/htslib && cd ext/htslib && autoreconf -i && ./configure && make -j$(nproc)) # if HTSlib + headers are not installed in your system
 make -j $(nproc)
-./llchain --text test/T1.fasta --query test/T2.fasta --sam test/out.sam | column -t
+./llchain --text test/T1.fasta --query test/T2.fasta --paf test/out.paf | column -t
 ./llchain --all-to-all --text test/Q.fasta --phylip test/out.phylip | column -t
 ```
 
 ## Experiments
-To run the experiment on HG002 PacBio HiFi reads aligned to the T2T-CHM13 reference, check [`experiments/ChainX-human/README.md`](experiments/ChainX-human/README.md). The results, where we compare the chaining cost of `llchain` to [`ChainX`](https://github.com/at-cg/ChainX) and [`ChainX-opt`](https://github.com/algbio/ChainX) on maximal exact match anchors of length >= 50, are shown in the next figure.
+To run the experiment on HG002 PacBio HiFi reads chained to the T2T-CHM13 reference, check [`experiments/ChainX-human/README.md`](experiments/ChainX-human/README.md). The results, where we compare the chaining cost of `llchain` to [`ChainX`](https://github.com/at-cg/ChainX) and [`ChainX-opt`](https://github.com/algbio/ChainX) on maximal exact match anchors of length >= 50, are shown in the next figure.
 
 ![Figure: results of the chaining experiment](experiments/ChainX-human/plot.svg)
 
 ## External libraries
-`llchain` is built with the following libraries:
+`llchain` is built on the same tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX) and uses the following libraries:
 
 - [HTSlib](https://github.com/samtools/htslib) and [kseq](https://github.com/lh3/seqtk) for FASTA parsing
 - [mummer (essaMEM)](https://github.com/mummer4/mummer.git) for seed finding
@@ -26,13 +28,16 @@ To run the experiment on HG002 PacBio HiFi reads aligned to the T2T-CHM13 refere
 - [grid_to_bmp](https://people.sc.fsu.edu/~jburkardt/cpp_src/grid_to_bmp/grid_to_bmp.html) for debugging
 
 ## Citation
+- **Nicola Rizzo, Ragnar Groot Koerkamp**. "[Revisiting O(n log log n) Chaining for Anchored Edit Distance](https://doi.org/10.4230/LIPIcs.WABI.2026.13)". *WABI 2026*.
 If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding works:
 - **Chirag Jain, Daniel Gibney and Sharma Thankachan**. "[Algorithms for Colinear Chaining with Overlaps and Gap Costs](https://doi.org/10.1089/cmb.2022.0266)". *Journal of Computational Biology*, 2022.
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.
 
 ## TODOs
+- GCC 15
 - primary alignment TAG
 - PAF input
 - clang
 - investigate sorting
 - investigate predecessor data structures
+- `--fast` mode
