@@ -3,7 +3,7 @@
 
 `llchain` is a C++20 program to compute the anchored edit distance between query and reference DNA sequences in O(n log n) time, where n is the number of input anchors (currently MUMs or MEMs). It supports gzipped FASTA input, computes maximal unique/exact anchors, and can output the optimal chains in SAM and PAF format.
 
-Right now, `llchain` has been only tested with the latest GCC version 16. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
+Right now, `llchain` has been only tested with the latest GCC versions 15 and 16. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
 ```sh
 git clone https://github.com/nrizzo/llchain && cd llchain
 git submodule update --init ext/mummer ext/CLI11 ext/concurrentqueue
@@ -34,7 +34,6 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.
 
 ## TODOs
-- GCC 15
 - primary alignment TAG
 - PAF input
 - clang

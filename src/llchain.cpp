@@ -75,7 +75,7 @@ struct io_streams_sync {
 	optional<osyncstream> paf_out;
 	optional<osyncstream> mummer_out;
 };
-struct read {
+struct s_read {
 	string read;
 	string read_id;
 };
@@ -330,8 +330,8 @@ int main(int argc, char **argv)
 
 		latch reader_done(1);
 		// different queues for normal/short queries (reads) and longer queries (assemblies)
-		moodycamel::ConcurrentQueue<read> read_queue(3*qthreads, 1, 1);
-		moodycamel::ConcurrentQueue<read,assembly_traits> assembly_queue(1, 1, 1);
+		moodycamel::ConcurrentQueue<s_read> read_queue(3*qthreads, 1, 1);
+		moodycamel::ConcurrentQueue<s_read,assembly_traits> assembly_queue(1, 1, 1);
 		auto reader_thread = jthread([&]() {
 			kseq::FastaGzInput fgz(query_path);
 			string query_id, query;
@@ -351,7 +351,7 @@ int main(int argc, char **argv)
 		vector<jthread> seed_chain_workers(qthreads);
 		for (int i = 0; i < qthreads; i++) {
 			seed_chain_workers[i] = jthread([&]() {
-				read r;
+				s_read r;
 				bool final_check = false;
 				io_streams_sync ioss_sync{
 					osyncstream(cout),
@@ -428,8 +428,8 @@ int main(int argc, char **argv)
 		}
 
 		// different queues for normal/short queries (reads) and longer queries (assemblies)
-		moodycamel::ConcurrentQueue<read> read_queue(3*qthreads, 1, 1);
-		moodycamel::ConcurrentQueue<read,assembly_traits> assembly_queue(1, 1, 1);
+		moodycamel::ConcurrentQueue<s_read> read_queue(3*qthreads, 1, 1);
+		moodycamel::ConcurrentQueue<s_read,assembly_traits> assembly_queue(1, 1, 1);
 		barrier sync_point(1 + qthreads); // to sync reader_indexer and seed_chain workers
 		atomic<bool> stage_end(false);
 		string text(""), text_id("");
@@ -485,7 +485,7 @@ int main(int argc, char **argv)
 		vector<jthread> seed_chain_workers(qthreads);
 		for (int i = 0; i < qthreads; i++) {
 			seed_chain_workers[i] = jthread([&]() {
-				read r;
+				s_read r;
 				bool final_check = false;
 				io_streams_sync ioss_sync{
 					osyncstream(cout),
