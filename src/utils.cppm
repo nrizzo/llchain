@@ -1,5 +1,14 @@
+module;
+#if defined(__clang__)
+#include <cassert>
+#include <bits/stdint-uintn.h>
+#endif
+
 export module utils; // this module
 
+#if defined(__clang__)
+import std;
+#else
 import <vector>;
 import <tuple>;
 import <random>;
@@ -10,6 +19,8 @@ import <string>;
 import <sstream>;
 import <array>;
 import <cassert>;
+import <cmath>;
+#endif
 import grid_to_bmp;
 
 using std::vector;
@@ -21,6 +32,7 @@ using std::ifstream;
 using std::getline;
 using std::string, std::istringstream;
 using std::array;
+using std::abs;
 using grid_to_bmp::Color, grid_to_bmp::BmpImage; // grid_to_bmp
 
 namespace llchain::utils {
@@ -32,26 +44,26 @@ export enum precedence { chainx_p, weak_p };
 export namespace defaults
 {
 	// basic colors and a palette
-	const Color selected_anchor_color(255, 0, 0);
-	const Color anchor_color(0, 0, 0);
+	const Color selected_anchor_color((char)255, (char)0, (char)0);
+	const Color anchor_color((char)0, (char)0, (char)0);
 	const vector<Color> palette = {
-		Color(213,  94,   0), // Rusty orange
-		Color(  0, 158, 115), // Bluish green
-		Color(  0, 114, 178), // Bluish
-		Color(240, 228,  66), // Dirty yellow
-		Color(230, 159,   0), // Squash
-		Color( 86, 180, 233), // Sky
-		Color(204, 121, 167), // Dull pink
-		Color(225, 156, 137), // Pinkish tan
-		Color(137, 189, 165), // Pale teal
-		Color(137, 165, 201), // Slate blue
-		Color(244, 235, 147), // Dark cream
-		Color(237, 189, 137), // Fawn
-		Color(139,  61,   0), // Sienna
-		Color(  0, 103,  75), // Spruce
-		Color(  0,  74, 116), // Deep sea blue
-		Color(185, 173,  14), // Muddy yellow
-		Color(150, 103,   0), // Poo brown
+		Color((char)213, (char) 94, (char)  0), // Rusty orange
+		Color((char)  0, (char)158, (char)115), // Bluish green
+		Color((char)  0, (char)114, (char)178), // Bluish
+		Color((char)240, (char)228, (char) 66), // Dirty yellow
+		Color((char)230, (char)159, (char)  0), // Squash
+		Color((char) 86, (char)180, (char)233), // Sky
+		Color((char)204, (char)121, (char)167), // Dull pink
+		Color((char)225, (char)156, (char)137), // Pinkish tan
+		Color((char)137, (char)189, (char)165), // Pale teal
+		Color((char)137, (char)165, (char)201), // Slate blue
+		Color((char)244, (char)235, (char)147), // Dark cream
+		Color((char)237, (char)189, (char)137), // Fawn
+		Color((char)139, (char) 61, (char)  0), // Sienna
+		Color((char)  0, (char)103, (char) 75), // Spruce
+		Color((char)  0, (char) 74, (char)116), // Deep sea blue
+		Color((char)185, (char)173, (char) 14), // Muddy yellow
+		Color((char)150, (char)103, (char)  0), // Poo brown
 	};
 
 	// constants for anchor generation

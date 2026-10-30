@@ -9,9 +9,13 @@ module;
 
 export module grid_to_bmp;
 
+#if defined(__clang__)
+import std;
+#else
 import <iostream>;
 import <vector>;
 import <fstream>;
+#endif
 
 export namespace grid_to_bmp {
 

@@ -3,7 +3,7 @@
 
 `llchain` is a C++20 program to compute the anchored edit distance between query and reference DNA sequences in O(n log n) time, where n is the number of input anchors (currently MUMs or MEMs). It supports gzipped FASTA input, computes maximal unique/exact anchors, and can output the optimal chains in SAM and PAF format.
 
-Right now, `llchain` has been only tested with the latest GCC versions 15 and 16. Get the repository, compile the HTSlib dependency, and build `llchain` with commands
+Get the repository, optionally compile the HTSlib dependency, and build `llchain` with commands
 ```sh
 git clone https://github.com/nrizzo/llchain && cd llchain
 git submodule update --init ext/mummer ext/CLI11 ext/concurrentqueue
@@ -12,6 +12,7 @@ make -j $(nproc)
 ./llchain --text test/T1.fasta --query test/T2.fasta --paf test/out.paf | column -t
 ./llchain --all-to-all --text test/Q.fasta --phylip test/out.phylip | column -t
 ```
+Right now, `llchain` has been tested with GCC 15/16 and Clang 23, and the Makefile is compatible with both (if more than one compiler is installed on your system, pick the one you want as follows: `CXX=clang++ make -j $(nproc)`).
 
 ## Experiments
 To run the experiment on HG002 PacBio HiFi reads chained to the T2T-CHM13 reference, check [`experiments/ChainX-human/README.md`](experiments/ChainX-human/README.md). The results, where we compare the chaining cost of `llchain` to [`ChainX`](https://github.com/at-cg/ChainX) and [`ChainX-opt`](https://github.com/algbio/ChainX) on maximal exact match anchors of length >= 50, are shown in the next figure.
@@ -19,7 +20,7 @@ To run the experiment on HG002 PacBio HiFi reads chained to the T2T-CHM13 refere
 ![Figure: results of the chaining experiment](experiments/ChainX-human/plot.svg)
 
 ## External libraries
-`llchain` is built on the same tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX) and uses the following libraries:
+`llchain` is built on a similar tech stack as [`at-cg/ChainX`](https://github.com/at-cg/ChainX) and uses the following libraries:
 
 - [HTSlib](https://github.com/samtools/htslib) and [kseq](https://github.com/lh3/seqtk) for FASTA parsing
 - [mummer (essaMEM)](https://github.com/mummer4/mummer.git) for seed finding
@@ -36,7 +37,6 @@ If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding wor
 ## TODOs
 - primary alignment TAG
 - PAF input
-- clang
 - investigate sorting
 - investigate predecessor data structures
 - `--fast` mode

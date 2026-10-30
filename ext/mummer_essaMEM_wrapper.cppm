@@ -4,9 +4,13 @@ module;
 #include "sssort_compact.cc"   // mummer/include/essaMEM
 export module mummer_essaMEM_wrapper;
 
+#if defined(__clang__)
+import std;
+#else
 import <vector>;
 import <string>;
 import <tuple>;
+#endif
 using std::vector;
 using std::string;
 using std::tuple;

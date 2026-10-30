@@ -32,11 +32,15 @@ module;
 
 export module kseq;
 
+#if defined(__clang__)
+import std;
+#else
 import <string>;
 import <vector>;
 import <cassert>;
 import <iostream>;
 import <tuple>;
+#endif
 
 using std::string;
 using std::vector;

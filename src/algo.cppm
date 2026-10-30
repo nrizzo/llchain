@@ -1,5 +1,13 @@
+module;
+#if defined(__clang__)
+#include <cassert>
+#endif
+
 export module algo;
 
+#if defined(__clang__)
+import std;
+#else
 import <vector>;
 import <tuple>;
 import <algorithm>; // std::sort
@@ -12,6 +20,7 @@ import <numeric>; // std::iota
 import <sstream>;
 import <string>;
 import <iterator>;
+#endif
 import utils;
 import MinSegmentTree;
 

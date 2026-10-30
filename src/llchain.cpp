@@ -1,11 +1,20 @@
 #ifndef VERSION
 #define VERSION "GitHub"
 #endif
+#ifndef COMPILER
+#define COMPILER "unknown compiler"
+#endif
 
-module;
+#if defined(__clang__)
+#include <cassert>
+#else
 #include <chrono> // fix for GCC 15.2.1
+#endif
 #include "concurrentqueue.h"
 
+#if defined(__clang__)
+import std;
+#else
 import <iostream>;
 import <string>;
 import <sstream>;
@@ -22,6 +31,7 @@ import <cassert>;
 import <optional>;
 import <atomic>;
 import <algorithm>;
+#endif
 import utils;
 import algo;
 import kseq;
@@ -115,7 +125,7 @@ int main(int argc, char **argv)
 	// ### CLI setup ###
 	CLI::App app("Log-linear chaining to compute the anchored edit distance", "llchain");
 	app.usage("Usage: llchain [-t ref.fa] [-q queries.fa] [-a {MUM,MEM}] [-m {global,global-sc,semiglobal,semiglobal-sc}] [OPTIONS]");
-	app.set_version_flag("--version", "llchain version " + string(VERSION));
+	app.set_version_flag("--version", "llchain version " + string(VERSION) + " (" + string(COMPILER) + ")");
 	string text_path {""}, query_path {""};
 	auto t_opt = app.add_option("-t,--text", text_path, "One or more DNA reference sequences in FASTA format (.fa,.fa.gz)")
 		->check(CLI::ExistingFile);

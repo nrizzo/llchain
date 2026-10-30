@@ -1,9 +1,18 @@
+module;
+#if defined(__clang__)
+#include <cassert>
+#endif
+
 export module MinSegmentTree; // this module
 
+#if defined(__clang__)
+import std;
+#else
 import <vector>;
 import <algorithm>;
 import <limits>;
 import <cassert>;
+#endif
 import utils;
 
 using std::vector;

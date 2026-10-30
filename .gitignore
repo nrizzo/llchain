@@ -2,6 +2,7 @@ llchain
 *.bmp
 
 gcm.cache
+clang.cache
 makefile.cache
 *.o
 

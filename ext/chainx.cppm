@@ -1,8 +1,16 @@
 // adaptation of github.com/algbio/ChainX to C++ module
 // TODO copyright
 // TODO upstream modifications
+module;
+#if defined(__clang__)
+#include <cassert>
+#endif
+
 export module chainx;
 
+#if defined(__clang__)
+import std;
+#else
 import <vector>;
 import <string>;
 import <tuple>;
@@ -11,6 +19,7 @@ import <iostream>;
 import <cmath>;
 import <numeric>;
 import <cassert>;
+#endif
 
 using std::vector;
 using std::string;

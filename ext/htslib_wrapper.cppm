@@ -1,14 +1,23 @@
 module;
-#include <chrono> // fix for GCC 15.2.1
 #include <htslib/sam.h>
 #include <htslib/faidx.h>
 #include <htslib/bgzf.h>
+#if defined(__clang__)
+#include <cassert>
+#else
+#include <chrono> // fix for GCC 15.2.1
+#endif
+
 export module htslib_wrapper;
 
+#if defined(__clang__)
+import std;
+#else
 import <filesystem>;
 import <iostream>;
 import <string>;
 import <cassert>;
+#endif
 
 using std::chrono::high_resolution_clock, std::chrono::duration_cast, std::chrono::milliseconds;
 using std::filesystem::path, std::filesystem::exists, std::filesystem::last_write_time, std::filesystem::remove;
