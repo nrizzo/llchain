@@ -12,7 +12,7 @@ make -j $(nproc)
 ./llchain --text test/T1.fasta --query test/T2.fasta --paf test/out.paf | column -t
 ./llchain --all-to-all --text test/Q.fasta --phylip test/out.phylip | column -t
 ```
-Right now, `llchain` has been tested with GCC 15/16 and Clang 23, and the Makefile is compatible with both (if more than one compiler is installed on your system, pick the one you want as follows: `CXX=clang++ make -j $(nproc)`).
+Right now, `llchain` has been tested with GCC 15/16 and Clang 18/23, and the Makefile is compatible with both. If more than one compiler is installed on your system, pick the one you want as follows: `CXX=clang++ make -j $(nproc)` (remember to delete the artifacts with `make clean`).
 
 ## Experiments
 To run the experiment on HG002 PacBio HiFi reads chained to the T2T-CHM13 reference, check [`experiments/ChainX-human/README.md`](experiments/ChainX-human/README.md). The results, where we compare the chaining cost of `llchain` to [`ChainX`](https://github.com/at-cg/ChainX) and [`ChainX-opt`](https://github.com/algbio/ChainX) on maximal exact match anchors of length >= 50, are shown in the next figure.
@@ -30,6 +30,7 @@ To run the experiment on HG002 PacBio HiFi reads chained to the T2T-CHM13 refere
 
 ## Citation
 - **Nicola Rizzo, Ragnar Groot Koerkamp**. "[Revisiting O(n log log n) Chaining for Anchored Edit Distance](https://doi.org/10.4230/LIPIcs.WABI.2026.13)". *WABI 2026*.
+
 If you use flags `--chainx` or `--chainx-opt`, please cite the corresponding works:
 - **Chirag Jain, Daniel Gibney and Sharma Thankachan**. "[Algorithms for Colinear Chaining with Overlaps and Gap Costs](https://doi.org/10.1089/cmb.2022.0266)". *Journal of Computational Biology*, 2022.
 - **Nicola Rizzo, Manuel Cáceres, and Veli Mäkinen**. "[Practical colinear chaining on sequences revisited](https://doi.org/10.1007/978-981-95-0695-8_17)" ([arXiv](https://doi.org/10.48550/arXiv.2506.11750)). *ISBRA 2025*.

@@ -8,12 +8,12 @@ HTSLIB_CFLAGS=-L $(HTSLIB_LIB) -lhts -Wl,-rpath $(HTSLIB_LIB)
 LDFLAGS=-lz
 CXXFLAGS=-std=c++20 -O3 -flto -march=native -DNDEBUG -Wall
 GCC_CXXFLAGS=-fmodules
-CLANG_CXXFLAGS=-stdlib=libc++ -fexperimental-library -fprebuilt-module-path=clang.cache
+CLANG_CXXFLAGS=-Wno-deprecated -stdlib=libc++ -fexperimental-library -fprebuilt-module-path=clang.cache
 
 ifneq '' '$(findstring clang,$(COMPILER))'
 	CXXFLAGS += $(CLANG_CXXFLAGS)
 	CLANG_CACHE=clang.cache
-	CLANG_STDMODULE=clang.cache/std.pcm
+	CLANG_STDMODULE=clang.cache/std.o
 	CLANG_STD_MANIFEST=$(shell $(CXX) -stdlib=libc++ -print-file-name=libc++.modules.json)
 	CLANG_STDMODULE_CPPM=$(realpath $(dir $(CLANG_STD_MANIFEST))/$(shell cat "$(CLANG_STD_MANIFEST)" | jq -r '.modules[] | select(.["logical-name"] == "std") | .["source-path"]'))
 	STDMODULES_FILES=$(CLANG_STDMODULE)
@@ -31,7 +31,7 @@ endif
 
 .PHONY : clean
 
-LLCHAIN_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o ext/cli11.o ext/htslib_wrapper.o
+LLCHAIN_OBJS=src/utils.o src/MinSegmentTree.o src/algo.o ext/grid_to_bmp.o ext/mummer_essaMEM_wrapper.o ext/kseq.o ext/chainx.o ext/cli11.o ext/htslib_wrapper.o $(CLANG_STDMODULE)
 llchain : src/llchain.cpp $(LLCHAIN_OBJS) $(STDMODULES_FILES)
 	$(CXX) -I ext/concurrentqueue $(CXXFLAGS) $(EXTRA_CXXFLAGS) $(HTSLIB_CFLAGS) -DVERSION="\"$(VERSION)\"" -DCOMPILER="\"$(COMPILER)\"" $< $(LLCHAIN_OBJS) -o llchain $(LDFLAGS)
 
@@ -42,7 +42,7 @@ src/algo.o : src/algo.cppm src/utils.o src/MinSegmentTree.o $(STDMODULES_FILES)
 src/MinSegmentTree.o : src/MinSegmentTree.cppm src/utils.o $(STDMODULES_FILES)
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(CXXFLAGS_MODULE)
 CLI11_INCL=ext/CLI11/include
-ext/cli11.o : ext/CLI11/src/modules/CLI11.cppm $(shell find $(CLI11_INCL) -name *.hpp)
+ext/cli11.o : ext/CLI11/src/modules/CLI11.cppm $(shell find $(CLI11_INCL) -name *.hpp) $(STDMODULES_FILES)
 	$(CXX) $(CXXFLAGS) -I $(CLI11_INCL) -c $< -o $@ $(CXXFLAGS_MODULE)
 ext/grid_to_bmp.o : ext/grid_to_bmp.cppm $(STDMODULES_FILES)
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(CXXFLAGS_MODULE)
@@ -65,7 +65,7 @@ $(STDMODULES_FAKEFILES) :
 	touch $@
 $(CLANG_STDMODULE) :
 	mkdir -p clang.cache
-	$(CXX) $(CXXFLAGS) -Wno-reserved-module-identifier -c $(CLANG_STDMODULE_CPPM) -o $(basename $@).o -fmodule-output=$@
+	$(CXX) $(CXXFLAGS) -Wno-reserved-module-identifier -c $(CLANG_STDMODULE_CPPM) -o $@ -fmodule-output=$(basename $@).pcm
 
 clean :
 	-rm -f $(LLCHAIN_OBJS)
