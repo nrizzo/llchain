@@ -12,7 +12,7 @@ make -j $(nproc)
 ./llchain --text test/T1.fasta --query test/T2.fasta --paf test/out.paf | column -t
 ./llchain --all-to-all --text test/Q.fasta --phylip test/out.phylip | column -t
 ```
-Right now, `llchain` has been tested with GCC 15/16 and Clang 18/23, and the Makefile is compatible with both. If more than one compiler is installed on your system, pick the one you want as follows: `CXX=clang++ make -j $(nproc)` (remember to delete the artifacts with `make clean`).
+Right now, `llchain` has been tested with GCC 15/16 and Clang 18/23, and the Makefile is compatible with both. If more than one compiler is installed on your system, pick the one you want as follows: `CXX=clang++ make -j $(nproc)` (remember to delete the artifacts with `make clean` first).
 
 ## Experiments
 To run the experiment on HG002 PacBio HiFi reads chained to the T2T-CHM13 reference, check [`experiments/ChainX-human/README.md`](experiments/ChainX-human/README.md). The results, where we compare the chaining cost of `llchain` to [`ChainX`](https://github.com/at-cg/ChainX) and [`ChainX-opt`](https://github.com/algbio/ChainX) on maximal exact match anchors of length >= 50, are shown in the next figure.
