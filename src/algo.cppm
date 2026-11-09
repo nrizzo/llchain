@@ -136,6 +136,7 @@ export void write_SAM_entry(
 	const string &query,
 	const string &query_id,
 	const bool is_query_rc,
+	const bool is_primary,
 	const bool store_SAM_sequence,
 	const bool hit_only,
 	const vector<anchor_t> &chain,
@@ -153,6 +154,7 @@ export void write_PAF_entry(
 	const string &query,
 	const string &query_id,
 	const bool is_query_rc,
+	const bool is_primary,
 	const bool no_hit,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
@@ -1169,6 +1171,7 @@ void write_SAM_entry(
 	const string &query,
 	const string &query_id,
 	const bool is_query_rc,
+	const bool is_primary,
 	const bool store_SAM_sequence,
 	const bool hit_only,
 	const vector<anchor_t> &chain,
@@ -1180,7 +1183,7 @@ void write_SAM_entry(
 	const bool unmapped = chain.size() == 2;
 	if (hit_only and unmapped) return;
 	out << query_id << '\t'; // QNAME
-	out << to_string(2 + (unmapped ? 4 : 0) + (is_query_rc ? 16 : 0)) << "\t"; // FLAG
+	out << to_string(2 + (unmapped ? 4 : 0) + (is_query_rc ? 16 : 0) + (!is_primary ? 256 : 0)) << "\t"; // FLAG
 	out << text_id << '\t'; // RNAME
 	out << (unmapped ? 0 : ((m == global or m == global_skipcost) ? 1 : get<0>(chain[1])+1)) << '\t'; // POS
 	out << (unmapped ? 255 : 30) << "\t"; // MAPQ
@@ -1209,6 +1212,7 @@ void write_PAF_entry(
 	const string &query,
 	const string &query_id,
 	const bool is_query_rc,
+	const bool is_primary,
 	const bool no_hit,
 	const vector<anchor_t> &chain,
 	const chaining_mode m,
@@ -1226,7 +1230,9 @@ void write_PAF_entry(
 		out << '\t' << 0; // QEND
 		out << '\t' << '*'; // STRAND
 		out << '\t' << '*'; // TNAME
-		out << "\t0\t0\t0\t0\t0\t0\n";
+		out << "\t0\t0\t0\t0\t0\t0";
+		out << ((is_primary) ? ("\ttp:A:P") : ("\ttp:A:S"));
+		out << '\n';
 	} else {
 		out << '\t' << 0; // QSTART (0-based)
 		out << '\t' << query.length(); // QEND (0-based, open)
@@ -1242,6 +1248,8 @@ void write_PAF_entry(
 		out << '\t' << aln_len; // ALIGNMENTLEN
 		out << '\t' << 255; // QUAL
 		out << '\t' << "cg:Z:"; write_cigar(text_length, query.length(), chain, m, out); // CIGAR
+		out << "\tNM:i:" << anchored_ed; // NM TAG
+		out << ((is_primary) ? ("\ttp:A:P") : ("\ttp:A:S"));
 		out << '\n';
 	}
 }
